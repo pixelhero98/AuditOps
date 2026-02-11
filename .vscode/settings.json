@@ -1,0 +1,15 @@
+{
+    // Black 格式化
+    "python.analysis.autoImportCompletions": true,
+    "editor.defaultFormatter": "ms-python.black-formatter",
+    "editor.formatOnSave": true,
+
+    // isort 排序（如果需要）
+    "isort.args": ["--profile", "black"],
+
+    // 保存时自动整理 import
+    "editor.codeActionsOnSave": {
+        "source.organizeImports": "explicit"
+    },
+
+}
