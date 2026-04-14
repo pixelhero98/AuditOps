@@ -22,53 +22,23 @@ python -m pip install -e .[retrieval]
 Corpus bootstrap:
 
 ```bash
-auditops build-manifest --constituents sp500_snapshot.csv --corpus-root /projects/b35z/AuditOps/corpora/sp500_latest_2026-03-20 --snapshot-date 2026-03-20
-auditops download-filings --corpus-root /projects/b35z/AuditOps/corpora/sp500_latest_2026-03-20
-auditops ingest-corpus --corpus-root /projects/b35z/AuditOps/corpora/sp500_latest_2026-03-20
-auditops generate-corpus-datasets --corpus-root /projects/b35z/AuditOps/corpora/sp500_latest_2026-03-20
-auditops eval-corpus --corpus-root /projects/b35z/AuditOps/corpora/sp500_latest_2026-03-20
+auditops build-manifest --constituents sp500_snapshot.csv --corpus-root /path/to/corpora/sp500_latest_2026-03-20 --snapshot-date 2026-03-20
+auditops download-filings --corpus-root /path/to/corpora/sp500_latest_2026-03-20
+auditops ingest-corpus --corpus-root /path/to/corpora/sp500_latest_2026-03-20
+auditops generate-corpus-datasets --corpus-root /path/to/corpora/sp500_latest_2026-03-20
+auditops eval-corpus --corpus-root /path/to/corpora/sp500_latest_2026-03-20
 ```
 
 UK corpus foundation:
 
 ```bash
-auditops build-uk-manifest --constituents ftse100_snapshot.csv --corpus-root /projects/b35z/AuditOps/corpora/uk_ftse100_nsm_latest_2026-03-21 --snapshot-date 2026-03-21
-auditops download-uk-filings --corpus-root /projects/b35z/AuditOps/corpora/uk_ftse100_nsm_latest_2026-03-21
+auditops build-uk-manifest --constituents ftse100_snapshot.csv --corpus-root /path/to/corpora/uk_ftse100_nsm_latest_2026-03-21 --snapshot-date 2026-03-21
+auditops download-uk-filings --corpus-root /path/to/corpora/uk_ftse100_nsm_latest_2026-03-21
 ```
 
-## Isambard3
+## Environment
 
-`AuditOps` is validated on Isambard with `cray-python/3.11.7` and a shared venv rooted under `/projects/b35z/AuditOps/envs`.
-
-Typical workflow:
-
-```bash
-source scripts/isambard_activate_env.sh
-```
-
-First-time setup inside a Slurm allocation on `hopper`:
-
-```bash
-srun --partition=hopper --gpus=1 --time=00:30:00 --pty /bin/bash --login
-bash scripts/isambard_setup_env.sh
-```
-
-Reusable validation job:
-
-```bash
-sbatch scripts/slurm/isambard_dev_check.sbatch
-```
-
-Reusable corpus smoke job:
-
-```bash
-export AUDITOPS_CORPUS_ROOT=/projects/b35z/AuditOps/corpora/sp500_latest_2026-03-20_smoke
-export AUDITOPS_CONSTITUENTS_CSV=/projects/b35z/AuditOps/corpora/sp500_latest_2026-03-20_smoke/input/sp500_pilot.csv
-export AUDITOPS_SNAPSHOT_DATE=2026-03-20
-sbatch scripts/slurm/isambard_corpus_smoke.sbatch
-```
-
-The helper scripts automatically keep durable assets under `/projects/b35z/AuditOps` and caches / logs / temp files under `$SCRATCHDIR/AuditOps`.
+`AuditOps` works as a normal Python package. Create a virtual environment, install the editable package plus the extras you need, and choose corpus/output paths that fit your local or cluster setup.
 
 ## Main Commands
 
