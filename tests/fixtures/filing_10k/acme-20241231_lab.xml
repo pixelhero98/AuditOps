@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<link:linkbase xmlns:link="http://www.xbrl.org/2003/linkbase" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <link:labelLink xlink:type="extended" xlink:role="http://www.xbrl.org/2003/role/link">
+    <link:loc xlink:type="locator" xlink:href="acme-20241231.xsd#us-gaap_Assets" xlink:label="loc_assets"/>
+    <link:loc xlink:type="locator" xlink:href="acme-20241231.xsd#us-gaap_Liabilities" xlink:label="loc_liabilities"/>
+    <link:loc xlink:type="locator" xlink:href="acme-20241231.xsd#us-gaap_Revenues" xlink:label="loc_revenue"/>
+    <link:label xlink:type="resource" xlink:label="lab_assets" xlink:role="http://www.xbrl.org/2003/role/label" xml:lang="en">Assets</link:label>
+    <link:label xlink:type="resource" xlink:label="lab_liabilities" xlink:role="http://www.xbrl.org/2003/role/label" xml:lang="en">Liabilities</link:label>
+    <link:label xlink:type="resource" xlink:label="lab_revenue" xlink:role="http://www.xbrl.org/2003/role/label" xml:lang="en">Revenue</link:label>
+    <link:labelArc xlink:type="arc" xlink:from="loc_assets" xlink:to="lab_assets"/>
+    <link:labelArc xlink:type="arc" xlink:from="loc_liabilities" xlink:to="lab_liabilities"/>
+    <link:labelArc xlink:type="arc" xlink:from="loc_revenue" xlink:to="lab_revenue"/>
+  </link:labelLink>
+</link:linkbase>

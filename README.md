@@ -1,0 +1,508 @@
+﻿# AuditOps
+
+`AuditOps` ingests SEC iXBRL filings into SQLite, materializes canonical fact and narrative layers, runs deterministic validators, emits traceable answer objects from MetricSpecs, and now builds a deterministic later-phase foundation for quant `TaskSpec`, `TaskPlan`, and rendered dataset generation.
+
+## Quick Start
+
+```bash
+python -m pip install -e .[dev]
+auditops ingest --zip tests/fixtures/filing_10k/fixture.zip --db auditops.sqlite --extract-narrative --reset-db
+auditops generate-answers --db auditops.sqlite --output answer_objects_quant.jsonl
+auditops generate-task-specs --db auditops.sqlite --output task_specs_quant.jsonl
+auditops render-quant-datasets --db auditops.sqlite --output-dir rendered_data
+pytest
+```
+
+Optional retrieval extra:
+
+```bash
+python -m pip install -e .[retrieval]
+```
+
+Corpus bootstrap:
+
+```bash
+auditops build-manifest --constituents sp500_snapshot.csv --corpus-root /projects/b35z/AuditOps/corpora/sp500_latest_2026-03-20 --snapshot-date 2026-03-20
+auditops download-filings --corpus-root /projects/b35z/AuditOps/corpora/sp500_latest_2026-03-20
+auditops ingest-corpus --corpus-root /projects/b35z/AuditOps/corpora/sp500_latest_2026-03-20
+auditops generate-corpus-datasets --corpus-root /projects/b35z/AuditOps/corpora/sp500_latest_2026-03-20
+auditops eval-corpus --corpus-root /projects/b35z/AuditOps/corpora/sp500_latest_2026-03-20
+```
+
+UK corpus foundation:
+
+```bash
+auditops build-uk-manifest --constituents ftse100_snapshot.csv --corpus-root /projects/b35z/AuditOps/corpora/uk_ftse100_nsm_latest_2026-03-21 --snapshot-date 2026-03-21
+auditops download-uk-filings --corpus-root /projects/b35z/AuditOps/corpora/uk_ftse100_nsm_latest_2026-03-21
+```
+
+## Isambard3
+
+`AuditOps` is validated on Isambard with `cray-python/3.11.7` and a shared venv rooted under `/projects/b35z/AuditOps/envs`.
+
+Typical workflow:
+
+```bash
+source scripts/isambard_activate_env.sh
+```
+
+First-time setup inside a Slurm allocation on `hopper`:
+
+```bash
+srun --partition=hopper --gpus=1 --time=00:30:00 --pty /bin/bash --login
+bash scripts/isambard_setup_env.sh
+```
+
+Reusable validation job:
+
+```bash
+sbatch scripts/slurm/isambard_dev_check.sbatch
+```
+
+Reusable corpus smoke job:
+
+```bash
+export AUDITOPS_CORPUS_ROOT=/projects/b35z/AuditOps/corpora/sp500_latest_2026-03-20_smoke
+export AUDITOPS_CONSTITUENTS_CSV=/projects/b35z/AuditOps/corpora/sp500_latest_2026-03-20_smoke/input/sp500_pilot.csv
+export AUDITOPS_SNAPSHOT_DATE=2026-03-20
+sbatch scripts/slurm/isambard_corpus_smoke.sbatch
+```
+
+The helper scripts automatically keep durable assets under `/projects/b35z/AuditOps` and caches / logs / temp files under `$SCRATCHDIR/AuditOps`.
+
+## Main Commands
+
+- `auditops ingest`: load raw XBRL facts, narrative chunks, canonical layers, and validators into SQLite
+- `auditops rebuild-canon`: rebuild `facts_canon`, `chunk_canon`, and `validators_v0`
+- `auditops validate`: print structured validator rows
+- `auditops generate-answers`: evaluate MetricSpecs and write `answer_objects_quant.jsonl`
+- `auditops generate-task-specs`: materialize deterministic quant `TaskSpec` records from answer objects
+- `auditops render-quant-datasets`: write `task_specs_quant.jsonl`, `train_quant_qa.jsonl`, `train_quant_code.jsonl`, `train_refusal.jsonl`, `hard_negatives_quant.jsonl`, and `eval_holdout.jsonl`
+- `auditops build-manifest`: freeze a dated public constituents snapshot, resolve SEC CIKs, and write `issuer_manifest.jsonl` / `filing_manifest.jsonl`
+- `auditops build-uk-manifest`: freeze a dated FTSE constituents snapshot, resolve latest FCA NSM annual + half-yearly reports, and write UK `issuer_manifest.jsonl` / `filing_manifest.jsonl`
+- `auditops download-filings`: download latest filing ZIPs from `filing_manifest.jsonl` and write `download_ledger.jsonl`
+- `auditops download-uk-filings`: archive FCA NSM disclosure details and attempt raw UK report downloads, writing a UK `download_ledger.jsonl`
+- `auditops ingest-corpus`: ingest every successfully downloaded filing into a shared corpus SQLite DB with narrative extraction enabled by default
+- `auditops repair-filing`: repair one failed or missing corpus filing ingest and update the ingest ledger
+- `auditops generate-corpus-datasets`: generate answer objects, task specs, issuer-holdout split manifests, and rendered corpus datasets
+- `auditops eval-corpus`: emit data-quality and runtime evaluation reports for a versioned corpus root
+- `auditops answer-quant`: route a MetricSpec-backed question into a closed `TaskPlan` and execute it through the deterministic runtime
+- `auditops inspect-narrative`: preview canonical narrative chunks for a filing
+- `auditops build-retrieval-benchmark`: materialize deterministic retrieval examples from `chunk_canon`
+- `auditops build-narrative-benchmark`: materialize narrative citation task specs from canonical footnote/accounting-note chunks
+- `auditops eval-narrative-citations`: evaluate citation retrieval against narrative task specs
+- `auditops answer-narrative`: answer a constrained narrative benchmark question with chunk citations or a refusal
+- `auditops eval-narrative-answers`: evaluate the deterministic narrative answer runtime against narrative task specs
+- `auditops eval-narrative-routing`: evaluate deterministic loose-question routing against narrative task specs
+- `auditops eval-retrieval`: run a BM25 retrieval benchmark against gold `chunk_evidence_id` examples
+
+## Later-Phase Contracts
+
+- `task_specs_quant.jsonl`: deterministic intermediate records carrying task identity, filing/period metadata, canonical inputs, distractors, evidence requirements, and target structured answers
+- `train_quant_qa.jsonl`: rendered question -> `TaskPlan` -> structured answer rows for quant tasks in the train split
+- `train_quant_code.jsonl`: aligned code-target rows that compile to the constrained executor contract, not arbitrary Python
+- `train_refusal.jsonl`: explicit refusal tasks with deterministic refusal codes
+- `hard_negatives_quant.jsonl`: typed adversarial manifests for distractor, period, unit, context, and evidence-map traps
+- `eval_holdout.jsonl`: issuer holdout split with no train/eval leakage for the latest-filing corpus
+
+`TaskPlan` and structured-answer schemas ship in [auditops/specs/task_plan.schema.json](/C:/home/PycharmProjects/pythonProject/_remote_work/AuditOps/auditops/specs/task_plan.schema.json), [auditops/specs/structured_answer.schema.json](/C:/home/PycharmProjects/pythonProject/_remote_work/AuditOps/auditops/specs/structured_answer.schema.json), and [auditops/specs/task_spec_quant.schema.json](/C:/home/PycharmProjects/pythonProject/_remote_work/AuditOps/auditops/specs/task_spec_quant.schema.json).
+The narrative citation benchmark schema ships in [auditops/specs/narrative_task_spec.schema.json](/C:/home/PycharmProjects/pythonProject/_remote_work/AuditOps/auditops/specs/narrative_task_spec.schema.json). The deterministic narrative answer schema ships in [auditops/specs/narrative_structured_answer.schema.json](/C:/home/PycharmProjects/pythonProject/_remote_work/AuditOps/auditops/specs/narrative_structured_answer.schema.json).
+
+## Roadmap
+
+### Phase 0: Canonical Evidence Layer
+
+Status: implemented
+
+- Keep raw ingest tables as immutable provenance and materialize canonical layers on top.
+- `facts_canon` is the selected fact layer with deterministic `fact_evidence_id`, normalized period metadata, canonical unit families, exact numeric storage, and source anchors.
+- `chunk_canon` is the canonical narrative layer with deterministic `chunk_evidence_id`, offsets, SHA1, retrieval text, item/heading/subheading metadata, and filing-level `period_key`.
+- `validators_v0` currently enforce unit/scale, period alignment, context selection, and evidence-id existence checks.
+
+Exit criteria:
+- For a filing, core facts such as revenue, COGS, current assets, and current liabilities are retrievable with stable provenance anchors.
+
+### Phase 1: MetricSpec Library And Deterministic Answer Objects
+
+Status: implemented
+
+- Quant v1 is strictly MetricSpec-backed.
+- Metric evaluation is deterministic and emits full-trace `answer_objects_quant.jsonl`.
+- The current runtime supports ratios, growth, rollups, differences, averages, and deterministic refusals.
+- `Structured Answer` remains narrow: `status`, `value`, `unit`, `period_key`, `evidence_ids`, `refusal_code`.
+
+Exit criteria:
+- MetricSpecs generate reproducible `OK` and `REFUSAL` answer objects across filings without manual intervention.
+
+### Phase 2A: Deterministic Task Construction
+
+Status: implemented
+
+- Build `task_specs_quant.jsonl` from answer objects.
+- Each `TaskSpec` carries:
+  - `task_id`, `source_answer_id`, `metric_spec_id`, `filing_id`, ticker, filing metadata, and period metadata
+  - target status and target structured answer
+  - canonical inputs, distractors, evidence requirements, refusal policy, and output schema
+- Negative-task manifests are generated here, not inside rendering prompts.
+- For single-database local rendering, holdout assignment is by issuer-year.
+
+Deliverables:
+- `task_specs_quant.jsonl`
+- `hard_negatives_quant.jsonl`
+- deterministic split manifest embedded in each task spec
+
+### Phase 2B: Rendered Synthetic Data
+
+Status: foundation implemented with deterministic templates
+
+- Render quant tasks from `TaskSpec`, not directly from raw answer objects.
+- Current renderer is deterministic `template-v1`; later LLM rendering should preserve the same interfaces.
+- Produce:
+  - `train_quant_qa.jsonl`
+  - `train_quant_code.jsonl`
+  - `train_refusal.jsonl`
+  - `eval_holdout.jsonl`
+- Code targets must stay aligned to the constrained runtime contract, not arbitrary Python.
+
+Validation rules:
+- Every rendered sample must re-execute against canonical truth.
+- Deterministic checks are the hard gate: numeric match, refusal-code match, period/unit/context match, and evidence-id presence.
+- LLM judges, if added later, are sampling-only triage and not release blockers.
+
+US corpus synthesis budget note:
+- For the current US latest-filings corpus, the recommended first generator is `gpt-5.4-mini`, with `gpt-5.4` reserved for prompt design and audit sampling.
+- Practical first-pass budget assumption:
+  - render `train_quant_qa.jsonl`, `train_quant_code.jsonl`, and `train_refusal.jsonl`
+  - keep `hard_negatives_quant.jsonl` mostly deterministic at first
+  - use Batch API pricing when available
+- Estimated cost for the current US corpus at this stage:
+  - about `$130-$260` for a first practical synthesis pass with `gpt-5.4-mini` using Batch API
+  - about `$360-$720` if hard negatives are also LLM-rendered at scale
+  - about `$430-$860` for the same first pass with `gpt-5.4`
+  - about `$770-$1,550` for `gpt-5.4` plus LLM-rendered hard negatives
+- These are planning estimates, not billable guarantees. Actual cost depends on prompt length, output length, number of variants per task, retry/filter rate, and whether Batch pricing is used.
+
+### Phase 3: Constrained Quant Runtime
+
+Status: baseline implemented
+
+- Runtime path is:
+  - `Question -> TaskPlan -> deterministic executor -> structured answer`
+- `TaskPlan` is closed and must include:
+  - `task_id`
+  - `task_type`
+  - `metric_spec_id`
+  - `filing_id`
+  - `period_key`
+  - `executor_op`
+  - `required_output_schema`
+  - `refusal_policy`
+- Quant v1 does not support open-ended accounting reasoning, raw fact lookup, or broad comparison tasks.
+- Generated code is auxiliary supervision or evaluation only, not the serving path.
+
+Evaluation targets:
+- numeric accuracy
+- refusal correctness
+- unit/period/context accuracy
+- unsupported-claim rate
+- evidence-id exactness
+
+### Phase 3.5: S&P 500 Latest Corpus And Evaluation Foundation
+
+Status: implemented
+
+- The first real corpus is a frozen current-universe snapshot with latest `10-K` + latest `10-Q` per issuer.
+- The corpus pipeline is manifest-driven and does not rely on the legacy hard-coded downloader.
+- Raw lineage is persisted as:
+  - `manifest/issuer_manifest.jsonl`
+  - `manifest/filing_manifest.jsonl`
+  - `manifest/download_ledger.jsonl`
+  - `raw/submissions/*.json`
+  - `raw/xbrl_zip/...`
+- All filings ingest into one versioned shared DB at `db/corpus.sqlite`, with narrative extraction enabled during ingest.
+- Downstream lineage is preserved:
+  - `derived/answers/answer_objects_quant.jsonl`
+  - `derived/tasks/task_specs_quant.jsonl`
+  - `derived/datasets/train_quant_qa.jsonl`
+  - `derived/datasets/train_quant_code.jsonl`
+  - `derived/datasets/train_refusal.jsonl`
+  - `derived/datasets/hard_negatives_quant.jsonl`
+  - `derived/datasets/eval_holdout.jsonl`
+- The primary holdout policy for this latest-only corpus is issuer holdout, not issuer-year.
+- Evaluation emits:
+  - `eval/data_quality_summary.json`
+  - `eval/runtime_eval_summary.json`
+  - `eval/coverage_by_metric.csv`
+  - `eval/coverage_by_issuer.csv`
+  - `eval/validator_distribution.csv`
+  - `eval/runtime_failures.jsonl`
+  - `eval/split_manifest.jsonl`
+
+Current operating rule:
+- Use the manifest-driven corpus commands for real S&P corpus work. The legacy hard-coded S&P downloader has been removed from the production path.
+
+### Phase 3.6: UK FTSE 100 NSM Separate Corpus
+
+Status: foundation implemented
+
+- Build the UK expansion as a separate corpus family, not a mixed US/UK corpus.
+- Target corpus name:
+  - `uk_ftse100_nsm_latest_<snapshot_date>`
+- Freeze a dated FTSE 100 constituents snapshot and treat that frozen manifest as the source of truth for the run.
+- Source periodic reports from the FCA National Storage Mechanism, not Companies House.
+- First UK filing scope:
+  - latest `Annual Financial Report`
+  - latest `Half-Yearly Financial Report`
+- Keep Companies House annual accounts out of scope for UK v1. If needed later, they belong in a separate annual-only corpus with different filters and evaluation expectations.
+
+Why this shape:
+- FTSE 100 is the cleanest first UK listed-company universe for protocol stabilization.
+- FCA NSM annual + half-yearly reports are the closest UK analogue to the US `10-K` + `10-Q` pair.
+- Company House is useful later, but it is a statutory annual-accounts source and should not be the first UK periodic-report path.
+
+UK v1 schedule:
+- `UK-0: Universe freeze`
+  - freeze a dated FTSE 100 constituents snapshot
+  - write `issuer_manifest.jsonl` with UK-specific source metadata
+- `UK-1: Filing resolution`
+  - resolve latest annual and half-yearly reports per issuer from FCA NSM
+  - persist filing manifests, source metadata, and download ledger
+- `UK-2: Raw archive`
+  - store downloaded source files and raw metadata under a versioned corpus root
+  - preserve source lineage exactly as done for the US corpus
+- `UK-3: Ingest pilot`
+  - adapt the ingest path for FCA NSM document shapes
+  - prove canonical fact and chunk extraction on a pilot issuer set before full-universe ingest
+- `UK-4: Full corpus build`
+  - ingest the full FTSE 100 annual + half-yearly corpus into one shared DB
+  - generate answer objects, task specs, rendered datasets, and eval outputs
+- `UK-5: Freeze and review`
+  - freeze the first UK corpus only after issuer-level coverage and runtime eval are stable
+
+Current implementation status:
+- Implemented now:
+  - `auditops build-uk-manifest`
+  - `auditops download-uk-filings`
+  - FTSE snapshot ingest into a UK `issuer_manifest.jsonl`
+  - FCA NSM resolution into a UK `filing_manifest.jsonl`
+  - archive of NSM `details` payloads under the corpus `raw/` tree
+  - UK `download_ledger.jsonl` with explicit `details_only` vs raw-download states
+- Not implemented yet:
+  - FCA document ingest into the shared SQLite corpus DB
+  - UK answer-object, task-spec, and eval generation
+
+Current operating caveat:
+- The FCA NSM API resolution path is working, but direct raw document fetches are not yet reliably accessible from the current programmatic client flow.
+- UK v1 is therefore a real separate corpus foundation with reproducible manifests and archived disclosure metadata, but it is not yet at US parity for ingestable filing packages.
+- The next UK step is an ingest pilot on a small issuer subset once the raw-document retrieval path is stabilized.
+
+Planned UK storage layout:
+- `/projects/b35z/AuditOps/corpora/uk_ftse100_nsm_latest_<snapshot_date>/manifest`
+- `/projects/b35z/AuditOps/corpora/uk_ftse100_nsm_latest_<snapshot_date>/raw`
+- `/projects/b35z/AuditOps/corpora/uk_ftse100_nsm_latest_<snapshot_date>/db/corpus.sqlite`
+- `/projects/b35z/AuditOps/corpora/uk_ftse100_nsm_latest_<snapshot_date>/derived`
+- `/projects/b35z/AuditOps/corpora/uk_ftse100_nsm_latest_<snapshot_date>/eval`
+- `/projects/b35z/AuditOps/corpora/uk_ftse100_nsm_latest_<snapshot_date>/logs`
+
+UK-specific operating rules:
+- Keep the UK corpus isolated from the US corpus at the storage, manifest, and eval levels.
+- Add UK-specific metadata fields during manifest/ingest:
+  - `source_system=FCA_NSM`
+  - `report_type=annual|half_yearly`
+  - `accounting_regime` when identifiable
+  - `issuer_country`
+- Reuse the same corpus lineage pattern:
+  - manifest
+  - raw source archive
+  - shared DB
+  - answers
+  - task specs
+  - rendered datasets
+  - eval reports
+- Hold out by issuer for the first latest-only UK corpus, matching the US latest-only corpus policy.
+
+Exit criteria:
+- A frozen FTSE 100 latest-report corpus with reproducible manifests, ingest lineage, answer/task generation, and runtime eval.
+
+### Phase 4: Hardening And Optional Tuning
+
+Status: hardening foundation implemented for US v1
+
+- Do prompt/runtime hardening before any fine-tuning work.
+- Expand regression suites and bucket failures by routing, period selection, context choice, unit handling, and refusal behavior.
+- Only tune if prompt-only and deterministic-runtime performance plateaus on fixed eval sets.
+- If tuning is needed, prioritize:
+  - router and planner discipline
+  - structured output formatting
+  - refusal correctness
+- Do not prioritize prose style tuning.
+
+Current US v1 hardening state:
+- duplicate quant `TaskSpec` rows are deduped before routing and dataset generation
+- `eval-corpus` now emits `eval/runtime_failure_buckets.json`
+- refreshed held-out runtime eval on `/projects/b35z/AuditOps/corpora/sp500_latest_2026-03-20` is currently:
+  - `eval_task_count = 38,812`
+  - `failure_count = 0`
+  - `numeric_accuracy = 1.0000`
+  - `refusal_correctness = 1.0000`
+  - `period_accuracy = 1.0000`
+  - `evidence_id_exactness = 1.0000`
+  - `unsupported_claim_rate = 0.0`
+
+Exit criteria:
+- Hard negatives improve without increasing unsupported claims or hallucinated evidence maps.
+
+### Phase 5A: Narrative Retrieval And Citation Benchmark
+
+Status: baseline implemented and frozen for US v1
+
+- Narrative expansion starts with footnotes and accounting-policy text, not broad MD&A.
+- Add a narrative `TaskSpec` layer before any text-generation path.
+- Require claim, answerability label, required `chunk_evidence_id`s, and citation rules.
+- Evaluate retrieval before narrative QA.
+
+Current baseline:
+- A retrieval benchmark entrypoint exists through `auditops eval-retrieval`.
+- The current baseline is framework-light but Haystack-compatible and now defaults to a deterministic lexical pipeline:
+  - `chunk_canon.retrieval_text` / cleaned narrative content is loaded into an in-memory BM25 retriever
+  - a deterministic metadata-aware reranker (`bm25_rerank`) reorders the top lexical candidates within each filing
+  - evaluation reports `hit_rate_at_k`, `top1_hit_rate`, and `mrr_at_k`
+- This is for offline retrieval verification only; answer synthesis and citation-generation remain later work.
+
+Frozen US v1 retrieval baseline:
+- Corpus:
+  - `/projects/b35z/AuditOps/corpora/sp500_latest_2026-03-20`
+- Benchmark examples:
+  - `/projects/b35z/AuditOps/corpora/sp500_latest_2026-03-20/eval/retrieval_benchmark_examples_v5.jsonl`
+- Benchmark summary:
+  - `/projects/b35z/AuditOps/corpora/sp500_latest_2026-03-20/eval/retrieval_benchmark_summary_v5.json`
+- Method:
+  - `bm25_rerank`
+  - `top_k = 5`
+  - `candidate_k = 15`
+- Verified metrics on the frozen v5 benchmark:
+  - `hit_rate_at_k = 1.0000`
+  - `top1_hit_rate = 0.9680`
+  - `mrr_at_k = 0.9815`
+- Label breakdown:
+  - `footnote_note`: `query_count = 87`, `top1_hit_rate = 1.0000`, `mrr_at_k = 1.0000`
+  - `subheading_chunk`: `query_count = 163`, `top1_hit_rate = 0.9509`, `mrr_at_k = 0.9716`
+
+Operating rule for future retrieval work:
+- Treat `retrieval_benchmark_examples_v5.jsonl` and `retrieval_benchmark_summary_v5.json` as the current frozen Phase 5A baseline for the US corpus.
+- Compare later retrieval changes against this baseline explicitly; do not overwrite it.
+- If a future benchmark query set changes materially, version it as a new benchmark generation rather than folding it into `v5`.
+
+Evaluation targets:
+- chunk-id precision
+- chunk-id coverage
+- refusal correctness when support is absent
+
+### Phase 5B: Narrative QA
+
+Status: foundation implemented for US latest and US trailing-2FY
+
+- Build a narrative path only after retrieval quality is stable.
+- Preserve evidence-first guarantees with explicit chunk citations.
+- Keep partial-answer and refusal behavior explicit when text support is insufficient.
+- Leave MD&A out until chunk-level period attribution is stronger.
+- Start with answerable footnote/accounting-note tasks, then add deterministic unanswerable/refusal tasks before any generative narrative path.
+- Keep the first path retrieval-first and extractive, not generative.
+
+Current narrative foundation:
+- Narrative task specs are materialized with:
+  - question / retrieval query
+  - filing metadata and heading metadata
+  - `scope_type` and `scope_key` for filing-vs-note retrieval scope
+  - expected `chunk_evidence_id`s
+  - extractive answer text
+  - citation policy
+- The benchmark now supports deterministic `UNANSWERABLE` tasks with explicit refusal codes and a typed negative taxonomy.
+- Current unanswerable task families are:
+  - `same_filing_wrong_note`
+  - `same_issuer_wrong_period`
+  - `unsupported_attribute`
+  - `cross_label_query_transfer`
+  - `cross_filing_query_transfer`
+- A constrained narrative runtime now answers only benchmarked narrative questions:
+  - the active trailing-2FY benchmark uses note-scoped retrieval for footnote and accounting-policy tasks, and includes `same_filing_wrong_note` refusals
+  - `Question -> NarrativeTaskSpec -> retrieval -> extractive answer + chunk citation`
+  - or `REFUSAL` for explicit unanswerable tasks / unsupported questions
+- Current artifact paths for the latest-only US benchmark:
+  - `/projects/b35z/AuditOps/corpora/sp500_latest_2026-03-20/eval/narrative_benchmark_us_v1.jsonl`
+  - `/projects/b35z/AuditOps/corpora/sp500_latest_2026-03-20/eval/narrative_citation_summary_us_v1.json`
+  - `/projects/b35z/AuditOps/corpora/sp500_latest_2026-03-20/eval/narrative_answer_summary_us_v1.json`
+- Current verified metrics on the cleaned US v1 benchmark:
+  - citation benchmark:
+    - `task_count = 200`
+    - `answerable_task_count = 100`
+    - `unanswerable_task_count = 100`
+    - `citation_precision_at_1 = 0.9500`
+    - `citation_coverage_at_k = 1.0000`
+    - `citation_mrr_at_k = 0.9750`
+  - deterministic narrative answer runtime:
+    - `answerability_accuracy = 1.0000`
+    - `citation_exactness = 1.0000`
+    - `answer_text_exactness = 1.0000`
+    - `refusal_correctness = 1.0000`
+- Frozen trailing-2FY US narrative baseline:
+  - benchmark task set:
+    - `/projects/b35z/AuditOps/corpora/sp500_trailing_2fy_2026-03-20/eval/narrative_benchmark_us_2fy_v7.jsonl`
+  - citation summary:
+    - `/projects/b35z/AuditOps/corpora/sp500_trailing_2fy_2026-03-20/eval/narrative_citation_summary_us_2fy_v7.json`
+  - deterministic answer summary:
+    - `/projects/b35z/AuditOps/corpora/sp500_trailing_2fy_2026-03-20/eval/narrative_answer_summary_us_2fy_v7.json`
+  - loose-question routing summary:
+    - `/projects/b35z/AuditOps/corpora/sp500_trailing_2fy_2026-03-20/eval/narrative_routing_summary_us_2fy_v8.json`
+- Verified metrics on the frozen trailing-2FY US baseline:
+  - citation benchmark:
+    - `task_count = 200`
+    - `answerable_task_count = 100`
+    - `unanswerable_task_count = 100`
+    - `citation_precision_at_1 = 1.0000`
+    - `citation_coverage_at_k = 1.0000`
+    - `citation_mrr_at_k = 1.0000`
+    - negative-type mix:
+      - `same_filing_wrong_note = 20`
+      - `same_issuer_wrong_period = 20`
+      - `unsupported_attribute = 20`
+      - `cross_label_query_transfer = 20`
+      - `cross_filing_query_transfer = 20`
+  - deterministic narrative answer runtime:
+    - `answerability_accuracy = 1.0000`
+    - `citation_exactness = 1.0000`
+    - `answer_text_exactness = 1.0000`
+    - `refusal_correctness = 1.0000`
+  - loose-question routing runtime:
+    - `routing_accuracy = 1.0000`
+    - `answerability_accuracy = 1.0000`
+    - `citation_exactness = 1.0000`
+    - `answer_text_exactness = 1.0000`
+    - `refusal_correctness = 1.0000`
+    - `safe_refusal_accuracy = 1.0000`
+- Operating rule for future narrative work:
+  - Treat `narrative_benchmark_us_2fy_v7.jsonl` as the frozen task set and `narrative_routing_summary_us_2fy_v8.json` as the current routing baseline.
+  - Compare new narrative task families or routing changes against this baseline explicitly; do not overwrite it.
+
+### Phase 6: Continuous Data Flywheel
+
+Status: planned
+
+- Version all moving parts:
+  - canon build version
+  - MetricSpec library version
+  - TaskSpec schema version
+  - rendering prompt or renderer version
+  - split manifest version
+- Add dedupe and issuer-year leakage controls before retraining.
+- For the latest-only corpus, issuer holdout is the active eval policy; issuer-year holdout returns when the corpus expands to multi-year history.
+- Monitor:
+  - refusal mix
+  - validator distributions
+  - unsupported-claim rate
+  - evidence-id exactness
+  - citation-noise rate
+
+Operating rule:
+- New filings should flow through canon build -> answer objects -> task specs -> rendered datasets -> validation -> evaluation, with retraining optional and gated by drift.
+

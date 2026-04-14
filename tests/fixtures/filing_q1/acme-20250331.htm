@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:ix="http://www.xbrl.org/2013/inlineXBRL"
+      xmlns:xbrli="http://www.xbrl.org/2003/instance"
+      xmlns:dei="http://xbrl.sec.gov/dei/2024"
+      xmlns:us-gaap="http://fasb.org/us-gaap/2024">
+  <body>
+    <div style="display:none">
+      <xbrli:context id="c_asof_2025q1">
+        <xbrli:entity><xbrli:identifier scheme="http://www.sec.gov/CIK">0000000001</xbrli:identifier></xbrli:entity>
+        <xbrli:period><xbrli:instant>2025-03-31</xbrli:instant></xbrli:period>
+      </xbrli:context>
+      <xbrli:context id="c_q1_2025">
+        <xbrli:entity><xbrli:identifier scheme="http://www.sec.gov/CIK">0000000001</xbrli:identifier></xbrli:entity>
+        <xbrli:period><xbrli:startDate>2025-01-01</xbrli:startDate><xbrli:endDate>2025-03-31</xbrli:endDate></xbrli:period>
+      </xbrli:context>
+      <xbrli:context id="c_q1_2024">
+        <xbrli:entity><xbrli:identifier scheme="http://www.sec.gov/CIK">0000000001</xbrli:identifier></xbrli:entity>
+        <xbrli:period><xbrli:startDate>2024-01-01</xbrli:startDate><xbrli:endDate>2024-03-31</xbrli:endDate></xbrli:period>
+      </xbrli:context>
+      <xbrli:unit id="u_usd"><xbrli:measure>iso4217:USD</xbrli:measure></xbrli:unit>
+    </div>
+
+    <h1>Item 2. Management's Discussion and Analysis</h1>
+    <p>Quarterly revenue reached 260 and net income was 42 while cash balances rose to 210.</p>
+
+    <ix:nonNumeric id="fact_doc_type_q1" name="dei:DocumentType" contextRef="c_asof_2025q1">10-Q</ix:nonNumeric>
+    <ix:nonNumeric id="fact_fy_focus_q1" name="dei:DocumentFiscalYearFocus" contextRef="c_asof_2025q1">2025</ix:nonNumeric>
+    <ix:nonNumeric id="fact_fp_focus_q1" name="dei:DocumentFiscalPeriodFocus" contextRef="c_asof_2025q1">Q1</ix:nonNumeric>
+    <ix:nonNumeric id="fact_period_end_q1" name="dei:DocumentPeriodEndDate" contextRef="c_asof_2025q1">2025-03-31</ix:nonNumeric>
+    <ix:nonNumeric id="fact_symbol_q1" name="dei:TradingSymbol" contextRef="c_asof_2025q1">ACME</ix:nonNumeric>
+
+    <ix:nonFraction id="fact_revenue_q1_2025" name="us-gaap:Revenues" contextRef="c_q1_2025" unitRef="u_usd" decimals="0">260</ix:nonFraction>
+    <ix:nonFraction id="fact_cogs_q1_2025" name="us-gaap:CostOfGoodsSold" contextRef="c_q1_2025" unitRef="u_usd" decimals="0">110</ix:nonFraction>
+    <ix:nonFraction name="us-gaap:OperatingIncomeLoss" contextRef="c_q1_2025" unitRef="u_usd" decimals="0">60</ix:nonFraction>
+    <ix:nonFraction id="fact_net_q1_2025" name="us-gaap:NetIncomeLoss" contextRef="c_q1_2025" unitRef="u_usd" decimals="0">42</ix:nonFraction>
+
+    <ix:nonFraction id="fact_revenue_q1_2024" name="us-gaap:Revenues" contextRef="c_q1_2024" unitRef="u_usd" decimals="0">220</ix:nonFraction>
+    <ix:nonFraction id="fact_net_q1_2024" name="us-gaap:NetIncomeLoss" contextRef="c_q1_2024" unitRef="u_usd" decimals="0">30</ix:nonFraction>
+
+    <ix:nonFraction id="fact_assets_current_q1" name="us-gaap:AssetsCurrent" contextRef="c_asof_2025q1" unitRef="u_usd" decimals="0">640</ix:nonFraction>
+    <ix:nonFraction id="fact_assets_noncurrent_q1" name="us-gaap:AssetsNoncurrent" contextRef="c_asof_2025q1" unitRef="u_usd" decimals="0">950</ix:nonFraction>
+    <ix:nonFraction id="fact_assets_q1" name="us-gaap:Assets" contextRef="c_asof_2025q1" unitRef="u_usd" decimals="0">1590</ix:nonFraction>
+    <ix:nonFraction id="fact_liabilities_current_q1" name="us-gaap:LiabilitiesCurrent" contextRef="c_asof_2025q1" unitRef="u_usd" decimals="0">320</ix:nonFraction>
+    <ix:nonFraction id="fact_liabilities_noncurrent_q1" name="us-gaap:LiabilitiesNoncurrent" contextRef="c_asof_2025q1" unitRef="u_usd" decimals="0">510</ix:nonFraction>
+    <ix:nonFraction id="fact_liabilities_q1" name="us-gaap:Liabilities" contextRef="c_asof_2025q1" unitRef="u_usd" decimals="0">830</ix:nonFraction>
+    <ix:nonFraction id="fact_equity_q1" name="us-gaap:StockholdersEquity" contextRef="c_asof_2025q1" unitRef="u_usd" decimals="0">760</ix:nonFraction>
+    <ix:nonFraction id="fact_le_q1" name="us-gaap:LiabilitiesAndStockholdersEquity" contextRef="c_asof_2025q1" unitRef="u_usd" decimals="0">1590</ix:nonFraction>
+    <ix:nonFraction id="fact_cash_q1" name="us-gaap:CashAndCashEquivalentsAtCarryingValue" contextRef="c_asof_2025q1" unitRef="u_usd" decimals="0">210</ix:nonFraction>
+    <ix:nonFraction id="fact_sti_q1" name="us-gaap:ShortTermInvestments" contextRef="c_asof_2025q1" unitRef="u_usd" decimals="0">60</ix:nonFraction>
+    <ix:nonFraction id="fact_ar_q1" name="us-gaap:AccountsReceivableNetCurrent" contextRef="c_asof_2025q1" unitRef="u_usd" decimals="0">170</ix:nonFraction>
+    <ix:nonFraction id="fact_inventory_q1" name="us-gaap:InventoryNet" contextRef="c_asof_2025q1" unitRef="u_usd" decimals="0">200</ix:nonFraction>
+  </body>
+</html>

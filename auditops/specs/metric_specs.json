@@ -1,0 +1,631 @@
+[
+  {
+    "id": "current_ratio",
+    "version": 1,
+    "kind": "ratio",
+    "output_unit": "pure",
+    "applicable_period_types": ["ASOF"],
+    "required_inputs": [
+      {"name": "assets_current", "aliases": ["us-gaap_AssetsCurrent"], "unit_family": "usd", "period": "current"},
+      {"name": "liabilities_current", "aliases": ["us-gaap_LiabilitiesCurrent"], "unit_family": "usd", "period": "current"}
+    ],
+    "formula": {
+      "op": "divide",
+      "left": {"op": "input", "name": "assets_current"},
+      "right": {"op": "input", "name": "liabilities_current"},
+      "output_unit": "pure"
+    },
+    "refusal_rules": ["MISSING_INPUT", "AMBIGUOUS_CONTEXT", "INCOMPATIBLE_UNITS", "PERIOD_NOT_SUPPORTED"],
+    "evidence_policy": "fact_evidence_ids"
+  },
+  {
+    "id": "quick_assets",
+    "version": 1,
+    "kind": "rollup",
+    "output_unit": "usd",
+    "applicable_period_types": ["ASOF"],
+    "required_inputs": [
+      {"name": "cash", "aliases": ["us-gaap_CashAndCashEquivalentsAtCarryingValue"], "unit_family": "usd", "period": "current"},
+      {"name": "short_term_investments", "aliases": ["us-gaap_ShortTermInvestments"], "unit_family": "usd", "period": "current"},
+      {"name": "accounts_receivable", "aliases": ["us-gaap_AccountsReceivableNetCurrent"], "unit_family": "usd", "period": "current"}
+    ],
+    "formula": {
+      "op": "sum",
+      "args": [
+        {"op": "input", "name": "cash"},
+        {"op": "input", "name": "short_term_investments"},
+        {"op": "input", "name": "accounts_receivable"}
+      ]
+    },
+    "refusal_rules": ["MISSING_INPUT", "AMBIGUOUS_CONTEXT", "INCOMPATIBLE_UNITS", "PERIOD_NOT_SUPPORTED"],
+    "evidence_policy": "fact_evidence_ids"
+  },
+  {
+    "id": "quick_ratio",
+    "version": 1,
+    "kind": "ratio",
+    "output_unit": "pure",
+    "applicable_period_types": ["ASOF"],
+    "required_inputs": [
+      {"name": "cash", "aliases": ["us-gaap_CashAndCashEquivalentsAtCarryingValue"], "unit_family": "usd", "period": "current"},
+      {"name": "short_term_investments", "aliases": ["us-gaap_ShortTermInvestments"], "unit_family": "usd", "period": "current"},
+      {"name": "accounts_receivable", "aliases": ["us-gaap_AccountsReceivableNetCurrent"], "unit_family": "usd", "period": "current"},
+      {"name": "liabilities_current", "aliases": ["us-gaap_LiabilitiesCurrent"], "unit_family": "usd", "period": "current"}
+    ],
+    "formula": {
+      "op": "divide",
+      "left": {
+        "op": "sum",
+        "args": [
+          {"op": "input", "name": "cash"},
+          {"op": "input", "name": "short_term_investments"},
+          {"op": "input", "name": "accounts_receivable"}
+        ]
+      },
+      "right": {"op": "input", "name": "liabilities_current"},
+      "output_unit": "pure"
+    },
+    "refusal_rules": ["MISSING_INPUT", "AMBIGUOUS_CONTEXT", "INCOMPATIBLE_UNITS", "PERIOD_NOT_SUPPORTED"],
+    "evidence_policy": "fact_evidence_ids"
+  },
+  {
+    "id": "cash_ratio",
+    "version": 1,
+    "kind": "ratio",
+    "output_unit": "pure",
+    "applicable_period_types": ["ASOF"],
+    "required_inputs": [
+      {"name": "cash", "aliases": ["us-gaap_CashAndCashEquivalentsAtCarryingValue"], "unit_family": "usd", "period": "current"},
+      {"name": "liabilities_current", "aliases": ["us-gaap_LiabilitiesCurrent"], "unit_family": "usd", "period": "current"}
+    ],
+    "formula": {
+      "op": "divide",
+      "left": {"op": "input", "name": "cash"},
+      "right": {"op": "input", "name": "liabilities_current"},
+      "output_unit": "pure"
+    },
+    "refusal_rules": ["MISSING_INPUT", "AMBIGUOUS_CONTEXT", "INCOMPATIBLE_UNITS", "PERIOD_NOT_SUPPORTED"],
+    "evidence_policy": "fact_evidence_ids"
+  },
+  {
+    "id": "working_capital",
+    "version": 1,
+    "kind": "difference",
+    "output_unit": "usd",
+    "applicable_period_types": ["ASOF"],
+    "required_inputs": [
+      {"name": "assets_current", "aliases": ["us-gaap_AssetsCurrent"], "unit_family": "usd", "period": "current"},
+      {"name": "liabilities_current", "aliases": ["us-gaap_LiabilitiesCurrent"], "unit_family": "usd", "period": "current"}
+    ],
+    "formula": {
+      "op": "subtract",
+      "left": {"op": "input", "name": "assets_current"},
+      "right": {"op": "input", "name": "liabilities_current"}
+    },
+    "refusal_rules": ["MISSING_INPUT", "AMBIGUOUS_CONTEXT", "INCOMPATIBLE_UNITS", "PERIOD_NOT_SUPPORTED"],
+    "evidence_policy": "fact_evidence_ids"
+  },
+  {
+    "id": "gross_profit",
+    "version": 1,
+    "kind": "difference",
+    "output_unit": "usd",
+    "applicable_period_types": ["FY", "Q", "YTD"],
+    "required_inputs": [
+      {"name": "revenue", "aliases": ["us-gaap_Revenues", "us-gaap_RevenueFromContractWithCustomerExcludingAssessedTax", "us-gaap_SalesRevenueNet"], "unit_family": "usd", "period": "current"},
+      {"name": "cogs", "aliases": ["us-gaap_CostOfGoodsSold", "us-gaap_CostOfGoodsAndServicesSold", "us-gaap_CostOfRevenue"], "unit_family": "usd", "period": "current"}
+    ],
+    "formula": {
+      "op": "subtract",
+      "left": {"op": "input", "name": "revenue"},
+      "right": {"op": "input", "name": "cogs"}
+    },
+    "refusal_rules": ["MISSING_INPUT", "AMBIGUOUS_CONTEXT", "INCOMPATIBLE_UNITS", "PERIOD_NOT_SUPPORTED"],
+    "evidence_policy": "fact_evidence_ids"
+  },
+  {
+    "id": "gross_margin",
+    "version": 1,
+    "kind": "ratio",
+    "output_unit": "pure",
+    "applicable_period_types": ["FY", "Q", "YTD"],
+    "required_inputs": [
+      {"name": "revenue", "aliases": ["us-gaap_Revenues", "us-gaap_RevenueFromContractWithCustomerExcludingAssessedTax", "us-gaap_SalesRevenueNet"], "unit_family": "usd", "period": "current"},
+      {"name": "cogs", "aliases": ["us-gaap_CostOfGoodsSold", "us-gaap_CostOfGoodsAndServicesSold", "us-gaap_CostOfRevenue"], "unit_family": "usd", "period": "current"}
+    ],
+    "formula": {
+      "op": "divide",
+      "left": {
+        "op": "subtract",
+        "left": {"op": "input", "name": "revenue"},
+        "right": {"op": "input", "name": "cogs"}
+      },
+      "right": {"op": "input", "name": "revenue"},
+      "output_unit": "pure"
+    },
+    "refusal_rules": ["MISSING_INPUT", "AMBIGUOUS_CONTEXT", "INCOMPATIBLE_UNITS", "PERIOD_NOT_SUPPORTED"],
+    "evidence_policy": "fact_evidence_ids"
+  },
+  {
+    "id": "operating_margin",
+    "version": 1,
+    "kind": "ratio",
+    "output_unit": "pure",
+    "applicable_period_types": ["FY", "Q", "YTD"],
+    "required_inputs": [
+      {"name": "operating_income", "aliases": ["us-gaap_OperatingIncomeLoss"], "unit_family": "usd", "period": "current"},
+      {"name": "revenue", "aliases": ["us-gaap_Revenues", "us-gaap_RevenueFromContractWithCustomerExcludingAssessedTax", "us-gaap_SalesRevenueNet"], "unit_family": "usd", "period": "current"}
+    ],
+    "formula": {
+      "op": "divide",
+      "left": {"op": "input", "name": "operating_income"},
+      "right": {"op": "input", "name": "revenue"},
+      "output_unit": "pure"
+    },
+    "refusal_rules": ["MISSING_INPUT", "AMBIGUOUS_CONTEXT", "INCOMPATIBLE_UNITS", "PERIOD_NOT_SUPPORTED"],
+    "evidence_policy": "fact_evidence_ids"
+  },
+  {
+    "id": "net_margin",
+    "version": 1,
+    "kind": "ratio",
+    "output_unit": "pure",
+    "applicable_period_types": ["FY", "Q", "YTD"],
+    "required_inputs": [
+      {"name": "net_income", "aliases": ["us-gaap_NetIncomeLoss"], "unit_family": "usd", "period": "current"},
+      {"name": "revenue", "aliases": ["us-gaap_Revenues", "us-gaap_RevenueFromContractWithCustomerExcludingAssessedTax", "us-gaap_SalesRevenueNet"], "unit_family": "usd", "period": "current"}
+    ],
+    "formula": {
+      "op": "divide",
+      "left": {"op": "input", "name": "net_income"},
+      "right": {"op": "input", "name": "revenue"},
+      "output_unit": "pure"
+    },
+    "refusal_rules": ["MISSING_INPUT", "AMBIGUOUS_CONTEXT", "INCOMPATIBLE_UNITS", "PERIOD_NOT_SUPPORTED"],
+    "evidence_policy": "fact_evidence_ids"
+  },
+  {
+    "id": "debt_to_equity",
+    "version": 1,
+    "kind": "ratio",
+    "output_unit": "pure",
+    "applicable_period_types": ["ASOF"],
+    "required_inputs": [
+      {"name": "liabilities", "aliases": ["us-gaap_Liabilities"], "unit_family": "usd", "period": "current"},
+      {"name": "equity", "aliases": ["us-gaap_StockholdersEquity"], "unit_family": "usd", "period": "current"}
+    ],
+    "formula": {
+      "op": "divide",
+      "left": {"op": "input", "name": "liabilities"},
+      "right": {"op": "input", "name": "equity"},
+      "output_unit": "pure"
+    },
+    "refusal_rules": ["MISSING_INPUT", "AMBIGUOUS_CONTEXT", "INCOMPATIBLE_UNITS", "PERIOD_NOT_SUPPORTED"],
+    "evidence_policy": "fact_evidence_ids"
+  },
+  {
+    "id": "debt_ratio",
+    "version": 1,
+    "kind": "ratio",
+    "output_unit": "pure",
+    "applicable_period_types": ["ASOF"],
+    "required_inputs": [
+      {"name": "liabilities", "aliases": ["us-gaap_Liabilities"], "unit_family": "usd", "period": "current"},
+      {"name": "assets", "aliases": ["us-gaap_Assets"], "unit_family": "usd", "period": "current"}
+    ],
+    "formula": {
+      "op": "divide",
+      "left": {"op": "input", "name": "liabilities"},
+      "right": {"op": "input", "name": "assets"},
+      "output_unit": "pure"
+    },
+    "refusal_rules": ["MISSING_INPUT", "AMBIGUOUS_CONTEXT", "INCOMPATIBLE_UNITS", "PERIOD_NOT_SUPPORTED"],
+    "evidence_policy": "fact_evidence_ids"
+  },
+  {
+    "id": "equity_ratio",
+    "version": 1,
+    "kind": "ratio",
+    "output_unit": "pure",
+    "applicable_period_types": ["ASOF"],
+    "required_inputs": [
+      {"name": "equity", "aliases": ["us-gaap_StockholdersEquity"], "unit_family": "usd", "period": "current"},
+      {"name": "assets", "aliases": ["us-gaap_Assets"], "unit_family": "usd", "period": "current"}
+    ],
+    "formula": {
+      "op": "divide",
+      "left": {"op": "input", "name": "equity"},
+      "right": {"op": "input", "name": "assets"},
+      "output_unit": "pure"
+    },
+    "refusal_rules": ["MISSING_INPUT", "AMBIGUOUS_CONTEXT", "INCOMPATIBLE_UNITS", "PERIOD_NOT_SUPPORTED"],
+    "evidence_policy": "fact_evidence_ids"
+  },
+  {
+    "id": "current_assets_rollup",
+    "version": 1,
+    "kind": "rollup",
+    "output_unit": "usd",
+    "applicable_period_types": ["ASOF"],
+    "required_inputs": [
+      {"name": "cash", "aliases": ["us-gaap_CashAndCashEquivalentsAtCarryingValue"], "unit_family": "usd", "period": "current"},
+      {"name": "short_term_investments", "aliases": ["us-gaap_ShortTermInvestments"], "unit_family": "usd", "period": "current"},
+      {"name": "accounts_receivable", "aliases": ["us-gaap_AccountsReceivableNetCurrent"], "unit_family": "usd", "period": "current"},
+      {"name": "inventory", "aliases": ["us-gaap_InventoryNet"], "unit_family": "usd", "period": "current"}
+    ],
+    "formula": {
+      "op": "rollup_sum",
+      "target_aliases": ["us-gaap_AssetsCurrent"],
+      "components": ["cash", "short_term_investments", "accounts_receivable", "inventory"]
+    },
+    "refusal_rules": ["MISSING_INPUT", "AMBIGUOUS_CONTEXT", "INCOMPATIBLE_UNITS", "PERIOD_NOT_SUPPORTED"],
+    "evidence_policy": "fact_evidence_ids"
+  },
+  {
+    "id": "total_assets_rollup",
+    "version": 1,
+    "kind": "rollup",
+    "output_unit": "usd",
+    "applicable_period_types": ["ASOF"],
+    "required_inputs": [
+      {"name": "assets_current", "aliases": ["us-gaap_AssetsCurrent"], "unit_family": "usd", "period": "current"},
+      {"name": "assets_noncurrent", "aliases": ["us-gaap_AssetsNoncurrent"], "unit_family": "usd", "period": "current"}
+    ],
+    "formula": {
+      "op": "rollup_sum",
+      "target_aliases": ["us-gaap_Assets"],
+      "components": ["assets_current", "assets_noncurrent"]
+    },
+    "refusal_rules": ["MISSING_INPUT", "AMBIGUOUS_CONTEXT", "INCOMPATIBLE_UNITS", "PERIOD_NOT_SUPPORTED"],
+    "evidence_policy": "fact_evidence_ids"
+  },
+  {
+    "id": "total_liabilities_rollup",
+    "version": 1,
+    "kind": "rollup",
+    "output_unit": "usd",
+    "applicable_period_types": ["ASOF"],
+    "required_inputs": [
+      {"name": "liabilities_current", "aliases": ["us-gaap_LiabilitiesCurrent"], "unit_family": "usd", "period": "current"},
+      {"name": "liabilities_noncurrent", "aliases": ["us-gaap_LiabilitiesNoncurrent"], "unit_family": "usd", "period": "current"}
+    ],
+    "formula": {
+      "op": "rollup_sum",
+      "target_aliases": ["us-gaap_Liabilities"],
+      "components": ["liabilities_current", "liabilities_noncurrent"]
+    },
+    "refusal_rules": ["MISSING_INPUT", "AMBIGUOUS_CONTEXT", "INCOMPATIBLE_UNITS", "PERIOD_NOT_SUPPORTED"],
+    "evidence_policy": "fact_evidence_ids"
+  },
+  {
+    "id": "liabilities_and_equity_rollup",
+    "version": 1,
+    "kind": "rollup",
+    "output_unit": "usd",
+    "applicable_period_types": ["ASOF"],
+    "required_inputs": [
+      {"name": "liabilities", "aliases": ["us-gaap_Liabilities"], "unit_family": "usd", "period": "current"},
+      {"name": "equity", "aliases": ["us-gaap_StockholdersEquity"], "unit_family": "usd", "period": "current"}
+    ],
+    "formula": {
+      "op": "rollup_sum",
+      "target_aliases": ["us-gaap_LiabilitiesAndStockholdersEquity"],
+      "components": ["liabilities", "equity"]
+    },
+    "refusal_rules": ["MISSING_INPUT", "AMBIGUOUS_CONTEXT", "INCOMPATIBLE_UNITS", "PERIOD_NOT_SUPPORTED"],
+    "evidence_policy": "fact_evidence_ids"
+  },
+  {
+    "id": "yoy_revenue_growth",
+    "version": 1,
+    "kind": "growth",
+    "output_unit": "pure",
+    "applicable_period_types": ["FY", "Q", "YTD"],
+    "required_inputs": [
+      {"name": "current_revenue", "aliases": ["us-gaap_Revenues", "us-gaap_RevenueFromContractWithCustomerExcludingAssessedTax", "us-gaap_SalesRevenueNet"], "unit_family": "usd", "period": "current"},
+      {"name": "prior_revenue", "aliases": ["us-gaap_Revenues", "us-gaap_RevenueFromContractWithCustomerExcludingAssessedTax", "us-gaap_SalesRevenueNet"], "unit_family": "usd", "period": "prior_year_same_period"}
+    ],
+    "formula": {
+      "op": "divide",
+      "left": {
+        "op": "subtract",
+        "left": {"op": "input", "name": "current_revenue"},
+        "right": {"op": "input", "name": "prior_revenue"}
+      },
+      "right": {
+        "op": "abs",
+        "value": {"op": "input", "name": "prior_revenue"}
+      },
+      "output_unit": "pure"
+    },
+    "refusal_rules": ["MISSING_INPUT", "AMBIGUOUS_CONTEXT", "INCOMPATIBLE_UNITS", "PERIOD_NOT_SUPPORTED"],
+    "evidence_policy": "fact_evidence_ids"
+  },
+  {
+    "id": "yoy_net_income_growth",
+    "version": 1,
+    "kind": "growth",
+    "output_unit": "pure",
+    "applicable_period_types": ["FY", "Q", "YTD"],
+    "required_inputs": [
+      {"name": "current_net_income", "aliases": ["us-gaap_NetIncomeLoss"], "unit_family": "usd", "period": "current"},
+      {"name": "prior_net_income", "aliases": ["us-gaap_NetIncomeLoss"], "unit_family": "usd", "period": "prior_year_same_period"}
+    ],
+    "formula": {
+      "op": "divide",
+      "left": {
+        "op": "subtract",
+        "left": {"op": "input", "name": "current_net_income"},
+        "right": {"op": "input", "name": "prior_net_income"}
+      },
+      "right": {
+        "op": "abs",
+        "value": {"op": "input", "name": "prior_net_income"}
+      },
+      "output_unit": "pure"
+    },
+    "refusal_rules": ["MISSING_INPUT", "AMBIGUOUS_CONTEXT", "INCOMPATIBLE_UNITS", "PERIOD_NOT_SUPPORTED"],
+    "evidence_policy": "fact_evidence_ids"
+  },
+  {
+    "id": "qoq_revenue_growth",
+    "version": 1,
+    "kind": "growth",
+    "output_unit": "pure",
+    "applicable_period_types": ["Q"],
+    "required_inputs": [
+      {"name": "current_quarter_revenue", "aliases": ["us-gaap_Revenues", "us-gaap_RevenueFromContractWithCustomerExcludingAssessedTax", "us-gaap_SalesRevenueNet"], "unit_family": "usd", "period": "current_quarter"},
+      {"name": "previous_quarter_revenue", "aliases": ["us-gaap_Revenues", "us-gaap_RevenueFromContractWithCustomerExcludingAssessedTax", "us-gaap_SalesRevenueNet"], "unit_family": "usd", "period": "previous_quarter"}
+    ],
+    "formula": {
+      "op": "divide",
+      "left": {
+        "op": "subtract",
+        "left": {"op": "input", "name": "current_quarter_revenue"},
+        "right": {"op": "input", "name": "previous_quarter_revenue"}
+      },
+      "right": {
+        "op": "abs",
+        "value": {"op": "input", "name": "previous_quarter_revenue"}
+      },
+      "output_unit": "pure"
+    },
+    "refusal_rules": ["MISSING_INPUT", "AMBIGUOUS_CONTEXT", "INCOMPATIBLE_UNITS", "PERIOD_NOT_SUPPORTED"],
+    "evidence_policy": "fact_evidence_ids"
+  },
+  {
+    "id": "qoq_net_income_growth",
+    "version": 1,
+    "kind": "growth",
+    "output_unit": "pure",
+    "applicable_period_types": ["Q"],
+    "required_inputs": [
+      {"name": "current_quarter_net_income", "aliases": ["us-gaap_NetIncomeLoss"], "unit_family": "usd", "period": "current_quarter"},
+      {"name": "previous_quarter_net_income", "aliases": ["us-gaap_NetIncomeLoss"], "unit_family": "usd", "period": "previous_quarter"}
+    ],
+    "formula": {
+      "op": "divide",
+      "left": {
+        "op": "subtract",
+        "left": {"op": "input", "name": "current_quarter_net_income"},
+        "right": {"op": "input", "name": "previous_quarter_net_income"}
+      },
+      "right": {
+        "op": "abs",
+        "value": {"op": "input", "name": "previous_quarter_net_income"}
+      },
+      "output_unit": "pure"
+    },
+    "refusal_rules": ["MISSING_INPUT", "AMBIGUOUS_CONTEXT", "INCOMPATIBLE_UNITS", "PERIOD_NOT_SUPPORTED"],
+    "evidence_policy": "fact_evidence_ids"
+  },
+  {
+    "id": "operating_cash_flow_margin",
+    "version": 1,
+    "kind": "ratio",
+    "output_unit": "pure",
+    "applicable_period_types": ["FY", "Q", "YTD"],
+    "required_inputs": [
+      {"name": "operating_cash_flow", "aliases": ["us-gaap_NetCashProvidedByUsedInOperatingActivities", "us-gaap_NetCashProvidedByUsedInOperatingActivitiesContinuingOperations"], "unit_family": "usd", "period": "current"},
+      {"name": "revenue", "aliases": ["us-gaap_Revenues", "us-gaap_RevenueFromContractWithCustomerExcludingAssessedTax", "us-gaap_SalesRevenueNet"], "unit_family": "usd", "period": "current"}
+    ],
+    "formula": {
+      "op": "divide",
+      "left": {"op": "input", "name": "operating_cash_flow"},
+      "right": {"op": "input", "name": "revenue"},
+      "output_unit": "pure"
+    },
+    "refusal_rules": ["MISSING_INPUT", "AMBIGUOUS_CONTEXT", "INCOMPATIBLE_UNITS", "PERIOD_NOT_SUPPORTED"],
+    "evidence_policy": "fact_evidence_ids"
+  },
+  {
+    "id": "free_cash_flow",
+    "version": 1,
+    "kind": "difference",
+    "output_unit": "usd",
+    "applicable_period_types": ["FY", "Q", "YTD"],
+    "required_inputs": [
+      {"name": "operating_cash_flow", "aliases": ["us-gaap_NetCashProvidedByUsedInOperatingActivities", "us-gaap_NetCashProvidedByUsedInOperatingActivitiesContinuingOperations"], "unit_family": "usd", "period": "current"},
+      {"name": "capital_expenditures", "aliases": ["us-gaap_PaymentsToAcquirePropertyPlantAndEquipment", "us-gaap_PaymentsToAcquireProductiveAssets"], "unit_family": "usd", "period": "current"}
+    ],
+    "formula": {
+      "op": "subtract",
+      "left": {"op": "input", "name": "operating_cash_flow"},
+      "right": {"op": "input", "name": "capital_expenditures"}
+    },
+    "refusal_rules": ["MISSING_INPUT", "AMBIGUOUS_CONTEXT", "INCOMPATIBLE_UNITS", "PERIOD_NOT_SUPPORTED"],
+    "evidence_policy": "fact_evidence_ids"
+  },
+  {
+    "id": "free_cash_flow_margin",
+    "version": 1,
+    "kind": "ratio",
+    "output_unit": "pure",
+    "applicable_period_types": ["FY", "Q", "YTD"],
+    "required_inputs": [
+      {"name": "operating_cash_flow", "aliases": ["us-gaap_NetCashProvidedByUsedInOperatingActivities", "us-gaap_NetCashProvidedByUsedInOperatingActivitiesContinuingOperations"], "unit_family": "usd", "period": "current"},
+      {"name": "capital_expenditures", "aliases": ["us-gaap_PaymentsToAcquirePropertyPlantAndEquipment", "us-gaap_PaymentsToAcquireProductiveAssets"], "unit_family": "usd", "period": "current"},
+      {"name": "revenue", "aliases": ["us-gaap_Revenues", "us-gaap_RevenueFromContractWithCustomerExcludingAssessedTax", "us-gaap_SalesRevenueNet"], "unit_family": "usd", "period": "current"}
+    ],
+    "formula": {
+      "op": "divide",
+      "left": {
+        "op": "subtract",
+        "left": {"op": "input", "name": "operating_cash_flow"},
+        "right": {"op": "input", "name": "capital_expenditures"}
+      },
+      "right": {"op": "input", "name": "revenue"},
+      "output_unit": "pure"
+    },
+    "refusal_rules": ["MISSING_INPUT", "AMBIGUOUS_CONTEXT", "INCOMPATIBLE_UNITS", "PERIOD_NOT_SUPPORTED"],
+    "evidence_policy": "fact_evidence_ids"
+  },
+  {
+    "id": "quality_of_earnings_ratio",
+    "version": 1,
+    "kind": "ratio",
+    "output_unit": "pure",
+    "applicable_period_types": ["FY", "Q", "YTD"],
+    "required_inputs": [
+      {"name": "operating_cash_flow", "aliases": ["us-gaap_NetCashProvidedByUsedInOperatingActivities", "us-gaap_NetCashProvidedByUsedInOperatingActivitiesContinuingOperations"], "unit_family": "usd", "period": "current"},
+      {"name": "net_income", "aliases": ["us-gaap_NetIncomeLoss"], "unit_family": "usd", "period": "current"}
+    ],
+    "formula": {
+      "op": "divide",
+      "left": {"op": "input", "name": "operating_cash_flow"},
+      "right": {"op": "input", "name": "net_income"},
+      "output_unit": "pure"
+    },
+    "refusal_rules": ["MISSING_INPUT", "AMBIGUOUS_CONTEXT", "INCOMPATIBLE_UNITS", "PERIOD_NOT_SUPPORTED"],
+    "evidence_policy": "fact_evidence_ids"
+  },
+  {
+    "id": "cfo_minus_net_income",
+    "version": 1,
+    "kind": "difference",
+    "output_unit": "usd",
+    "applicable_period_types": ["FY", "Q", "YTD"],
+    "required_inputs": [
+      {"name": "operating_cash_flow", "aliases": ["us-gaap_NetCashProvidedByUsedInOperatingActivities", "us-gaap_NetCashProvidedByUsedInOperatingActivitiesContinuingOperations"], "unit_family": "usd", "period": "current"},
+      {"name": "net_income", "aliases": ["us-gaap_NetIncomeLoss"], "unit_family": "usd", "period": "current"}
+    ],
+    "formula": {
+      "op": "subtract",
+      "left": {"op": "input", "name": "operating_cash_flow"},
+      "right": {"op": "input", "name": "net_income"}
+    },
+    "refusal_rules": ["MISSING_INPUT", "AMBIGUOUS_CONTEXT", "INCOMPATIBLE_UNITS", "PERIOD_NOT_SUPPORTED"],
+    "evidence_policy": "fact_evidence_ids"
+  },
+  {
+    "id": "roa",
+    "version": 1,
+    "kind": "ratio",
+    "output_unit": "pure",
+    "applicable_period_types": ["FY"],
+    "required_inputs": [
+      {"name": "net_income", "aliases": ["us-gaap_NetIncomeLoss"], "unit_family": "usd", "period": "current"},
+      {"name": "ending_assets", "aliases": ["us-gaap_Assets"], "unit_family": "usd", "period": "current_period_end_asof"},
+      {"name": "beginning_assets", "aliases": ["us-gaap_Assets"], "unit_family": "usd", "period": "prior_year_period_end_asof"}
+    ],
+    "formula": {
+      "op": "divide",
+      "left": {"op": "input", "name": "net_income"},
+      "right": {
+        "op": "average",
+        "args": [
+          {"op": "input", "name": "ending_assets"},
+          {"op": "input", "name": "beginning_assets"}
+        ]
+      },
+      "output_unit": "pure"
+    },
+    "refusal_rules": ["MISSING_INPUT", "AMBIGUOUS_CONTEXT", "INCOMPATIBLE_UNITS", "PERIOD_NOT_SUPPORTED"],
+    "evidence_policy": "fact_evidence_ids"
+  },
+  {
+    "id": "roe",
+    "version": 1,
+    "kind": "ratio",
+    "output_unit": "pure",
+    "applicable_period_types": ["FY"],
+    "required_inputs": [
+      {"name": "net_income", "aliases": ["us-gaap_NetIncomeLoss"], "unit_family": "usd", "period": "current"},
+      {"name": "ending_equity", "aliases": ["us-gaap_StockholdersEquity"], "unit_family": "usd", "period": "current_period_end_asof"},
+      {"name": "beginning_equity", "aliases": ["us-gaap_StockholdersEquity"], "unit_family": "usd", "period": "prior_year_period_end_asof"}
+    ],
+    "formula": {
+      "op": "divide",
+      "left": {"op": "input", "name": "net_income"},
+      "right": {
+        "op": "average",
+        "args": [
+          {"op": "input", "name": "ending_equity"},
+          {"op": "input", "name": "beginning_equity"}
+        ]
+      },
+      "output_unit": "pure"
+    },
+    "refusal_rules": ["MISSING_INPUT", "AMBIGUOUS_CONTEXT", "INCOMPATIBLE_UNITS", "PERIOD_NOT_SUPPORTED"],
+    "evidence_policy": "fact_evidence_ids"
+  },
+  {
+    "id": "asset_turnover",
+    "version": 1,
+    "kind": "ratio",
+    "output_unit": "pure",
+    "applicable_period_types": ["FY"],
+    "required_inputs": [
+      {"name": "revenue", "aliases": ["us-gaap_Revenues", "us-gaap_RevenueFromContractWithCustomerExcludingAssessedTax", "us-gaap_SalesRevenueNet"], "unit_family": "usd", "period": "current"},
+      {"name": "ending_assets", "aliases": ["us-gaap_Assets"], "unit_family": "usd", "period": "current_period_end_asof"},
+      {"name": "beginning_assets", "aliases": ["us-gaap_Assets"], "unit_family": "usd", "period": "prior_year_period_end_asof"}
+    ],
+    "formula": {
+      "op": "divide",
+      "left": {"op": "input", "name": "revenue"},
+      "right": {
+        "op": "average",
+        "args": [
+          {"op": "input", "name": "ending_assets"},
+          {"op": "input", "name": "beginning_assets"}
+        ]
+      },
+      "output_unit": "pure"
+    },
+    "refusal_rules": ["MISSING_INPUT", "AMBIGUOUS_CONTEXT", "INCOMPATIBLE_UNITS", "PERIOD_NOT_SUPPORTED"],
+    "evidence_policy": "fact_evidence_ids"
+  },
+  {
+    "id": "equity_multiplier",
+    "version": 1,
+    "kind": "ratio",
+    "output_unit": "pure",
+    "applicable_period_types": ["FY"],
+    "required_inputs": [
+      {"name": "ending_assets", "aliases": ["us-gaap_Assets"], "unit_family": "usd", "period": "current_period_end_asof"},
+      {"name": "beginning_assets", "aliases": ["us-gaap_Assets"], "unit_family": "usd", "period": "prior_year_period_end_asof"},
+      {"name": "ending_equity", "aliases": ["us-gaap_StockholdersEquity"], "unit_family": "usd", "period": "current_period_end_asof"},
+      {"name": "beginning_equity", "aliases": ["us-gaap_StockholdersEquity"], "unit_family": "usd", "period": "prior_year_period_end_asof"}
+    ],
+    "formula": {
+      "op": "divide",
+      "left": {
+        "op": "average",
+        "args": [
+          {"op": "input", "name": "ending_assets"},
+          {"op": "input", "name": "beginning_assets"}
+        ]
+      },
+      "right": {
+        "op": "average",
+        "args": [
+          {"op": "input", "name": "ending_equity"},
+          {"op": "input", "name": "beginning_equity"}
+        ]
+      },
+      "output_unit": "pure"
+    },
+    "refusal_rules": ["MISSING_INPUT", "AMBIGUOUS_CONTEXT", "INCOMPATIBLE_UNITS", "PERIOD_NOT_SUPPORTED"],
+    "evidence_policy": "fact_evidence_ids"
+  }
+]

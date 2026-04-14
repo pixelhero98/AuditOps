@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "task_plan.v1",
+  "title": "AuditOps TaskPlan",
+  "type": "object",
+  "required": [
+    "task_plan_version",
+    "task_id",
+    "task_type",
+    "metric_spec_id",
+    "filing_id",
+    "period_key",
+    "executor_op",
+    "required_output_schema",
+    "refusal_policy"
+  ],
+  "properties": {
+    "task_plan_version": { "const": "v1" },
+    "task_type": { "const": "quant_metric" },
+    "metric_spec_id": { "type": "string" },
+    "filing_id": { "type": "string" },
+    "period_key": { "type": "string" },
+    "executor_op": { "const": "evaluate_metric_spec" },
+    "required_output_schema": { "type": "object" },
+    "refusal_policy": { "type": "object" }
+  }
+}

@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "narrative_task_spec.v1",
+  "type": "object",
+  "required": [
+    "narrative_task_spec_version",
+    "narrative_task_schema_id",
+    "task_id",
+    "task_type",
+    "filing_id",
+    "ticker",
+    "form_type",
+    "period_key",
+    "item",
+    "heading",
+    "subheading",
+    "heading_path",
+    "question",
+    "retrieval_query",
+    "label",
+    "scope_type",
+    "scope_key",
+    "answerability",
+    "expected_chunk_ids",
+    "extractive_answer",
+    "citation_policy"
+  ],
+  "properties": {
+    "narrative_task_spec_version": {
+      "const": "v1"
+    },
+    "narrative_task_schema_id": {
+      "const": "narrative_task_spec.v1"
+    },
+    "task_id": {
+      "type": "string"
+    },
+    "task_type": {
+      "const": "narrative_citation"
+    },
+    "filing_id": {
+      "type": "string"
+    },
+    "ticker": {
+      "type": "string"
+    },
+    "form_type": {
+      "type": "string"
+    },
+    "period_key": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "item": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "heading": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "subheading": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "heading_path": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "question": {
+      "type": "string"
+    },
+    "retrieval_query": {
+      "type": "string"
+    },
+    "label": {
+      "type": "string"
+    },
+    "scope_type": {
+      "enum": [
+        "filing",
+        "note"
+      ]
+    },
+    "scope_key": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "answerability": {
+      "enum": [
+        "ANSWERABLE",
+        "UNANSWERABLE"
+      ]
+    },
+    "expected_chunk_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "extractive_answer": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "refusal_code": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "citation_policy": {
+      "type": "object"
+    }
+  }
+}

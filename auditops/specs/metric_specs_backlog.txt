@@ -1,0 +1,92 @@
+Metric Specs Backlog
+====================
+
+Purpose
+- Keep a short reminder of metric specs and metric families that are worth adding after the generator and evaluator are stronger.
+- Current live library is in `auditops/specs/metric_specs.json`.
+
+Potential Next Adds
+-------------------
+- dupont_roe_decomposition
+  Formula intent: ROE = net_margin x asset_turnover x equity_multiplier.
+  Why not added yet: needs a `multiply` formula op and a decision on whether to emit one composite answer, component answers, or both.
+
+- net_debt
+  Formula intent: short_term_debt + long_term_debt - cash_and_equivalents.
+  Why not added yet: debt alias coverage is not stable enough across issuers, especially for current portion of long-term debt and lease/finance debt variants.
+
+- interest_coverage
+  Formula intent: EBIT / interest_expense.
+  Fallback variant: operating_income / interest_expense.
+  Why not added yet: interest expense tagging is noisier than revenue, net income, or CFO, so this needs tighter alias rules and sign handling.
+
+- interest_burden_ratio
+  Formula intent: pre_tax_income / EBIT.
+  Why not added yet: same alias/sign issue as interest coverage, plus more pre-tax income variants.
+
+- tax_burden_ratio
+  Formula intent: net_income / pre_tax_income.
+  Why not added yet: needs careful treatment of negative or near-zero pre-tax income.
+
+Deferred Until The Engine Is Stronger
+-------------------------------------
+- dso
+  Formula intent: average_accounts_receivable / revenue x 365.
+  Needs: constants, averages, and stricter period matching between ASOF and duration facts.
+
+- dio
+  Formula intent: average_inventory / cogs x 365.
+  Needs: constants, averages, and better inventory alias coverage outside simple manufacturers/retailers.
+
+- dpo
+  Formula intent: average_accounts_payable / cogs x 365.
+  Needs: constants, averages, and payable alias coverage.
+
+- cash_conversion_cycle
+  Formula intent: dio + dso - dpo.
+  Needs: the three working-capital cycle metrics above to be reliable first.
+
+- accrual_gap_scaled_by_assets
+  Formula intent: (cfo - net_income) / average_total_assets.
+  Needs: stronger average-balance support and a decision on whether this should be a standalone metric or folded into a broader accrual-quality family.
+
+- tata
+  Formula intent: total_accruals / average_total_assets.
+  Practical filing-only variant: (net_income - cfo) / average_total_assets.
+  Needs: explicit definition choice and average-balance support.
+
+- beneish_m_score
+  Why deferred: composite multi-input model with several intermediate indices, more fragile aliases, and a higher chance of noisy false positives if canonical inputs are incomplete.
+
+- piotroski_f_score
+  Why deferred: nine binary tests spanning profitability, leverage, liquidity, and efficiency; better after generator support can emit structured intermediate decisions cleanly.
+
+- altman_z_score
+  Why deferred: the classic formula uses market value of equity, which is not in filing-only XBRL. A book-value proxy variant should be labeled separately if added later.
+
+Generator-Oriented Families
+---------------------------
+- common_size_income_statement_* 
+  Better as a templated generator family than as many hand-written fixed specs.
+  Pattern: selected line item / revenue.
+
+- common_size_balance_sheet_*
+  Better as a templated generator family than as many hand-written fixed specs.
+  Pattern: selected line item / total_assets.
+
+- horizontal_analysis_yoy_*
+  Better as a templated generator family than as many hand-written fixed specs.
+  Pattern: (current - prior_year_same_period) / abs(prior_year_same_period).
+
+- horizontal_analysis_qoq_*
+  Better as a templated generator family than as many hand-written fixed specs.
+  Pattern: (current_quarter - previous_quarter) / abs(previous_quarter).
+
+Notes
+-----
+- The current evaluator already supports the metrics in the active library plus average-balance FY ratios such as ROA and ROE.
+- Before touching the deferred list, the next useful engine upgrades are:
+  1. `multiply`
+  2. numeric constants
+  3. better debt and interest alias families
+  4. more explicit period-compatibility validation for duration-plus-average-balance metrics

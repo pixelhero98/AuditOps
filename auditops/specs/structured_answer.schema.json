@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "structured_answer.v1",
+  "title": "AuditOps Structured Answer",
+  "type": "object",
+  "required": [
+    "structured_answer_version",
+    "task_id",
+    "metric_spec_id",
+    "filing_id",
+    "status",
+    "value",
+    "unit",
+    "period_key",
+    "evidence_ids",
+    "refusal_code"
+  ],
+  "properties": {
+    "structured_answer_version": { "const": "v1" },
+    "status": { "enum": ["OK", "REFUSAL"] },
+    "value": { "type": ["string", "null"] },
+    "unit": { "type": ["string", "null"] },
+    "period_key": { "type": ["string", "null"] },
+    "evidence_ids": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "refusal_code": { "type": ["string", "null"] }
+  }
+}

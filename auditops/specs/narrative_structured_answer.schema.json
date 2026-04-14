@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "narrative_structured_answer.v1",
+  "type": "object",
+  "required": [
+    "narrative_answer_version",
+    "task_id",
+    "filing_id",
+    "status",
+    "answer_text",
+    "chunk_evidence_ids",
+    "refusal_code",
+    "matched_rank"
+  ],
+  "properties": {
+    "narrative_answer_version": {
+      "const": "v1"
+    },
+    "task_id": {
+      "type": "string"
+    },
+    "filing_id": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "OK",
+        "REFUSAL"
+      ]
+    },
+    "answer_text": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "chunk_evidence_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "refusal_code": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "matched_rank": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    }
+  }
+}

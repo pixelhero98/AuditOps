@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "auditops"
+version = "0.1.0"
+description = "Audit-queryable SEC iXBRL ingestion, canonicalization, validation, and deterministic labeling."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "beautifulsoup4>=4.12",
+  "lxml>=5.3",
+  "requests>=2.32",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3",
+]
+retrieval = [
+  "haystack-ai>=2.26,<3",
+]
+
+[project.scripts]
+auditops = "auditops.cli:main"
+
+[tool.setuptools.package-data]
+auditops = ["specs/*.json"]
+
+[tool.setuptools.packages.find]
+include = ["auditops*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

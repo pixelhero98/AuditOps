@@ -1,0 +1,9 @@
+.pytest_cache/
+.vscode/
+auditops.egg-info/
+tmp/
+__pycache__/
+*/__pycache__/
+*.pyc
+*.pyo
+*.pyd

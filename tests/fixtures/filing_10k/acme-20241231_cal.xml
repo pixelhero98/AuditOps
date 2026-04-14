@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<link:linkbase xmlns:link="http://www.xbrl.org/2003/linkbase" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <link:calculationLink xlink:type="extended" xlink:role="http://www.xbrl.org/2003/role/link">
+    <link:loc xlink:type="locator" xlink:href="acme-20241231.xsd#us-gaap_AssetsCurrent" xlink:label="loc_assets_current"/>
+    <link:loc xlink:type="locator" xlink:href="acme-20241231.xsd#us-gaap_AssetsNoncurrent" xlink:label="loc_assets_noncurrent"/>
+    <link:loc xlink:type="locator" xlink:href="acme-20241231.xsd#us-gaap_Assets" xlink:label="loc_assets"/>
+    <link:loc xlink:type="locator" xlink:href="acme-20241231.xsd#us-gaap_LiabilitiesCurrent" xlink:label="loc_liabilities_current"/>
+    <link:loc xlink:type="locator" xlink:href="acme-20241231.xsd#us-gaap_LiabilitiesNoncurrent" xlink:label="loc_liabilities_noncurrent"/>
+    <link:loc xlink:type="locator" xlink:href="acme-20241231.xsd#us-gaap_Liabilities" xlink:label="loc_liabilities"/>
+    <link:loc xlink:type="locator" xlink:href="acme-20241231.xsd#us-gaap_StockholdersEquity" xlink:label="loc_equity"/>
+    <link:loc xlink:type="locator" xlink:href="acme-20241231.xsd#us-gaap_LiabilitiesAndStockholdersEquity" xlink:label="loc_le"/>
+    <link:loc xlink:type="locator" xlink:href="acme-20241231.xsd#us-gaap_CashAndCashEquivalentsAtCarryingValue" xlink:label="loc_cash"/>
+    <link:loc xlink:type="locator" xlink:href="acme-20241231.xsd#us-gaap_ShortTermInvestments" xlink:label="loc_sti"/>
+    <link:loc xlink:type="locator" xlink:href="acme-20241231.xsd#us-gaap_AccountsReceivableNetCurrent" xlink:label="loc_ar"/>
+    <link:loc xlink:type="locator" xlink:href="acme-20241231.xsd#us-gaap_InventoryNet" xlink:label="loc_inventory"/>
+
+    <link:calculationArc xlink:type="arc" xlink:from="loc_assets" xlink:to="loc_assets_current" order="1" weight="1"/>
+    <link:calculationArc xlink:type="arc" xlink:from="loc_assets" xlink:to="loc_assets_noncurrent" order="2" weight="1"/>
+    <link:calculationArc xlink:type="arc" xlink:from="loc_liabilities" xlink:to="loc_liabilities_current" order="1" weight="1"/>
+    <link:calculationArc xlink:type="arc" xlink:from="loc_liabilities" xlink:to="loc_liabilities_noncurrent" order="2" weight="1"/>
+    <link:calculationArc xlink:type="arc" xlink:from="loc_le" xlink:to="loc_liabilities" order="1" weight="1"/>
+    <link:calculationArc xlink:type="arc" xlink:from="loc_le" xlink:to="loc_equity" order="2" weight="1"/>
+    <link:calculationArc xlink:type="arc" xlink:from="loc_assets_current" xlink:to="loc_cash" order="1" weight="1"/>
+    <link:calculationArc xlink:type="arc" xlink:from="loc_assets_current" xlink:to="loc_sti" order="2" weight="1"/>
+    <link:calculationArc xlink:type="arc" xlink:from="loc_assets_current" xlink:to="loc_ar" order="3" weight="1"/>
+    <link:calculationArc xlink:type="arc" xlink:from="loc_assets_current" xlink:to="loc_inventory" order="4" weight="1"/>
+  </link:calculationLink>
+</link:linkbase>

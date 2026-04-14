@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "task_spec_quant.v1",
+  "title": "AuditOps Quant TaskSpec",
+  "type": "object",
+  "required": [
+    "task_spec_version",
+    "task_id",
+    "task_type",
+    "source_answer_id",
+    "metric_spec_id",
+    "filing_id",
+    "period",
+    "target_status",
+    "target_answer",
+    "required_inputs",
+    "canonical_inputs",
+    "distractors",
+    "negative_type",
+    "evidence_requirements",
+    "output_schema",
+    "refusal_policy"
+  ],
+  "properties": {
+    "task_spec_version": { "const": "v1" },
+    "task_type": { "const": "quant_metric" },
+    "source_answer_id": { "type": "string" },
+    "metric_spec_id": { "type": "string" },
+    "filing_id": { "type": "string" },
+    "period": {
+      "type": "object",
+      "required": ["period_key", "period_type"],
+      "properties": {
+        "period_key": { "type": "string" },
+        "period_type": { "type": "string" },
+        "fiscal_year": { "type": ["integer", "null"] },
+        "fiscal_quarter": { "type": ["integer", "null"] },
+        "is_ytd": { "type": "boolean" }
+      }
+    },
+    "target_status": { "enum": ["OK", "REFUSAL"] },
+    "required_inputs": { "type": "array" },
+    "canonical_inputs": { "type": "array" },
+    "distractors": { "type": "array" },
+    "negative_type": { "type": ["string", "null"] },
+    "evidence_requirements": { "type": "object" },
+    "output_schema": { "type": "object" },
+    "refusal_policy": { "type": "object" }
+  }
+}
