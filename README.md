@@ -1,16 +1,24 @@
 ﻿# AuditOps
 
-`AuditOps` ingests SEC iXBRL filings into SQLite, materializes canonical fact and narrative layers, runs deterministic validators, emits traceable answer objects from MetricSpecs, and now builds a deterministic later-phase foundation for quant `TaskSpec`, `TaskPlan`, and rendered dataset generation.
+`AuditOps` is an evidence-first, open-source multi-agent auditing framework. It ingests filing data into canonical fact and narrative layers, runs deterministic validators, emits traceable answer objects and task specs, and provides the benchmark and supervision foundation for planner, quant/code, text/RAG, and synthesizer/verifier agents running on local open-source models rather than hosted APIs.
+
+Current implementation status:
+- US SEC/EDGAR corpus: implemented
+- UK FCA NSM corpus: manifest/download foundation implemented
+- UK Companies House corpus: planned, not implemented
+- multi-agent fine-tuning / RLHF: planned, not implemented
+
+Today the implementation is strongest on deterministic corpus, canonical evidence, benchmark, and task-generation foundations. Broader multi-agent orchestration, local fine-tuning, and cross-corpus multimodal support remain planned work.
 
 ## Quick Start
 
 ```bash
 python -m pip install -e .[dev]
-auditops ingest --zip tests/fixtures/filing_10k/fixture.zip --db auditops.sqlite --extract-narrative --reset-db
+pytest
+auditops ingest --zip /path/to/sec-xbrl.zip --db auditops.sqlite --extract-narrative --reset-db
 auditops generate-answers --db auditops.sqlite --output answer_objects_quant.jsonl
 auditops generate-task-specs --db auditops.sqlite --output task_specs_quant.jsonl
 auditops render-quant-datasets --db auditops.sqlite --output-dir rendered_data
-pytest
 ```
 
 Optional retrieval extra:
@@ -40,6 +48,59 @@ auditops download-uk-filings --corpus-root /path/to/corpora/uk_ftse100_nsm_lates
 
 `AuditOps` works as a normal Python package. Create a virtual environment, install the editable package plus the extras you need, and choose corpus/output paths that fit your local or cluster setup.
 
+## Open-Source Model Strategy
+
+`AuditOps` assumes a local, open-source model stack. The default target architecture is mixed OSS per role rather than one model for everything:
+
+- planner / synthesizer / verifier: instruct-style open-source model family
+- quant / code agent: coder-specialized open-source model family
+- PDF / image-heavy corpora: optional OCR and vision stack layered in later
+
+In practice this usually means pairing an instruct-style model with a coder-style model, but the README stays family-agnostic because the best local stack may change over time. Deterministic validation remains primary, and any model-based judge stays secondary to evidence-backed checks.
+
+## Corpus Families And Benchmark Design
+
+`AuditOps` should treat each filing ecosystem as its own corpus family, with separate manifests, ingestion rules, evidence formats, and evaluation slices:
+
+- `US SEC/EDGAR`
+  - current implementation track
+  - primarily HTML + iXBRL + tables
+- `UK FCA NSM`
+  - current UK foundation track
+  - XHTML / HTML / PDF mix
+- `UK Companies House`
+  - planned separate UK corpus
+  - annual statutory accounts with XHTML / PDF / image-heavy variants
+
+These corpora do not share the same prompt-code-answer format, but they should share a common auditing task ontology:
+
+- quant deterministic tasks
+- citation-grounded narrative tasks
+- refusal tasks
+- hard negatives
+- planner / judge trajectory tasks
+
+Cross-corpus normalization should happen at the task layer, not at the raw-document layer. PDF and image-heavy corpora require corpus-specific parsing, OCR, and table extraction before they can feed the same task families used by SEC/EDGAR-style corpora.
+
+## Training Data Mix
+
+For later multi-agent tuning, use target ranges rather than fixed quotas. The current recommended starting mix is:
+
+- `~65%` ground-truth-backed answerable tasks
+- `~20%` refusal tasks
+- `~10%` hard negatives
+- `~5%` planner / judge / repair trajectories
+
+The last `~5%` should cover artifacts such as:
+
+- `TaskPlan` traces
+- claim maps
+- patch instructions
+- verifier / judge notes
+- repair trajectories
+
+These are starting targets, not enforcement rules. The exact mix should be adjusted by corpus family, modality, and task family.
+
 ## Main Commands
 
 - `auditops ingest`: load raw XBRL facts, narrative chunks, canonical layers, and validators into SQLite
@@ -68,6 +129,7 @@ auditops download-uk-filings --corpus-root /path/to/corpora/uk_ftse100_nsm_lates
 
 ## Later-Phase Contracts
 
+Implemented now:
 - `task_specs_quant.jsonl`: deterministic intermediate records carrying task identity, filing/period metadata, canonical inputs, distractors, evidence requirements, and target structured answers
 - `train_quant_qa.jsonl`: rendered question -> `TaskPlan` -> structured answer rows for quant tasks in the train split
 - `train_quant_code.jsonl`: aligned code-target rows that compile to the constrained executor contract, not arbitrary Python
@@ -75,8 +137,14 @@ auditops download-uk-filings --corpus-root /path/to/corpora/uk_ftse100_nsm_lates
 - `hard_negatives_quant.jsonl`: typed adversarial manifests for distractor, period, unit, context, and evidence-map traps
 - `eval_holdout.jsonl`: issuer holdout split with no train/eval leakage for the latest-filing corpus
 
-`TaskPlan` and structured-answer schemas ship in [auditops/specs/task_plan.schema.json](/C:/home/PycharmProjects/pythonProject/_remote_work/AuditOps/auditops/specs/task_plan.schema.json), [auditops/specs/structured_answer.schema.json](/C:/home/PycharmProjects/pythonProject/_remote_work/AuditOps/auditops/specs/structured_answer.schema.json), and [auditops/specs/task_spec_quant.schema.json](/C:/home/PycharmProjects/pythonProject/_remote_work/AuditOps/auditops/specs/task_spec_quant.schema.json).
-The narrative citation benchmark schema ships in [auditops/specs/narrative_task_spec.schema.json](/C:/home/PycharmProjects/pythonProject/_remote_work/AuditOps/auditops/specs/narrative_task_spec.schema.json). The deterministic narrative answer schema ships in [auditops/specs/narrative_structured_answer.schema.json](/C:/home/PycharmProjects/pythonProject/_remote_work/AuditOps/auditops/specs/narrative_structured_answer.schema.json).
+Planned later for multi-agent supervision:
+- planner / router trajectory records with `TaskPlan` targets
+- claim-map and support-pack supervision for synthesis agents
+- verifier / judge patch-note and repair trajectories
+- corpus-tagged narrative datasets spanning SEC/EDGAR, FCA NSM, and Companies House slices
+
+`TaskPlan` and structured-answer schemas ship in [auditops/specs/task_plan.schema.json](auditops/specs/task_plan.schema.json), [auditops/specs/structured_answer.schema.json](auditops/specs/structured_answer.schema.json), and [auditops/specs/task_spec_quant.schema.json](auditops/specs/task_spec_quant.schema.json).
+The narrative citation benchmark schema ships in [auditops/specs/narrative_task_spec.schema.json](auditops/specs/narrative_task_spec.schema.json). The deterministic narrative answer schema ships in [auditops/specs/narrative_structured_answer.schema.json](auditops/specs/narrative_structured_answer.schema.json).
 
 ## Roadmap
 
@@ -137,20 +205,13 @@ Status: foundation implemented with deterministic templates
 Validation rules:
 - Every rendered sample must re-execute against canonical truth.
 - Deterministic checks are the hard gate: numeric match, refusal-code match, period/unit/context match, and evidence-id presence.
-- LLM judges, if added later, are sampling-only triage and not release blockers.
+- Model-based judges, if added later, are sampling-only triage and not release blockers.
 
-US corpus synthesis budget note:
-- For the current US latest-filings corpus, the recommended first generator is `gpt-5.4-mini`, with `gpt-5.4` reserved for prompt design and audit sampling.
-- Practical first-pass budget assumption:
-  - render `train_quant_qa.jsonl`, `train_quant_code.jsonl`, and `train_refusal.jsonl`
-  - keep `hard_negatives_quant.jsonl` mostly deterministic at first
-  - use Batch API pricing when available
-- Estimated cost for the current US corpus at this stage:
-  - about `$130-$260` for a first practical synthesis pass with `gpt-5.4-mini` using Batch API
-  - about `$360-$720` if hard negatives are also LLM-rendered at scale
-  - about `$430-$860` for the same first pass with `gpt-5.4`
-  - about `$770-$1,550` for `gpt-5.4` plus LLM-rendered hard negatives
-- These are planning estimates, not billable guarantees. Actual cost depends on prompt length, output length, number of variants per task, retry/filter rate, and whether Batch pricing is used.
+Open-source-only synthesis note:
+- Keep `template-v1` as the deterministic baseline until local generation is ready.
+- Later synthesis should assume a strong local generator model plus a separate local verifier model, not hosted APIs.
+- Deterministic validators remain the hard gate for quant, refusal, period, unit, context, and evidence checks.
+- Narrative and cross-corpus generation should carry corpus and modality tags so one renderer does not silently collapse different source families into the same format.
 
 ### Phase 3: Constrained Quant Runtime
 
@@ -215,20 +276,20 @@ Current operating rule:
 
 Status: foundation implemented
 
-- Build the UK expansion as a separate corpus family, not a mixed US/UK corpus.
+- Build the FCA NSM expansion as a separate corpus family, not a mixed US/UK corpus.
 - Target corpus name:
   - `uk_ftse100_nsm_latest_<snapshot_date>`
 - Freeze a dated FTSE 100 constituents snapshot and treat that frozen manifest as the source of truth for the run.
-- Source periodic reports from the FCA National Storage Mechanism, not Companies House.
+- Source periodic reports from the FCA National Storage Mechanism.
 - First UK filing scope:
   - latest `Annual Financial Report`
   - latest `Half-Yearly Financial Report`
-- Keep Companies House annual accounts out of scope for UK v1. If needed later, they belong in a separate annual-only corpus with different filters and evaluation expectations.
+- Keep Companies House annual accounts on a separate roadmap track with different ingestion and evaluation expectations.
 
 Why this shape:
 - FTSE 100 is the cleanest first UK listed-company universe for protocol stabilization.
 - FCA NSM annual + half-yearly reports are the closest UK analogue to the US `10-K` + `10-Q` pair.
-- Company House is useful later, but it is a statutory annual-accounts source and should not be the first UK periodic-report path.
+- Companies House remains useful later as a separate statutory-accounts corpus, not as a replacement for the FCA NSM track.
 
 UK v1 schedule:
 - `UK-0: Universe freeze`
@@ -266,13 +327,13 @@ Current operating caveat:
 - UK v1 is therefore a real separate corpus foundation with reproducible manifests and archived disclosure metadata, but it is not yet at US parity for ingestable filing packages.
 - The next UK step is an ingest pilot on a small issuer subset once the raw-document retrieval path is stabilized.
 
-Planned UK storage layout:
-- `/projects/b35z/AuditOps/corpora/uk_ftse100_nsm_latest_<snapshot_date>/manifest`
-- `/projects/b35z/AuditOps/corpora/uk_ftse100_nsm_latest_<snapshot_date>/raw`
-- `/projects/b35z/AuditOps/corpora/uk_ftse100_nsm_latest_<snapshot_date>/db/corpus.sqlite`
-- `/projects/b35z/AuditOps/corpora/uk_ftse100_nsm_latest_<snapshot_date>/derived`
-- `/projects/b35z/AuditOps/corpora/uk_ftse100_nsm_latest_<snapshot_date>/eval`
-- `/projects/b35z/AuditOps/corpora/uk_ftse100_nsm_latest_<snapshot_date>/logs`
+Planned UK storage layout under `corpora/uk_ftse100_nsm_latest_<snapshot_date>/`:
+- `manifest/`
+- `raw/`
+- `db/corpus.sqlite`
+- `derived/`
+- `eval/`
+- `logs/`
 
 UK-specific operating rules:
 - Keep the UK corpus isolated from the US corpus at the storage, manifest, and eval levels.
@@ -294,23 +355,70 @@ UK-specific operating rules:
 Exit criteria:
 - A frozen FTSE 100 latest-report corpus with reproducible manifests, ingest lineage, answer/task generation, and runtime eval.
 
-### Phase 4: Hardening And Optional Tuning
+### Phase 3.7: UK Companies House Separate Corpus
 
-Status: hardening foundation implemented for US v1
+Status: planned
 
-- Do prompt/runtime hardening before any fine-tuning work.
-- Expand regression suites and bucket failures by routing, period selection, context choice, unit handling, and refusal behavior.
-- Only tune if prompt-only and deterministic-runtime performance plateaus on fixed eval sets.
-- If tuning is needed, prioritize:
-  - router and planner discipline
-  - structured output formatting
-  - refusal correctness
-- Do not prioritize prose style tuning.
+- Build Companies House as a separate UK corpus family rather than folding it into FCA NSM.
+- Treat it as an annual statutory-accounts corpus with its own manifests, ingest rules, and benchmark slices.
+- Expected modalities are broader than FCA NSM:
+  - XHTML
+  - PDF
+  - image-heavy annual accounts and attachments
+- Initial scope should focus on annual accounts only, with no promise of interim-report parity.
+- This corpus should share the common auditing task ontology, but it will require different prompt-code-answer renderers and different evidence extraction paths from SEC/EDGAR and FCA NSM.
 
-Current US v1 hardening state:
+Planned implementation priorities:
+- freeze a dated Companies House target universe and issuer manifest
+- build filing manifests with filing-type and modality metadata
+- add OCR, PDF parsing, and table extraction before canonical fact and chunk generation
+- keep benchmark and eval outputs separate from FCA NSM even when the task families overlap
+
+Exit criteria:
+- A reproducible annual-accounts corpus with modality-aware ingestion and benchmark slices that can plug into the shared task ontology without pretending to be SEC/EDGAR-like.
+
+### Phase 3.8: Cross-Corpus Benchmark Normalization
+
+Status: planned
+
+- Normalize at the task layer, not at the raw-source layer.
+- Keep shared task families across corpora:
+  - quant deterministic tasks
+  - citation-grounded narrative tasks
+  - refusals
+  - hard negatives
+  - planner / judge trajectories
+- Keep renderer and prompt shapes corpus-specific when needed.
+- Tag future dataset rows with corpus and modality metadata so training and eval can be sliced safely across:
+  - `SEC_EDGAR`
+  - `FCA_NSM`
+  - `COMPANIES_HOUSE`
+  - `HTML`
+  - `XHTML`
+  - `PDF`
+  - `IMAGE`
+
+Exit criteria:
+- Shared auditing tasks remain comparable across corpora without collapsing corpus-specific modality differences or evidence contracts.
+
+### Phase 4: Open-Source Multi-Agent Hardening And Tuning
+
+Status: hardening foundation implemented for US v1; open-source multi-agent tuning planned
+
+- Do prompt/runtime hardening before any local fine-tuning work.
+- Expand regression suites and bucket failures by routing, period selection, context choice, unit handling, refusal behavior, and evidence-map errors.
+- Only tune when deterministic-runtime and prompt-only baselines plateau on fixed eval sets.
+- Prioritize open-source multi-agent tuning in this order:
+  - router / planner adapters
+  - coder / quant adapters
+  - synthesizer / verifier adapters
+- Keep retrieval, SQL selection, and deterministic calculators outside the trainable core.
+- Keep RLHF or preference-style optimization planned, not assumed in the current implementation.
+
+Current US v1 hardening state on corpus `sp500_latest_2026-03-20`:
 - duplicate quant `TaskSpec` rows are deduped before routing and dataset generation
 - `eval-corpus` now emits `eval/runtime_failure_buckets.json`
-- refreshed held-out runtime eval on `/projects/b35z/AuditOps/corpora/sp500_latest_2026-03-20` is currently:
+- refreshed held-out runtime eval is currently:
   - `eval_task_count = 38,812`
   - `failure_count = 0`
   - `numeric_accuracy = 1.0000`
@@ -330,6 +438,7 @@ Status: baseline implemented and frozen for US v1
 - Add a narrative `TaskSpec` layer before any text-generation path.
 - Require claim, answerability label, required `chunk_evidence_id`s, and citation rules.
 - Evaluate retrieval before narrative QA.
+- Future UK narrative benchmarks should stay corpus-specific until FCA NSM and Companies House modality handling is strong enough to share the same retrieval assumptions.
 
 Current baseline:
 - A retrieval benchmark entrypoint exists through `auditops eval-retrieval`.
@@ -340,12 +449,11 @@ Current baseline:
 - This is for offline retrieval verification only; answer synthesis and citation-generation remain later work.
 
 Frozen US v1 retrieval baseline:
-- Corpus:
-  - `/projects/b35z/AuditOps/corpora/sp500_latest_2026-03-20`
-- Benchmark examples:
-  - `/projects/b35z/AuditOps/corpora/sp500_latest_2026-03-20/eval/retrieval_benchmark_examples_v5.jsonl`
-- Benchmark summary:
-  - `/projects/b35z/AuditOps/corpora/sp500_latest_2026-03-20/eval/retrieval_benchmark_summary_v5.json`
+- Corpus root:
+  - `corpora/sp500_latest_2026-03-20`
+- Benchmark artifacts under `eval/`:
+  - `retrieval_benchmark_examples_v5.jsonl`
+  - `retrieval_benchmark_summary_v5.json`
 - Method:
   - `bm25_rerank`
   - `top_k = 5`
@@ -378,6 +486,7 @@ Status: foundation implemented for US latest and US trailing-2FY
 - Leave MD&A out until chunk-level period attribution is stronger.
 - Start with answerable footnote/accounting-note tasks, then add deterministic unanswerable/refusal tasks before any generative narrative path.
 - Keep the first path retrieval-first and extractive, not generative.
+- Extend to UK corpora only after PDF / image / OCR pipelines can produce evidence objects comparable to the current SEC/EDGAR chunk layer.
 
 Current narrative foundation:
 - Narrative task specs are materialized with:
@@ -398,10 +507,10 @@ Current narrative foundation:
   - the active trailing-2FY benchmark uses note-scoped retrieval for footnote and accounting-policy tasks, and includes `same_filing_wrong_note` refusals
   - `Question -> NarrativeTaskSpec -> retrieval -> extractive answer + chunk citation`
   - or `REFUSAL` for explicit unanswerable tasks / unsupported questions
-- Current artifact paths for the latest-only US benchmark:
-  - `/projects/b35z/AuditOps/corpora/sp500_latest_2026-03-20/eval/narrative_benchmark_us_v1.jsonl`
-  - `/projects/b35z/AuditOps/corpora/sp500_latest_2026-03-20/eval/narrative_citation_summary_us_v1.json`
-  - `/projects/b35z/AuditOps/corpora/sp500_latest_2026-03-20/eval/narrative_answer_summary_us_v1.json`
+- Current artifact paths for the latest-only US benchmark under `corpora/sp500_latest_2026-03-20/eval/`:
+  - `narrative_benchmark_us_v1.jsonl`
+  - `narrative_citation_summary_us_v1.json`
+  - `narrative_answer_summary_us_v1.json`
 - Current verified metrics on the cleaned US v1 benchmark:
   - citation benchmark:
     - `task_count = 200`
@@ -415,15 +524,11 @@ Current narrative foundation:
     - `citation_exactness = 1.0000`
     - `answer_text_exactness = 1.0000`
     - `refusal_correctness = 1.0000`
-- Frozen trailing-2FY US narrative baseline:
-  - benchmark task set:
-    - `/projects/b35z/AuditOps/corpora/sp500_trailing_2fy_2026-03-20/eval/narrative_benchmark_us_2fy_v7.jsonl`
-  - citation summary:
-    - `/projects/b35z/AuditOps/corpora/sp500_trailing_2fy_2026-03-20/eval/narrative_citation_summary_us_2fy_v7.json`
-  - deterministic answer summary:
-    - `/projects/b35z/AuditOps/corpora/sp500_trailing_2fy_2026-03-20/eval/narrative_answer_summary_us_2fy_v7.json`
-  - loose-question routing summary:
-    - `/projects/b35z/AuditOps/corpora/sp500_trailing_2fy_2026-03-20/eval/narrative_routing_summary_us_2fy_v8.json`
+- Frozen trailing-2FY US narrative baseline under `corpora/sp500_trailing_2fy_2026-03-20/eval/`:
+  - `narrative_benchmark_us_2fy_v7.jsonl`
+  - `narrative_citation_summary_us_2fy_v7.json`
+  - `narrative_answer_summary_us_2fy_v7.json`
+  - `narrative_routing_summary_us_2fy_v8.json`
 - Verified metrics on the frozen trailing-2FY US baseline:
   - citation benchmark:
     - `task_count = 200`
@@ -464,6 +569,7 @@ Status: planned
   - TaskSpec schema version
   - rendering prompt or renderer version
   - split manifest version
+- Track corpus family and modality versions separately for SEC/EDGAR, FCA NSM, and Companies House.
 - Add dedupe and issuer-year leakage controls before retraining.
 - For the latest-only corpus, issuer holdout is the active eval policy; issuer-year holdout returns when the corpus expands to multi-year history.
 - Monitor:
@@ -474,5 +580,5 @@ Status: planned
   - citation-noise rate
 
 Operating rule:
-- New filings should flow through canon build -> answer objects -> task specs -> rendered datasets -> validation -> evaluation, with retraining optional and gated by drift.
+- New filings should flow through canon build -> answer objects -> task specs -> rendered datasets -> validation -> evaluation, with local retraining optional and gated by drift.
 
