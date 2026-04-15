@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import Optional
 
+from .bootstrap_inputs import fetch_uk_constituents, fetch_us_constituents
 from .corpus import build_manifest, download_filings, eval_corpus, generate_corpus_datasets, ingest_corpus, repair_corpus_filing
 from .metrics import generate_answer_objects_from_db
 from .narrative_tasks import (
@@ -65,6 +66,16 @@ def _build_parser() -> argparse.ArgumentParser:
     render.add_argument("--db", required=True, help="SQLite DB path.")
     render.add_argument("--output-dir", required=True, help="Output directory for rendered JSONL files.")
     render.add_argument("--filing-id", default=None, help="Optional filing id filter.")
+
+    fetch_us_cmd = sub.add_parser("fetch-us-constituents", help="Fetch a public S&P 500 constituents snapshot and write a CSV for build-manifest.")
+    fetch_us_cmd.add_argument("--output", required=True, help="Output CSV path.")
+    fetch_us_cmd.add_argument("--snapshot-date", default=None, help="Optional snapshot date label in YYYY-MM-DD format.")
+    fetch_us_cmd.add_argument("--limit", type=int, default=None, help="Optional row limit for smoke testing.")
+
+    fetch_uk_cmd = sub.add_parser("fetch-uk-constituents", help="Fetch a public FTSE 100 constituents snapshot and write a CSV for build-uk-manifest.")
+    fetch_uk_cmd.add_argument("--output", required=True, help="Output CSV path.")
+    fetch_uk_cmd.add_argument("--snapshot-date", default=None, help="Optional snapshot date label in YYYY-MM-DD format.")
+    fetch_uk_cmd.add_argument("--limit", type=int, default=None, help="Optional row limit for smoke testing.")
 
     build_manifest_cmd = sub.add_parser("build-manifest", help="Build a frozen current-universe manifest and latest filing targets.")
     build_manifest_cmd.add_argument("--constituents", required=True, help="Path to the dated constituents CSV snapshot.")
@@ -269,6 +280,16 @@ def main(argv: Optional[list[str]] = None) -> int:
             summary = render_quant_datasets(conn, args.output_dir, filing_id=args.filing_id)
         finally:
             conn.close()
+        print(json.dumps(summary, indent=2, sort_keys=True))
+        return 0
+
+    if args.command == "fetch-us-constituents":
+        summary = fetch_us_constituents(args.output, snapshot_date=args.snapshot_date, limit=args.limit)
+        print(json.dumps(summary, indent=2, sort_keys=True))
+        return 0
+
+    if args.command == "fetch-uk-constituents":
+        summary = fetch_uk_constituents(args.output, snapshot_date=args.snapshot_date, limit=args.limit)
         print(json.dumps(summary, indent=2, sort_keys=True))
         return 0
 

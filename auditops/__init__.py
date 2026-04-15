@@ -1,5 +1,6 @@
 """AuditOps package."""
 
+from .bootstrap_inputs import fetch_uk_constituents, fetch_us_constituents
 from .corpus import build_manifest, download_filings, eval_corpus, generate_corpus_datasets, ingest_corpus, repair_corpus_filing
 from .pipeline import process_zip, rebuild_canonical_layers
 from .narrative_tasks import (
@@ -25,6 +26,8 @@ from .uk_corpus import build_uk_manifest, download_uk_filings
 __all__ = [
     "answer_quant",
     "build_manifest",
+    "fetch_us_constituents",
+    "fetch_uk_constituents",
     "answer_narrative",
     "build_task_specs",
     "build_retrieval_benchmark_examples",

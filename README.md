@@ -16,6 +16,7 @@ Today the implementation is strongest on deterministic corpus, canonical evidenc
 bash scripts/setup_env.sh
 source scripts/activate_env.sh
 pytest
+auditops fetch-us-constituents --output sp500_snapshot.csv --snapshot-date 2026-04-15 --limit 5
 auditops ingest --zip /path/to/sec-xbrl.zip --db auditops.sqlite --extract-narrative --reset-db
 auditops generate-answers --db auditops.sqlite --output answer_objects_quant.jsonl
 auditops generate-task-specs --db auditops.sqlite --output task_specs_quant.jsonl
@@ -31,8 +32,10 @@ python -m pip install -e .[retrieval]
 Corpus bootstrap:
 
 ```bash
-auditops build-manifest --constituents sp500_snapshot.csv --corpus-root corpora/sp500_latest_2026-03-20 --snapshot-date 2026-03-20
-auditops download-filings --corpus-root corpora/sp500_latest_2026-03-20
+export AUDITOPS_SEC_USER_AGENT="AuditOps/0.1 (your-email@example.com)"
+auditops fetch-us-constituents --output sp500_snapshot.csv --snapshot-date 2026-03-20
+auditops build-manifest --constituents sp500_snapshot.csv --corpus-root corpora/sp500_latest_2026-03-20 --snapshot-date 2026-03-20 --user-agent "$AUDITOPS_SEC_USER_AGENT"
+auditops download-filings --corpus-root corpora/sp500_latest_2026-03-20 --user-agent "$AUDITOPS_SEC_USER_AGENT"
 auditops ingest-corpus --corpus-root corpora/sp500_latest_2026-03-20
 auditops generate-corpus-datasets --corpus-root corpora/sp500_latest_2026-03-20
 auditops eval-corpus --corpus-root corpora/sp500_latest_2026-03-20
@@ -41,8 +44,9 @@ auditops eval-corpus --corpus-root corpora/sp500_latest_2026-03-20
 UK corpus foundation:
 
 ```bash
-auditops build-uk-manifest --constituents ftse100_snapshot.csv --corpus-root corpora/uk_ftse100_nsm_latest_2026-03-21 --snapshot-date 2026-03-21
-auditops download-uk-filings --corpus-root corpora/uk_ftse100_nsm_latest_2026-03-21
+auditops fetch-uk-constituents --output ftse100_snapshot.csv --snapshot-date 2026-03-21
+auditops build-uk-manifest --constituents ftse100_snapshot.csv --corpus-root corpora/uk_ftse100_nsm_latest_2026-03-21 --snapshot-date 2026-03-21 --user-agent "$AUDITOPS_SEC_USER_AGENT"
+auditops download-uk-filings --corpus-root corpora/uk_ftse100_nsm_latest_2026-03-21 --user-agent "$AUDITOPS_SEC_USER_AGENT"
 ```
 
 ## Environment
@@ -64,6 +68,8 @@ Key env overrides:
 - `AUDITOPS_TMP_ROOT`
 
 If you prefer, you can still create and activate your own virtual environment manually and only use the Python package / CLI.
+
+For networked commands, prefer setting `AUDITOPS_SEC_USER_AGENT` and passing `--user-agent` explicitly for SEC/FCA runs.
 
 ## Cluster Profiles
 
@@ -136,6 +142,8 @@ These are starting targets, not enforcement rules. The exact mix should be adjus
 - `auditops generate-answers`: evaluate MetricSpecs and write `answer_objects_quant.jsonl`
 - `auditops generate-task-specs`: materialize deterministic quant `TaskSpec` records from answer objects
 - `auditops render-quant-datasets`: write `task_specs_quant.jsonl`, `train_quant_qa.jsonl`, `train_quant_code.jsonl`, `train_refusal.jsonl`, `hard_negatives_quant.jsonl`, and `eval_holdout.jsonl`
+- `auditops fetch-us-constituents`: fetch a public S&P 500 constituents snapshot and write a CSV for `build-manifest`
+- `auditops fetch-uk-constituents`: fetch a public FTSE 100 constituents snapshot and write a CSV for `build-uk-manifest`
 - `auditops build-manifest`: freeze a dated public constituents snapshot, resolve SEC CIKs, and write `issuer_manifest.jsonl` / `filing_manifest.jsonl`
 - `auditops build-uk-manifest`: freeze a dated FTSE constituents snapshot, resolve latest FCA NSM annual + half-yearly reports, and write UK `issuer_manifest.jsonl` / `filing_manifest.jsonl`
 - `auditops download-filings`: download latest filing ZIPs from `filing_manifest.jsonl` and write `download_ledger.jsonl`
@@ -352,6 +360,7 @@ Current implementation status:
 Current operating caveat:
 - The FCA NSM API resolution path is working, but direct raw document fetches are not yet reliably accessible from the current programmatic client flow.
 - UK v1 is therefore a real separate corpus foundation with reproducible manifests and archived disclosure metadata, but it is not yet at US parity for ingestable filing packages.
+- Current UK validation target is the manifest + download-ledger foundation, not full raw-document parity.
 - The next UK step is an ingest pilot on a small issuer subset once the raw-document retrieval path is stabilized.
 
 Planned UK storage layout under `corpora/uk_ftse100_nsm_latest_<snapshot_date>/`:
