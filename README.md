@@ -11,6 +11,10 @@ Current implementation status:
 Today the implementation is strongest on deterministic corpus, canonical evidence, benchmark, and task-generation foundations. Broader multi-agent orchestration, local fine-tuning, and cross-corpus multimodal support remain planned work.
 
 ## Quick Start
+[uv](https://docs.astral.sh/uv/getting-started/installation/) is used for environment management, simply use below command to sync environment.
+```bash
+uv sync --all-extras
+```
 
 ```bash
 bash scripts/setup_env.sh
