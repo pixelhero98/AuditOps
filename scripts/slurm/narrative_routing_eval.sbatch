@@ -1,23 +1,18 @@
 #!/bin/bash
 #SBATCH --job-name=auditops-narrative-routing
-#SBATCH --partition=hopper
 #SBATCH --nodes=1
-#SBATCH --gpus=1
 #SBATCH --time=00:20:00
 
 set -euo pipefail
 
-DEFAULT_REPO_ROOT="$HOME/work/AuditOps"
-if [[ ! -d "$DEFAULT_REPO_ROOT" ]]; then
-  DEFAULT_REPO_ROOT="${SLURM_SUBMIT_DIR:-$PWD}"
-fi
-REPO_ROOT="${AUDITOPS_REPO_ROOT:-$DEFAULT_REPO_ROOT}"
-source "$REPO_ROOT/scripts/isambard_env.sh"
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+export AUDITOPS_REPO_ROOT="${AUDITOPS_REPO_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
+source "$AUDITOPS_REPO_ROOT/scripts/env.sh"
 
-LOG_FILE="$AUDITOPS_SCRATCH_ROOT/logs/${SLURM_JOB_NAME}.${SLURM_JOB_ID}.out"
+LOG_FILE="$AUDITOPS_LOG_ROOT/${SLURM_JOB_NAME:-auditops-narrative-routing}.${SLURM_JOB_ID:-manual}.out"
 exec > >(tee -a "$LOG_FILE") 2>&1
 
-source "$REPO_ROOT/scripts/isambard_activate_env.sh"
+source "$AUDITOPS_REPO_ROOT/scripts/activate_env.sh"
 
 CORPUS_ROOT="${AUDITOPS_CORPUS_ROOT:?Set AUDITOPS_CORPUS_ROOT to the corpus root}"
 DB_PATH="${AUDITOPS_DB_PATH:-$CORPUS_ROOT/db/corpus.sqlite}"

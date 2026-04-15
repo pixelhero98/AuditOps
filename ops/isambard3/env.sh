@@ -1,0 +1,40 @@
+#!/bin/bash
+set -euo pipefail
+
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+export AUDITOPS_REPO_ROOT="${AUDITOPS_REPO_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
+export AUDITOPS_PROFILE="${AUDITOPS_PROFILE:-isambard3}"
+
+if [[ "${AUDITOPS_PROFILE_BOOTSTRAP_ACTIVE:-0}" != "1" ]]; then
+  export AUDITOPS_SKIP_PROFILE=1
+  export AUDITOPS_DEFER_FINALIZE=1
+  source "$AUDITOPS_REPO_ROOT/scripts/env.sh"
+  unset AUDITOPS_SKIP_PROFILE
+  unset AUDITOPS_DEFER_FINALIZE
+fi
+
+if [[ -f /opt/cray/pe/lmod/lmod/init/bash ]]; then
+  source /opt/cray/pe/lmod/lmod/init/bash
+fi
+if command -v module >/dev/null 2>&1; then
+  module load cray-python/3.11.7
+fi
+
+PROJECT_BASE="${AUDITOPS_PROJECT_BASE:-${PROJECTDIR:-${PROJECT:-$AUDITOPS_STATE_ROOT}}}"
+SCRATCH_BASE="${AUDITOPS_SCRATCH_BASE:-${SCRATCHDIR:-${SCRATCH:-$AUDITOPS_STATE_ROOT}}}"
+PROFILE_ROOT="${AUDITOPS_PROFILE_ROOT:-$PROJECT_BASE/AuditOps}"
+
+export AUDITOPS_STATE_ROOT="${AUDITOPS_STATE_ROOT:-$PROFILE_ROOT}"
+export AUDITOPS_ENV_ROOT="${AUDITOPS_ENV_ROOT:-$PROFILE_ROOT/envs/dev}"
+export AUDITOPS_DATA_ROOT="${AUDITOPS_DATA_ROOT:-$PROFILE_ROOT/data}"
+export AUDITOPS_ARTIFACT_ROOT="${AUDITOPS_ARTIFACT_ROOT:-$PROFILE_ROOT/artifacts}"
+export AUDITOPS_CORPUS_HOME="${AUDITOPS_CORPUS_HOME:-$PROFILE_ROOT/corpora}"
+export AUDITOPS_CACHE_ROOT="${AUDITOPS_CACHE_ROOT:-$SCRATCH_BASE/AuditOps/cache}"
+export AUDITOPS_LOG_ROOT="${AUDITOPS_LOG_ROOT:-$SCRATCH_BASE/AuditOps/logs}"
+export AUDITOPS_RUN_ROOT="${AUDITOPS_RUN_ROOT:-$SCRATCH_BASE/AuditOps/runs}"
+export AUDITOPS_TMP_ROOT="${AUDITOPS_TMP_ROOT:-$SCRATCH_BASE/AuditOps/tmp}"
+export AUDITOPS_PYTHON_BIN="${AUDITOPS_PYTHON_BIN:-python3}"
+
+if [[ "${AUDITOPS_PROFILE_BOOTSTRAP_ACTIVE:-0}" != "1" ]]; then
+  _auditops_finalize_env
+fi

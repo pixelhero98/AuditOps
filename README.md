@@ -13,7 +13,8 @@ Today the implementation is strongest on deterministic corpus, canonical evidenc
 ## Quick Start
 
 ```bash
-python -m pip install -e .[dev]
+bash scripts/setup_env.sh
+source scripts/activate_env.sh
 pytest
 auditops ingest --zip /path/to/sec-xbrl.zip --db auditops.sqlite --extract-narrative --reset-db
 auditops generate-answers --db auditops.sqlite --output answer_objects_quant.jsonl
@@ -30,23 +31,49 @@ python -m pip install -e .[retrieval]
 Corpus bootstrap:
 
 ```bash
-auditops build-manifest --constituents sp500_snapshot.csv --corpus-root /path/to/corpora/sp500_latest_2026-03-20 --snapshot-date 2026-03-20
-auditops download-filings --corpus-root /path/to/corpora/sp500_latest_2026-03-20
-auditops ingest-corpus --corpus-root /path/to/corpora/sp500_latest_2026-03-20
-auditops generate-corpus-datasets --corpus-root /path/to/corpora/sp500_latest_2026-03-20
-auditops eval-corpus --corpus-root /path/to/corpora/sp500_latest_2026-03-20
+auditops build-manifest --constituents sp500_snapshot.csv --corpus-root corpora/sp500_latest_2026-03-20 --snapshot-date 2026-03-20
+auditops download-filings --corpus-root corpora/sp500_latest_2026-03-20
+auditops ingest-corpus --corpus-root corpora/sp500_latest_2026-03-20
+auditops generate-corpus-datasets --corpus-root corpora/sp500_latest_2026-03-20
+auditops eval-corpus --corpus-root corpora/sp500_latest_2026-03-20
 ```
 
 UK corpus foundation:
 
 ```bash
-auditops build-uk-manifest --constituents ftse100_snapshot.csv --corpus-root /path/to/corpora/uk_ftse100_nsm_latest_2026-03-21 --snapshot-date 2026-03-21
-auditops download-uk-filings --corpus-root /path/to/corpora/uk_ftse100_nsm_latest_2026-03-21
+auditops build-uk-manifest --constituents ftse100_snapshot.csv --corpus-root corpora/uk_ftse100_nsm_latest_2026-03-21 --snapshot-date 2026-03-21
+auditops download-uk-filings --corpus-root corpora/uk_ftse100_nsm_latest_2026-03-21
 ```
 
 ## Environment
 
-`AuditOps` works as a normal Python package. Create a virtual environment, install the editable package plus the extras you need, and choose corpus/output paths that fit your local or cluster setup.
+`AuditOps` works as a normal Python package. The default ops layer is machine-agnostic:
+
+- `scripts/setup_env.sh` builds a local editable environment with `.[dev,retrieval]`
+- `scripts/activate_env.sh` activates that environment
+- `scripts/env.sh` derives writable defaults under repo-local `.auditops/` unless you set `AUDITOPS_*` paths explicitly
+
+Key env overrides:
+
+- `AUDITOPS_REPO_ROOT`
+- `AUDITOPS_STATE_ROOT`
+- `AUDITOPS_ENV_ROOT`
+- `AUDITOPS_CORPUS_HOME`
+- `AUDITOPS_CACHE_ROOT`
+- `AUDITOPS_LOG_ROOT`
+- `AUDITOPS_TMP_ROOT`
+
+If you prefer, you can still create and activate your own virtual environment manually and only use the Python package / CLI.
+
+## Cluster Profiles
+
+The generic scripts are the default workflow. Site-specific helpers live under `ops/<profile>/` and are optional.
+
+- generic Slurm templates live under `scripts/slurm/`
+- site presets such as `ops/isambard3/` only exist to layer local scheduler, module, and storage defaults on top of the generic scripts
+- set `AUDITOPS_PROFILE=<profile>` if you want the generic scripts to load a profile automatically
+
+This keeps the default collaborator workflow local and env-driven, while still allowing cluster-specific presets to stay in-repo without defining the public default.
 
 ## Open-Source Model Strategy
 
