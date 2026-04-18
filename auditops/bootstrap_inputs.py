@@ -88,6 +88,22 @@ def _write_csv(path: str | Path, fieldnames: Sequence[str], rows: Sequence[Dict[
 
 
 def fetch_us_constituents(output_path: str | Path, *, snapshot_date: Optional[str] = None, limit: Optional[int] = None) -> Dict[str, object]:
+    """Fetch and write a normalized US constituent snapshot CSV.
+    
+    Parameters
+    ----------
+    output_path : str | Path
+        Destination path for generated output artifacts. e.g., 'auditops-output.jsonl'
+    snapshot_date : Optional[str], optional
+        Snapshot date in ISO format YYYY-MM-DD.
+    limit : Optional[int], optional
+        Maximum number of records to process.
+    
+    Returns
+    -------
+    Dict[str, object]
+        Dictionary with output fields for this operation.
+    """
     normalized_snapshot_date = _validate_snapshot_date(snapshot_date)
     html = _fetch_html(S_AND_P_500_WIKI_URL)
     raw_rows = _find_table_rows(html, required_headers=("Symbol", "Security"))
@@ -113,6 +129,22 @@ def fetch_us_constituents(output_path: str | Path, *, snapshot_date: Optional[st
 
 
 def fetch_uk_constituents(output_path: str | Path, *, snapshot_date: Optional[str] = None, limit: Optional[int] = None) -> Dict[str, object]:
+    """Fetch and write a normalized UK constituent snapshot CSV.
+    
+    Parameters
+    ----------
+    output_path : str | Path
+        Destination path for generated output artifacts. e.g., auditops-output.jsonl
+    snapshot_date : Optional[str], optional
+        Snapshot date in ISO format YYYY-MM-DD.
+    limit : Optional[int], optional
+        Maximum number of records to process.
+    
+    Returns
+    -------
+    Dict[str, object]
+        Dictionary with output fields for this operation.
+    """
     normalized_snapshot_date = _validate_snapshot_date(snapshot_date)
     html = _fetch_html(FTSE_100_WIKI_URL)
     raw_rows = _find_table_rows(html, required_headers=("Company", "Ticker"))

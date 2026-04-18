@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import sqlite3
 from typing import Any, Dict, Mapping, Optional, Sequence
 
 from .metrics import answer_metric_spec
@@ -18,6 +19,26 @@ from .tasks import (
 
 
 def validate_task_plan(task_plan: Mapping[str, Any]) -> None:
+    """Validate that a task plan matches the required schema contract.
+    
+    Parameters
+    ----------
+    task_plan : Mapping[str, Any]
+        Executor-ready task-plan payload derived from a task specification.
+    
+    Raises
+    ------
+    ValueError
+        TaskPlan is missing required fields: {...}.
+    ValueError
+        Unsupported TaskPlan version: {...}.
+    ValueError
+        Unsupported TaskPlan type: {...}.
+    ValueError
+        Unsupported executor op: {...}.
+    ValueError
+        TaskPlan required_output_schema must reference structured_answer.v1.
+    """
     required_fields = {
         "task_plan_version",
         "task_id",
@@ -43,6 +64,37 @@ def validate_task_plan(task_plan: Mapping[str, Any]) -> None:
 
 
 def validate_structured_answer(answer: Mapping[str, Any]) -> None:
+    """Validate that a structured answer matches the required schema.
+    
+    Parameters
+    ----------
+    answer : Mapping[str, Any]
+        Structured answer payload to validate, route, or evaluate.
+    
+    Raises
+    ------
+    ValueError
+        Structured answer is missing required fields: {...}.
+    ValueError
+        Unsupported structured answer version: {...}.
+    ValueError
+        Unsupported structured answer status: {...}.
+    ValueError
+        Structured answer evidence_ids must be a list.
+    ValueError
+        OK structured answers must include a value.
+    ValueError
+        OK structured answers cannot include refusal_code.
+    ValueError
+        OK structured answers must include evidence IDs.
+    ValueError
+        REFUSAL structured answers must include refusal_code.
+    
+    Examples
+    --------
+    >>> answer = {...}
+    >>> validate_structured_answer(answer)  # doctest: +SKIP
+    """
     required_fields = {
         "structured_answer_version",
         "task_id",
@@ -77,6 +129,18 @@ def validate_structured_answer(answer: Mapping[str, Any]) -> None:
 
 
 def build_task_plan(task_spec: Mapping[str, Any]) -> Dict[str, Any]:
+    """Build the target task-plan payload for executor routing.
+    
+    Parameters
+    ----------
+    task_spec : Mapping[str, Any]
+        Task specification payload with routing, evidence, and target-answer metadata.
+    
+    Returns
+    -------
+    Dict[str, Any]
+        Dictionary with output fields for this operation.
+    """
     return build_task_plan_target(task_spec)
 
 
@@ -98,7 +162,21 @@ def _to_structured_answer(task_plan: Mapping[str, Any], metric_answer: Mapping[s
     return structured_answer
 
 
-def execute_task_plan(conn, task_plan: Mapping[str, Any]) -> Dict[str, Any]:
+def execute_task_plan(conn: sqlite3.Connection, task_plan: Mapping[str, Any]) -> Dict[str, Any]:
+    """Execute a task plan and return a validated structured answer.
+    
+    Parameters
+    ----------
+    conn : sqlite3.Connection
+        Open SQLite connection for the corpus database.
+    task_plan : Mapping[str, Any]
+        Executor-ready task-plan payload derived from a task specification.
+    
+    Returns
+    -------
+    Dict[str, Any]
+        Dictionary with output fields for this operation.
+    """
     validate_task_plan(task_plan)
     metric_answer = answer_metric_spec(
         conn,
@@ -158,6 +236,35 @@ def _match_period(question_lower: str, task_specs: Sequence[Mapping[str, Any]]) 
 
 
 def route_question(question: str, filing_id: str, task_specs: Sequence[Mapping[str, Any]]) -> Mapping[str, Any]:
+    """Route a quant question to the best matching task specification.
+    
+    Parameters
+    ----------
+    question : str
+        Natural-language user question to route and answer.
+    filing_id : str
+        Canonical filing identifier used by manifests and derived artifacts. e.g., '0000320193-2025-10K'
+    task_specs : Sequence[Mapping[str, Any]]
+        Collection of task specification payloads.
+    
+    Returns
+    -------
+    Mapping[str, Any]
+        Dictionary with fields produced while a quant question to the best matching task specification.
+    
+    Raises
+    ------
+    ValueError
+        No TaskSpecs available for filing {...}.
+    ValueError
+        Question did not match any MetricSpec-backed task.
+    ValueError
+        Question matched multiple MetricSpecs.
+    ValueError
+        Question matched multiple periods for the same MetricSpec.
+    ValueError
+        Question routing did not resolve to a single TaskSpec.
+    """
     filing_candidates = [task_spec for task_spec in dedupe_task_specs(task_specs) if task_spec["filing_id"] == filing_id]
     if not filing_candidates:
         raise ValueError(f"No TaskSpecs available for filing {filing_id}")
@@ -197,7 +304,25 @@ def _unsupported_task_answer(task_id: str, filing_id: str) -> Dict[str, Any]:
     }
 
 
-def answer_quant(conn, question: str, filing_id: str, task_specs: Optional[Sequence[Mapping[str, Any]]] = None) -> Dict[str, Any]:
+def answer_quant(conn: sqlite3.Connection, question: str, filing_id: str, task_specs: Optional[Sequence[Mapping[str, Any]]] = None) -> Dict[str, Any]:
+    """Answer a quantitative question for a filing using task specs.
+    
+    Parameters
+    ----------
+    conn : sqlite3.Connection
+        SQLite connection for the corpus database.
+    question : str
+        Natural-language user question to route and answer.
+    filing_id : str
+        Canonical filing identifier used by manifests and derived artifacts. e.g., '0000320193-2025-10K'
+    task_specs : Optional[Sequence[Mapping[str, Any]]], optional
+        Collection of task specification payloads.
+    
+    Returns
+    -------
+    Dict[str, Any]
+        Structured response payload for downstream execution or evaluation.
+    """
     active_task_specs = dedupe_task_specs(task_specs or build_task_specs(conn, filing_id=filing_id))
     try:
         task_spec = route_question(question, filing_id, active_task_specs)

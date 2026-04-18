@@ -11,10 +11,6 @@ Current implementation status:
 Today the implementation is strongest on deterministic corpus, canonical evidence, benchmark, and task-generation foundations. Broader multi-agent orchestration, local fine-tuning, and cross-corpus multimodal support remain planned work.
 
 ## Quick Start
-[uv](https://docs.astral.sh/uv/getting-started/installation/) is used for environment management, simply use below command to sync environment.
-```bash
-uv sync --all-extras
-```
 
 ```bash
 bash scripts/setup_env.sh
@@ -72,6 +68,12 @@ Key env overrides:
 - `AUDITOPS_TMP_ROOT`
 
 If you prefer, you can still create and activate your own virtual environment manually and only use the Python package / CLI.
+
+For example, if you use [uv](https://docs.astral.sh/uv/getting-started/installation/) to manage python environment, simply use below command to sync environment.
+```bash
+uv sync
+```
+> for extras, use `uv sync --extras dev` for development and `uv sync --extras retrieval` for retrieval evaluation, such as BM25. Or simply `uv sync --all-extras` to get them all.
 
 For networked commands, prefer setting `AUDITOPS_SEC_USER_AGENT` and passing `--user-agent` explicitly for SEC/FCA runs.
 

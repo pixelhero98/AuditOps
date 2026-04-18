@@ -44,7 +44,7 @@ def _build_parser() -> argparse.ArgumentParser:
     ingest.add_argument("--fiscal-period-focus", default=None, help="Optional fiscal period focus override.")
     ingest.add_argument("--report-date", default=None, help="Optional report date override (YYYY-MM-DD).")
 
-    rebuild = sub.add_parser("rebuild-canon", help="Rebuild facts_canon, chunk_canon, and validators_v0.")
+    rebuild = sub.add_parser("rebuild-canon", help="Rebuild canonical layers: facts_canon, chunk_canon, and validators_v0.")
     rebuild.add_argument("--db", required=True, help="SQLite DB path.")
     rebuild.add_argument("--filing-id", default=None, help="Optional filing id filter.")
 

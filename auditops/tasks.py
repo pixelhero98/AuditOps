@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from collections import defaultdict
 from pathlib import Path
+import sqlite3
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence
 
 from .metrics import GENERATOR_VERSION, generate_answer_objects, load_metric_specs_by_id
@@ -44,7 +45,7 @@ def _metric_label(metric_spec_id: str) -> str:
     return metric_spec_id.replace("_", " ")
 
 
-def _read_facts(conn, filing_id: Optional[str] = None) -> Dict[tuple[str, str], List[Dict[str, Any]]]:
+def _read_facts(conn: sqlite3.Connection, filing_id: Optional[str] = None) -> Dict[tuple[str, str], List[Dict[str, Any]]]:
     facts_by_period: Dict[tuple[str, str], List[Dict[str, Any]]] = defaultdict(list)
     if filing_id:
         rows = conn.execute(
@@ -72,7 +73,7 @@ def _read_facts(conn, filing_id: Optional[str] = None) -> Dict[tuple[str, str], 
     return facts_by_period
 
 
-def _read_validators(conn, filing_id: Optional[str] = None) -> Dict[str, List[Dict[str, Any]]]:
+def _read_validators(conn: sqlite3.Connection, filing_id: Optional[str] = None) -> Dict[str, List[Dict[str, Any]]]:
     validators_by_filing: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
     if filing_id:
         rows = conn.execute(
@@ -180,6 +181,38 @@ def _answer_negative_type(answer: Mapping[str, Any]) -> Optional[str]:
 
 
 def dedupe_task_specs(task_specs: Sequence[Mapping[str, Any]]) -> List[Dict[str, Any]]:
+    """Deduplicate TaskSpec rows by ``task_id`` while preserving order.
+
+    Parameters
+    ----------
+    task_specs : Sequence[Mapping[str, Any]]
+        TaskSpec-like mappings. The first occurrence of each ``task_id`` is
+        preserved.
+
+    Returns
+    -------
+    List[Dict[str, Any]]
+        Deduplicated task specs. When duplicates exist, ``validator_codes`` are
+        merged as a sorted set union.
+
+    Examples
+    --------
+    >>> rows = [
+    ...     {"task_id": "a", "validator_codes": ["X"]},
+    ...     {"task_id": "a", "validator_codes": ["Y"]},
+    ... ]
+    >>> dedupe_task_specs(rows)
+    [{'task_id': 'a', 'validator_codes': ['X', 'Y']}]
+
+    Notes
+    -----
+    This function does not mutate input mappings. Each returned row is a
+    materialized ``dict``.
+
+    See Also
+    --------
+    validate_task_spec : Validate a TaskSpec before persistence or rendering.
+    """
     deduped: List[Dict[str, Any]] = []
     index_by_task_id: Dict[str, int] = {}
     for task_spec in task_specs:
@@ -201,6 +234,63 @@ def dedupe_task_specs(task_specs: Sequence[Mapping[str, Any]]) -> List[Dict[str,
 
 
 def validate_task_spec(task_spec: Mapping[str, Any]) -> None:
+    """Validate a TaskSpec payload against required contract fields.
+
+    Parameters
+    ----------
+    task_spec : Mapping[str, Any]
+        Task specification payload to validate.
+
+    Raises
+    ------
+    ValueError
+        Raised when required fields are missing, values are inconsistent, or
+        schema/version constraints are violated.
+
+    Examples
+    --------
+    >>> valid = {
+    ...     "task_spec_version": TASK_SPEC_VERSION,
+    ...     "task_id": "t1",
+    ...     "task_type": TASK_TYPE,
+    ...     "source_answer_id": "a1",
+    ...     "metric_spec_id": "m1",
+    ...     "metric_kind": "scalar",
+    ...     "filing_id": "f1",
+    ...     "ticker": "ABC",
+    ...     "filing_metadata": {},
+    ...     "period": {"period_key": "FY2025"},
+    ...     "target_status": "REFUSAL",
+    ...     "target_answer": {
+    ...         "structured_answer_version": TASK_SPEC_VERSION,
+    ...         "task_id": "t1",
+    ...         "metric_spec_id": None,
+    ...         "filing_id": "f1",
+    ...         "status": "REFUSAL",
+    ...         "value": None,
+    ...         "unit": None,
+    ...         "period_key": "FY2025",
+    ...         "evidence_ids": [],
+    ...         "refusal_code": "TASK_NOT_SUPPORTED",
+    ...     },
+    ...     "required_inputs": [],
+    ...     "canonical_inputs": [],
+    ...     "distractors": [],
+    ...     "negative_type": None,
+    ...     "evidence_requirements": {},
+    ...     "output_schema": {"schema_id": STRUCTURED_ANSWER_SCHEMA_ID},
+    ...     "refusal_policy": {},
+    ... }
+    >>> validate_task_spec(valid)
+
+    Notes
+    -----
+    Validation is strict and raises on the first detected contract violation.
+
+    See Also
+    --------
+    build_task_plan_target : Build executor-ready plans from validated TaskSpecs.
+    """
     required_fields = {
         "task_spec_version",
         "task_id",
@@ -244,6 +334,18 @@ def validate_task_spec(task_spec: Mapping[str, Any]) -> None:
 
 
 def build_task_plan_target(task_spec: Mapping[str, Any]) -> Dict[str, Any]:
+    """Build the target task-plan payload for executor routing.
+    
+    Parameters
+    ----------
+    task_spec : Mapping[str, Any]
+        Task specification payload with routing, evidence, and target-answer metadata.
+    
+    Returns
+    -------
+    Dict[str, Any]
+        Dictionary with output fields for this operation.
+    """
     validate_task_spec(task_spec)
     return {
         "task_plan_version": TASK_SPEC_VERSION,
@@ -258,7 +360,23 @@ def build_task_plan_target(task_spec: Mapping[str, Any]) -> Dict[str, Any]:
     }
 
 
-def build_task_specs_from_answers(conn, answers: Sequence[Dict[str, Any]], filing_id: Optional[str] = None) -> List[Dict[str, Any]]:
+def build_task_specs_from_answers(conn: sqlite3.Connection, answers: Sequence[Dict[str, Any]], filing_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Build task specs from metric answer objects.
+    
+    Parameters
+    ----------
+    conn : sqlite3.Connection
+        SQLite connection for the corpus database.
+    answers : Sequence[Dict[str, Any]]
+        Structured answer payloads to process.
+    filing_id : Optional[str], optional
+        Canonical filing identifier used by manifests and derived artifacts.
+    
+    Returns
+    -------
+    List[Dict[str, Any]]
+        List of output records for this operation.
+    """
     specs_by_id = load_metric_specs_by_id()
     facts_by_period = _read_facts(conn, filing_id=filing_id)
     validators_by_filing = _read_validators(conn, filing_id=filing_id)
@@ -327,7 +445,21 @@ def build_task_specs_from_answers(conn, answers: Sequence[Dict[str, Any]], filin
     return dedupe_task_specs(task_specs)
 
 
-def build_task_specs(conn, filing_id: Optional[str] = None) -> List[Dict[str, Any]]:
+def build_task_specs(conn: sqlite3.Connection, filing_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Build task specs for one filing or the full database.
+    
+    Parameters
+    ----------
+    conn : sqlite3.Connection
+        SQLite connection for the corpus database.
+    filing_id : Optional[str], optional
+        Canonical filing identifier used by manifests and derived artifacts. e.g., '0000320193-2025-10K'
+    
+    Returns
+    -------
+    List[Dict[str, Any]]
+        List of records for task specs for one filing or the full database.
+    """
     answers = generate_answer_objects(conn, filing_id=filing_id)
     return build_task_specs_from_answers(conn, answers, filing_id=filing_id)
 
@@ -413,6 +545,18 @@ def _period_siblings(task_specs: Sequence[Mapping[str, Any]], source_task: Mappi
 
 
 def build_hard_negatives(task_specs: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Build hard-negative alternatives for quant task specs.
+    
+    Parameters
+    ----------
+    task_specs : Sequence[Dict[str, Any]]
+        Collection of task specification payloads.
+    
+    Returns
+    -------
+    List[Dict[str, Any]]
+        List of output records for this operation.
+    """
     negatives: List[Dict[str, Any]] = []
     for task_spec in task_specs:
         if task_spec["target_status"] == "REFUSAL":
@@ -534,6 +678,38 @@ def build_hard_negatives(task_specs: Sequence[Dict[str, Any]]) -> List[Dict[str,
 
 
 def write_jsonl(path: str | Path, rows: Iterable[Mapping[str, Any]]) -> int:
+    """Write mapping rows to a JSONL file.
+
+    Parameters
+    ----------
+    path : str or Path
+        Destination JSONL path. Parent directories are created if missing.
+    rows : Iterable[Mapping[str, Any]]
+        Row objects to serialize, one JSON object per line.
+
+    Returns
+    -------
+    int
+        Number of rows written.
+
+    Raises
+    ------
+    OSError
+        Raised when the destination directory cannot be created or the file
+        cannot be written.
+    TypeError
+        Raised when a row contains values that are not JSON-serializable.
+
+    Examples
+    --------
+    >>> rows = [{"task_id": "t1"}, {"task_id": "t2"}]
+    >>> write_jsonl("/tmp/task_specs.jsonl", rows)
+    2
+
+    See Also
+    --------
+    read_jsonl : Read JSONL rows back into Python dictionaries.
+    """
     count = 0
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -546,6 +722,18 @@ def write_jsonl(path: str | Path, rows: Iterable[Mapping[str, Any]]) -> int:
 
 
 def read_jsonl(path: str | Path) -> List[Dict[str, Any]]:
+    """Read and return mapping rows from a JSONL file.
+    
+    Parameters
+    ----------
+    path : str | Path
+        Filesystem path to read from. e.g., 'auditops-output.jsonl'
+    
+    Returns
+    -------
+    List[Dict[str, Any]]
+        List of records for and return mapping rows from a jsonl file.
+    """
     records: List[Dict[str, Any]] = []
     with Path(path).open("r", encoding="utf-8") as handle:
         for line in handle:
@@ -556,12 +744,44 @@ def read_jsonl(path: str | Path) -> List[Dict[str, Any]]:
     return records
 
 
-def write_task_specs(conn, output_path: str, filing_id: Optional[str] = None) -> int:
+def write_task_specs(conn: sqlite3.Connection, output_path: str, filing_id: Optional[str] = None) -> int:
+    """Build and write task specs to disk.
+    
+    Parameters
+    ----------
+    conn : sqlite3.Connection
+        SQLite connection for the corpus database.
+    output_path : str
+        Destination path for generated output artifacts. e.g., 'auditops-output.jsonl'
+    filing_id : Optional[str], optional
+        Canonical filing identifier used by manifests and derived artifacts.
+    
+    Returns
+    -------
+    int
+        Number of records written by this function.
+    """
     task_specs = build_task_specs(conn, filing_id=filing_id)
     return write_jsonl(output_path, task_specs)
 
 
-def render_quant_datasets(conn, output_dir: str, filing_id: Optional[str] = None) -> Dict[str, Any]:
+def render_quant_datasets(conn: sqlite3.Connection, output_dir: str, filing_id: Optional[str] = None) -> Dict[str, Any]:
+    """Render quant benchmark datasets from generated task specs.
+    
+    Parameters
+    ----------
+    conn : sqlite3.Connection
+        SQLite connection for the corpus database.
+    output_dir : str
+        Destination directory for generated dataset artifacts.
+    filing_id : Optional[str], optional
+        Canonical filing identifier used by manifests and derived artifacts.
+    
+    Returns
+    -------
+    Dict[str, Any]
+        Summary dictionary containing generated outputs, counters, and run metadata.
+    """
     output_root = Path(output_dir)
     output_root.mkdir(parents=True, exist_ok=True)
 

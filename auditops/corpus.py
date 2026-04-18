@@ -53,6 +53,19 @@ class CorpusLayout:
 
     @property
     def db_path(self) -> Path:
+        """Return the absolute path to the corpus SQLite database file.
+        
+        Returns
+        -------
+        Path
+            Text or path value produced by this operation.
+        
+        Examples
+        --------
+        >>> layout = ensure_corpus_layout('corpora/sp500_latest_2026-03-20')
+        >>> layout.db_path
+        PosixPath('corpora/sp500_latest_2026-03-20/db/corpus.sqlite')
+        """
         return self.db_dir / "corpus.sqlite"
 
 
@@ -75,6 +88,18 @@ def _iter_jsonl(path: str | Path) -> Iterator[Dict[str, Any]]:
 
 
 def ensure_corpus_layout(corpus_root: str | Path) -> CorpusLayout:
+    """Create corpus directory and return the required corpus directory layout.
+    
+    Parameters
+    ----------
+    corpus_root : str | Path
+        Root directory of the corpus workspace (including manifest, raw, db, derived, eval). e.g., 'corpora/sp500_latest_2026-03-20'
+    
+    Returns
+    -------
+    CorpusLayout
+        Return value for create and return the required corpus directory layout.
+    """
     root = Path(corpus_root)
     layout = CorpusLayout(
         root=root,
@@ -275,6 +300,35 @@ def build_manifest(
     constituent_source: Optional[str] = None,
     user_agent: Optional[str] = None,
 ) -> Dict[str, Any]:
+    """Build issuer and filing manifests for the configured corpus snapshot.
+
+    The issuer manifest records ticker-to-CIK resolution and ingest eligibility.
+    The filing manifest records selected 10-K/10-Q accessions and download metadata.
+    
+    Parameters
+    ----------
+    constituents_path : str
+        Path to the constituents snapshot CSV file. e.g., 'constituents_snapshot.csv'
+    corpus_root : str
+        Root directory of the corpus workspace (including manifest, raw, db, derived, eval). e.g., 'corpora/sp500_latest_2026-03-20'
+    snapshot_date : str
+        Snapshot date in ISO format YYYY-MM-DD.
+    trailing_fiscal_years : int, optional
+        Number of trailing fiscal years to include when selecting filings.
+    constituent_source : Optional[str], optional
+        Constituent source selector (for example, local snapshot or fetched source).
+    user_agent : Optional[str], optional
+        HTTP User-Agent header value for outbound requests.
+    
+    Returns
+    -------
+    Dict[str, Any]
+        Summary containing manifest output paths and coverage counters, including
+        ``snapshot_id``, ``snapshot_date``, ``filing_span``, ``trailing_fiscal_years``,
+        ``issuer_manifest``, ``filing_manifest``, ``issuer_count``,
+        ``resolved_issuer_count``, ``ingest_enabled_issuer_count``, and
+        ``resolved_filing_count``.
+    """
     layout = ensure_corpus_layout(corpus_root)
     snapshot_id = _snapshot_id(snapshot_date, trailing_fiscal_years=trailing_fiscal_years)
     session = _get_session(user_agent=user_agent)
@@ -488,6 +542,27 @@ def _is_retryable_error(error: requests.RequestException) -> bool:
 
 
 def download_filings(corpus_root: str, user_agent: Optional[str] = None, max_attempts: int = 3) -> Dict[str, Any]:
+    """Download filing packages referenced by the corpus manifest.
+    
+    Parameters
+    ----------
+    corpus_root : str
+        Root directory of the corpus workspace (manifest/raw/db/derived/eval). e.g., 'corpora/sp500_latest_2026-03-20'
+    user_agent : Optional[str], optional
+        HTTP User-Agent header value for outbound requests.
+    max_attempts : int, optional
+        Maximum retry attempts for transient failures.
+    
+    Returns
+    -------
+    Dict[str, Any]
+        Summary dictionary containing generated outputs, counters, and run metadata.
+    
+    Raises
+    ------
+    Exception
+        Raised when required inputs or runtime state do not satisfy function preconditions.
+    """
     layout = ensure_corpus_layout(corpus_root)
     session = _get_session(user_agent=user_agent)
     filing_manifest = read_jsonl(layout.manifest / "filing_manifest.jsonl")
@@ -591,6 +666,20 @@ def download_filings(corpus_root: str, user_agent: Optional[str] = None, max_att
 
 
 def ingest_corpus(corpus_root: str, extract_narrative: bool = True) -> Dict[str, Any]:
+    """Ingest downloaded filing packages into the corpus database.
+    
+    Parameters
+    ----------
+    corpus_root : str
+        Root directory of the corpus workspace (manifest/raw/db/derived/eval). e.g., 'corpora/sp500_latest_2026-03-20'
+    extract_narrative : bool, optional
+        Whether narrative chunks should be extracted during ingestion.
+    
+    Returns
+    -------
+    Dict[str, Any]
+        Summary dictionary containing generated outputs, counters, and run metadata.
+    """
     layout = ensure_corpus_layout(corpus_root)
     ledger_rows = read_jsonl(layout.manifest / "download_ledger.jsonl")
     ingest_rows: List[Dict[str, Any]] = []
@@ -651,6 +740,33 @@ def repair_corpus_filing(
     accession: str,
     extract_narrative: bool = True,
 ) -> Dict[str, Any]:
+    """Reprocess one filing and refresh derived artifacts in place.
+    
+    Parameters
+    ----------
+    corpus_root : str
+        Root directory of the corpus workspace (manifest/raw/db/derived/eval). e.g., 'corpora/sp500_latest_2026-03-20'
+    ticker : str
+        Issuer ticker symbol used in manifests and derived outputs. e.g., 'AAPL'
+    accession : str
+        SEC accession number identifying a filing package.
+    extract_narrative : bool, optional
+        Whether narrative chunks should be extracted during ingestion.
+    
+    Returns
+    -------
+    Dict[str, Any]
+        Dictionary with fields produced while reprocess one filing and refresh derived artifacts in place.
+    
+    Raises
+    ------
+    ValueError
+        No download ledger row found for ticker={...} accession={...}.
+    ValueError
+        Download ledger row for ticker={...} accession={...} is not locally available.
+    Exception
+        Raised when required inputs or runtime state do not satisfy function preconditions.
+    """
     layout = ensure_corpus_layout(corpus_root)
     ledger_rows = read_jsonl(layout.manifest / "download_ledger.jsonl")
     download_row = next(
@@ -814,6 +930,18 @@ def _render_corpus_datasets(
 
 
 def generate_corpus_datasets(corpus_root: str) -> Dict[str, Any]:
+    """Generate derived answers, tasks, and benchmark datasets.
+    
+    Parameters
+    ----------
+    corpus_root : str
+        Root directory of the corpus workspace (including manifest, raw, db, derived, eval). e.g., 'corpora/sp500_latest_2026-03-20'
+    
+    Returns
+    -------
+    Dict[str, Any]
+        Summary dictionary containing generated outputs, counters, and run metadata.
+    """
     layout = ensure_corpus_layout(corpus_root)
     issuer_manifest = read_jsonl(layout.manifest / "issuer_manifest.jsonl")
     split_manifest = _issuer_split(issuer_manifest)
@@ -986,6 +1114,18 @@ def _primary_failure_bucket(reasons: Sequence[str]) -> str:
 
 
 def eval_corpus(corpus_root: str) -> Dict[str, Any]:
+    """Evaluate corpus coverage, quality, and runtime baseline metrics.
+    
+    Parameters
+    ----------
+    corpus_root : str
+        Root directory of the corpus workspace (including manifest, raw, db, derived, eval). e.g., 'corpora/sp500_latest_2026-03-20'
+    
+    Returns
+    -------
+    Dict[str, Any]
+        Summary dictionary containing generated outputs, counters, and run metadata.
+    """
     layout = ensure_corpus_layout(corpus_root)
     issuer_manifest = read_jsonl(layout.manifest / "issuer_manifest.jsonl")
     filing_manifest = read_jsonl(layout.manifest / "filing_manifest.jsonl")

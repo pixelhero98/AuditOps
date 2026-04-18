@@ -181,6 +181,18 @@ def _stable_text_hash(*parts: Any) -> str:
 
 
 def load_retrieval_examples(path: str | Path) -> List[RetrievalExample]:
+    """Load retrieval benchmark examples from a JSONL file.
+    
+    Parameters
+    ----------
+    path : str | Path
+        Filesystem path to read from. e.g.,'auditops-output.jsonl'
+    
+    Returns
+    -------
+    List[RetrievalExample]
+        List of records for load retrieval benchmark examples from a jsonl file.
+    """
     examples: List[RetrievalExample] = []
     with Path(path).open("r", encoding="utf-8") as handle:
         for line in handle:
@@ -200,6 +212,15 @@ def load_retrieval_examples(path: str | Path) -> List[RetrievalExample]:
 
 
 def write_retrieval_examples(path: str | Path, examples: Sequence[RetrievalExample]) -> None:
+    """Write retrieval benchmark examples to a JSONL file.
+    
+    Parameters
+    ----------
+    path : str | Path
+        Filesystem path to write to. e.g., 'auditops-output.jsonl'
+    examples : Sequence[RetrievalExample]
+        Benchmark example rows used for retrieval evaluation.
+    """
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("w", encoding="utf-8") as handle:
@@ -497,6 +518,24 @@ def build_retrieval_benchmark_examples(
     per_filing_limit: int = 1,
     filing_ids: Optional[Sequence[str]] = None,
 ) -> List[RetrievalExample]:
+    """Build retrieval benchmark examples from corpus chunks.
+    
+    Parameters
+    ----------
+    db_path : str
+        Filesystem path to the SQLite corpus database. e.g., 'corpus.sqlite'
+    limit : int, optional
+        Maximum number of records to process.
+    per_filing_limit : int, optional
+        Maximum number of examples generated per filing.
+    filing_ids : Optional[Sequence[str]], optional
+        Filing identifiers to include in this operation.
+    
+    Returns
+    -------
+    List[RetrievalExample]
+        List of records for retrieval benchmark examples from corpus chunks.
+    """
     rows = _fetch_chunk_rows(db_path, filing_ids=filing_ids)
 
     candidates_by_filing: Dict[str, List[tuple[tuple[int, int], str, RetrievalExample]]] = {}
@@ -540,6 +579,20 @@ def build_retrieval_benchmark_examples(
 
 
 def build_bm25_retriever(db_path: str, filing_ids: Optional[Sequence[str]] = None):
+    """Build a BM25 retriever over filing chunk text.
+    
+    Parameters
+    ----------
+    db_path : str
+        Filesystem path to the SQLite corpus database. e.g., 'auditops-output.jsonl'
+    filing_ids : Optional[Sequence[str]], optional
+        Filing identifiers to include in this operation.
+    
+    Returns
+    -------
+    Any
+        Return value for a bm25 retriever over filing chunk text.
+    """
     rows = _fetch_chunk_rows(db_path, filing_ids=filing_ids)
     return _build_bm25_retriever_from_rows(rows)
 
@@ -654,6 +707,33 @@ def evaluate_bm25_retrieval(
     method: str = "bm25",
     candidate_k: Optional[int] = None,
 ) -> Dict[str, Any]:
+    """Evaluate BM25 retrieval quality on benchmark examples.
+    
+    Parameters
+    ----------
+    db_path : str
+        Filesystem path to the SQLite corpus database. e.g., 'corpus.sqlite'
+    examples : Sequence[RetrievalExample]
+        Benchmark example rows used for retrieval evaluation.
+    top_k : int, optional
+        Top-k cutoff used by retrieval or ranking logic.
+    method : str, optional
+        Retrieval or routing method identifier.
+    candidate_k : Optional[int], optional
+        Candidate pool size before reranking.
+    
+    Returns
+    -------
+    Dict[str, Any]
+        Summary dictionary containing generated outputs, counters, and run metadata.
+    
+    Raises
+    ------
+    ValueError
+        Unsupported retrieval method: {...}.
+    ValueError
+        No retriever available for filing_id={...}.
+    """
     if method not in {"bm25", "bm25_rerank"}:
         raise ValueError(f"Unsupported retrieval method: {method}")
     candidate_k = max(top_k, candidate_k or max(10, top_k * 3))

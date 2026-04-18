@@ -339,6 +339,32 @@ def build_uk_manifest(
     user_agent: Optional[str] = None,
     search_size: int = 200,
 ) -> Dict[str, Any]:
+    """Build the UK issuer and filing manifest from FCA sources.
+    
+    Parameters
+    ----------
+    constituents_path : str
+        Path to the constituents snapshot CSV file. e.g., 'constituents_snapshot.csv'
+    corpus_root : str
+        Root directory of the corpus workspace (including manifest, raw, db, derived, eval). e.g., 'corpora/sp500_latest_2026-03-20'
+    snapshot_date : str
+        Snapshot date in ISO format YYYY-MM-DD.
+    constituent_source : Optional[str], optional
+        Constituent source selector (for example, local snapshot or fetched source).
+    user_agent : Optional[str], optional
+        HTTP User-Agent header value for outbound requests.
+    search_size : int, optional
+        Maximum number of search hits requested from the source endpoint.
+    
+    Returns
+    -------
+    Dict[str, Any]
+        Dictionary with fields produced while the uk issuer and filing manifest from fca sources. Summary containing manifest output paths and coverage counters, including
+        ``snapshot_id``, ``snapshot_date``, ``filing_span``, ``trailing_fiscal_years``,
+        ``issuer_manifest``, ``filing_manifest``, ``issuer_count``,
+        ``resolved_issuer_count``, ``ingest_enabled_issuer_count``, and
+        ``resolved_filing_count``.
+    """
     layout = ensure_corpus_layout(corpus_root)
     snapshot_id = _uk_snapshot_id(snapshot_date)
     session = _apply_fca_headers(_get_session(user_agent=user_agent))
@@ -465,6 +491,22 @@ def _sha256_file(path: Path) -> str:
 
 
 def download_uk_filings(corpus_root: str, user_agent: Optional[str] = None, max_attempts: int = 3) -> Dict[str, Any]:
+    """Download UK filing documents referenced by the UK manifest.
+    
+    Parameters
+    ----------
+    corpus_root : str
+        Root directory of the corpus workspace (manifest/raw/db/derived/eval). e.g., 'corpora/sp500_latest_2026-03-20'
+    user_agent : Optional[str], optional
+        HTTP User-Agent header value for outbound requests.
+    max_attempts : int, optional
+        Maximum retry attempts for transient failures.
+    
+    Returns
+    -------
+    Dict[str, Any]
+        Summary dictionary containing generated outputs, counters, and run metadata.
+    """
     layout = ensure_corpus_layout(corpus_root)
     session = _apply_fca_headers(_get_session(user_agent=user_agent))
     filing_manifest = read_jsonl(layout.manifest / "filing_manifest.jsonl")

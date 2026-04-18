@@ -77,10 +77,47 @@ class NarrativeChunk:
 
 
 def sha1(text: str) -> str:
+    """Return the SHA-1 hex digest for the given text.
+    
+    Parameters
+    ----------
+    text : str
+        Text content to normalize, segment, classify, or tokenize.
+    
+    Returns
+    -------
+    str
+        String/path value produced while return the sha-1 hex digest for the given text.
+    
+    Examples
+    --------
+    >>> result = sha1(text='example-value')  # doctest: +SKIP
+    """
     return hashlib.sha1(text.encode("utf-8", errors="ignore")).hexdigest()
 
 
 def pick_main_html_from_zip(zf: zipfile.ZipFile) -> str:
+    """Select the primary HTML filing document from a zip archive.
+    
+    Parameters
+    ----------
+    zf : zipfile.ZipFile
+        Opened zipfile.ZipFile handle containing filing members.
+    
+    Returns
+    -------
+    str
+        Text or path value produced by this function.
+    
+    Raises
+    ------
+    FileNotFoundError
+        No .htm/.html found in ZIP.
+    
+    Examples
+    --------
+    >>> result = pick_main_html_from_zip(zf=None)  # doctest: +SKIP
+    """
     htmls = [name for name in zf.namelist() if name.lower().endswith((".htm", ".html"))]
     if not htmls:
         raise FileNotFoundError("No .htm/.html found in ZIP")
@@ -104,6 +141,25 @@ def pick_main_html_from_zip(zf: zipfile.ZipFile) -> str:
 
 
 def read_html_from_zip(zip_path: str, main_html: Optional[str]) -> Tuple[str, str]:
+    """Read and return the selected HTML document from a filing zip file.
+    
+    Parameters
+    ----------
+    zip_path : str
+        Path to a filing ZIP package containing iXBRL artifacts.
+    main_html : Optional[str]
+        Primary HTML member name selected within a filing package.
+    
+    Returns
+    -------
+    Tuple[str, str]
+        Tuple with outputs produced while and return the selected html document from a filing zip file.
+    
+    Examples
+    --------
+    >>> result = read_html_from_zip(zip_path='/tmp/file.txt', main_html='example-value')  # doctest: +SKIP
+    >>> len(result)  # doctest: +SKIP
+    """
     with zipfile.ZipFile(zip_path, "r") as zf:
         filename = main_html or pick_main_html_from_zip(zf)
         with zf.open(filename) as handle:
@@ -123,6 +179,22 @@ def _normalize_space(text: str) -> str:
 
 
 def normalize_heading_text(text: str) -> str:
+    """Normalize heading text for stable section comparison.
+    
+    Parameters
+    ----------
+    text : str
+        Text content to normalize, segment, classify, or tokenize.
+    
+    Returns
+    -------
+    str
+        String/path value produced while heading text for stable section comparison.
+    
+    Examples
+    --------
+    >>> result = normalize_heading_text(text='example-value')  # doctest: +SKIP
+    """
     text = _normalize_space(text)
     if not text:
         return text
@@ -145,6 +217,17 @@ def normalize_heading_text(text: str) -> str:
 
 
 def unwrap_inline_xbrl_tags(soup: BeautifulSoup) -> None:
+    """Unwrap inline XBRL tags in-place while preserving text.
+    
+    Parameters
+    ----------
+    soup : BeautifulSoup
+        BeautifulSoup document tree used for HTML cleanup.
+    
+    Examples
+    --------
+    >>> unwrap_inline_xbrl_tags(soup=None)  # doctest: +SKIP
+    """
     for tag in list(soup.find_all()):
         name = (tag.name or "").lower()
         if name.startswith("ix:") or name in {"nonfraction", "nonnumeric", "fraction", "continuation"}:
@@ -156,6 +239,22 @@ def _is_leaf_block(element) -> bool:
 
 
 def extract_narrative_text(html: str) -> str:
+    """Extract normalized narrative text from HTML content.
+    
+    Parameters
+    ----------
+    html : str
+        Raw HTML content to parse or normalize.
+    
+    Returns
+    -------
+    str
+        String/path value produced while normalized narrative text from html content.
+    
+    Examples
+    --------
+    >>> result = extract_narrative_text(html='example-value')  # doctest: +SKIP
+    """
     warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
     parser = "lxml-xml" if html.lstrip().startswith("<?xml") else "lxml"
     soup = BeautifulSoup(html, parser)
@@ -187,6 +286,23 @@ def extract_narrative_text(html: str) -> str:
 
 
 def detect_item_sections(text: str) -> List[Section]:
+    """Detect SEC-style Item sections within narrative text.
+    
+    Parameters
+    ----------
+    text : str
+        Text content to normalize, segment, classify, or tokenize.
+    
+    Returns
+    -------
+    List[Section]
+        List of output records for this operation.
+    
+    Examples
+    --------
+    >>> result = detect_item_sections(text='example-value')  # doctest: +SKIP
+    >>> len(result)  # doctest: +SKIP
+    """
     lines = text.splitlines(True)
     offsets = []
     current = 0
@@ -215,10 +331,43 @@ def detect_item_sections(text: str) -> List[Section]:
 
 
 def mask_numbers(text: str) -> str:
+    """Mask numeric values in text for robust retrieval matching.
+    
+    Parameters
+    ----------
+    text : str
+        Text content to normalize, segment, classify, or tokenize.
+    
+    Returns
+    -------
+    str
+        String/path value produced while numeric values in text for robust retrieval matching.
+    
+    Examples
+    --------
+    >>> result = mask_numbers(text='example-value')  # doctest: +SKIP
+    """
     return NUM_RE.sub("<NUM>", text)
 
 
 def split_paragraphs(text: str) -> List[Tuple[int, int, str]]:
+    """Split narrative text into paragraph spans and text segments.
+    
+    Parameters
+    ----------
+    text : str
+        Text content to normalize, segment, classify, or tokenize.
+    
+    Returns
+    -------
+    List[Tuple[int, int, str]]
+        List of output records for this operation.
+    
+    Examples
+    --------
+    >>> result = split_paragraphs(text='example-value')  # doctest: +SKIP
+    >>> len(result)  # doctest: +SKIP
+    """
     paragraphs: List[Tuple[int, int, str]] = []
     cursor = 0
     size = len(text)
@@ -243,6 +392,22 @@ def split_paragraphs(text: str) -> List[Tuple[int, int, str]]:
 
 
 def looks_like_page_header_footer(text: str) -> bool:
+    """Return whether a paragraph resembles a page header/footer.
+    
+    Parameters
+    ----------
+    text : str
+        Text content to normalize, segment, classify, or tokenize.
+    
+    Returns
+    -------
+    bool
+        True when return whether a paragraph resembles a page header/footer succeeds, otherwise False.
+    
+    Examples
+    --------
+    >>> result = looks_like_page_header_footer(text='example-value')  # doctest: +SKIP
+    """
     normalized = normalize_heading_text(text)
     if not normalized:
         return False
@@ -260,6 +425,22 @@ def looks_like_page_header_footer(text: str) -> bool:
 
 
 def is_structural_marker(text: str) -> bool:
+    """Return whether a paragraph is a structural marker line.
+    
+    Parameters
+    ----------
+    text : str
+        Text content to normalize, segment, classify, or tokenize.
+    
+    Returns
+    -------
+    bool
+        True when return whether a paragraph is a structural marker line succeeds, otherwise False.
+    
+    Examples
+    --------
+    >>> result = is_structural_marker(text='example-value')  # doctest: +SKIP
+    """
     normalized = normalize_heading_text(text)
     if not normalized:
         return False
@@ -280,6 +461,22 @@ def is_structural_marker(text: str) -> bool:
 
 
 def is_noise_paragraph(text: str) -> bool:
+    """Return whether a paragraph should be treated as noise.
+    
+    Parameters
+    ----------
+    text : str
+        Text content to normalize, segment, classify, or tokenize.
+    
+    Returns
+    -------
+    bool
+        True when return whether a paragraph should be treated as noise succeeds, otherwise False.
+    
+    Examples
+    --------
+    >>> result = is_noise_paragraph(text='example-value')  # doctest: +SKIP
+    """
     normalized = normalize_heading_text(text)
     if not normalized:
         return True
@@ -291,6 +488,22 @@ def is_noise_paragraph(text: str) -> bool:
 
 
 def is_subheading(text: str) -> bool:
+    """Return whether a paragraph behaves like a section subheading.
+    
+    Parameters
+    ----------
+    text : str
+        Text content to normalize, segment, classify, or tokenize.
+    
+    Returns
+    -------
+    bool
+        True when return whether a paragraph behaves like a section subheading succeeds, otherwise False.
+    
+    Examples
+    --------
+    >>> result = is_subheading(text='example-value')  # doctest: +SKIP
+    """
     normalized = normalize_heading_text(text)
     if not normalized or is_noise_paragraph(normalized) or ITEM_MARKER_RE.match(normalized):
         return False
@@ -319,6 +532,23 @@ def is_subheading(text: str) -> bool:
 
 
 def annotate_paragraphs(section_text: str) -> List[Paragraph]:
+    """Annotate paragraphs with heading and structure metadata.
+    
+    Parameters
+    ----------
+    section_text : str
+        Text content for one detected narrative section.
+    
+    Returns
+    -------
+    List[Paragraph]
+        List of output records for this operation.
+    
+    Examples
+    --------
+    >>> result = annotate_paragraphs(section_text='example-value')  # doctest: +SKIP
+    >>> len(result)  # doctest: +SKIP
+    """
     annotated: List[Paragraph] = []
     current_subheading: Optional[str] = None
     for start, end, paragraph_text in split_paragraphs(section_text):
@@ -339,6 +569,29 @@ def chunk_paragraphs(
     chunk_chars: int,
     overlap: int,
 ) -> List[Tuple[int, int, str, Optional[str]]]:
+    """Chunk annotated narrative paragraphs into retrieval-ready segments.
+    
+    Parameters
+    ----------
+    section_text : str
+        Text content for one detected narrative section.
+    paragraphs : Sequence[Paragraph]
+        Annotated paragraphs to chunk for retrieval.
+    chunk_chars : int
+        Target character budget per generated chunk.
+    overlap : int
+        Character overlap retained between adjacent chunks.
+    
+    Returns
+    -------
+    List[Tuple[int, int, str, Optional[str]]]
+        List of output records for this operation.
+    
+    Examples
+    --------
+    >>> result = chunk_paragraphs(section_text='example-value', paragraphs=[], chunk_chars=5)  # doctest: +SKIP
+    >>> len(result)  # doctest: +SKIP
+    """
     if not paragraphs:
         return []
 
@@ -391,6 +644,26 @@ def chunk_paragraphs(
 
 
 def build_heading_path(item: Optional[str], heading: Optional[str], subheading: Optional[str]) -> Optional[str]:
+    """Build a normalized heading path from section fields.
+    
+    Parameters
+    ----------
+    item : Optional[str]
+        SEC Item label associated with a narrative section.
+    heading : Optional[str]
+        Primary heading associated with a section or chunk.
+    subheading : Optional[str]
+        Secondary heading associated with a section or chunk.
+    
+    Returns
+    -------
+    Optional[str]
+        Value returned by this operation.
+    
+    Examples
+    --------
+    >>> result = build_heading_path(item='example-value', heading='example-value', subheading='example-value')  # doctest: +SKIP
+    """
     parts: List[str] = []
     if item:
         parts.append(f"Item {item}")
@@ -404,6 +677,28 @@ def build_heading_path(item: Optional[str], heading: Optional[str], subheading: 
 
 
 def build_retrieval_text(item: Optional[str], heading: Optional[str], subheading: Optional[str], text_masked: str) -> str:
+    """Build retrieval text by combining heading context and chunk text.
+    
+    Parameters
+    ----------
+    item : Optional[str]
+        SEC Item label associated with a narrative section.
+    heading : Optional[str]
+        Primary heading associated with a section or chunk.
+    subheading : Optional[str]
+        Secondary heading associated with a section or chunk.
+    text_masked : str
+        Chunk text with masked numerics for retrieval robustness.
+    
+    Returns
+    -------
+    str
+        String/path value produced while retrieval text by combining heading context and chunk text.
+    
+    Examples
+    --------
+    >>> result = build_retrieval_text(item='example-value', heading='example-value', subheading='example-value')  # doctest: +SKIP
+    """
     lines: List[str] = []
     if item:
         lines.append(f"Item: {item}")
@@ -419,6 +714,27 @@ def build_retrieval_text(item: Optional[str], heading: Optional[str], subheading
 
 
 def build_narrative_chunks(text: str, chunk_chars: int = 3500, overlap: int = 450) -> Tuple[Sequence[Section], Sequence[NarrativeChunk]]:
+    """Build section and chunk records from narrative text.
+    
+    Parameters
+    ----------
+    text : str
+        Text content to normalize, segment, classify, or tokenize.
+    chunk_chars : int, optional
+        Target character budget per generated chunk.
+    overlap : int, optional
+        Character overlap retained between adjacent chunks.
+    
+    Returns
+    -------
+    Tuple[Sequence[Section], Sequence[NarrativeChunk]]
+        Tuple with outputs produced while section and chunk records from narrative text.
+    
+    Examples
+    --------
+    >>> result = build_narrative_chunks(text='example-value')  # doctest: +SKIP
+    >>> len(result)  # doctest: +SKIP
+    """
     sections = detect_item_sections(text)
     spans = [(section.item, section.heading, section.start, section.end) for section in sections] or [(None, None, 0, len(text))]
 

@@ -295,6 +295,18 @@ def _json_dumps(value: Any) -> str:
 
 
 def connect_db(path: str) -> sqlite3.Connection:
+    """Open a SQLite connection configured for the AuditOps schema.
+    
+    Parameters
+    ----------
+    path : str
+        Database path. e.g., auditops.sqlite
+    
+    Returns
+    -------
+    sqlite3.Connection
+        SQLite connection configured with row_factory and foreign-key enforcement.
+    """
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys=ON")
@@ -302,6 +314,20 @@ def connect_db(path: str) -> sqlite3.Connection:
 
 
 def ensure_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
+    """Create or reset database tables required by the pipeline.
+    
+    Parameters
+    ----------
+    conn : sqlite3.Connection
+        Open SQLite connection for the corpus database.
+    reset : bool, optional
+        Whether to drop or reset existing structures before rebuilding.
+    
+    Examples
+    --------
+    >>> conn = connect_db('corpora/sp500_latest_2026-03-20/db/corpus.sqlite')
+    >>> ensure_schema(conn=conn)  # doctest: +SKIP
+    """
     if reset:
         conn.executescript(
             """
@@ -385,12 +411,46 @@ def ensure_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
 
 
 def safe_text(el: Optional[etree._Element]) -> str:
+    """Return stripped text content for an XML element, or an empty string.
+    
+    Parameters
+    ----------
+    el : Optional[etree._Element]
+        XML element node under inspection.
+    
+    Returns
+    -------
+    str
+        Text or path value produced by this function.
+    
+    Examples
+    --------
+    >>> result = safe_text(el=None)  # doctest: +SKIP
+    """
     if el is None:
         return ""
     return "".join(el.itertext()).strip()
 
 
 def resolve_continued_text(root: etree._Element, fact_el: etree._Element) -> str:
+    """Execute resolve continued text.
+    
+    Parameters
+    ----------
+    root : etree._Element
+        Root XML element for the parsed document tree.
+    fact_el : etree._Element
+        XML element corresponding to the current fact node.
+    
+    Returns
+    -------
+    str
+        Text or path value produced by this function.
+    
+    Examples
+    --------
+    >>> result = resolve_continued_text(root=None, fact_el=None)  # doctest: +SKIP
+    """
     if fact_el is None:
         return ""
     parts = [safe_text(fact_el)]
@@ -411,6 +471,22 @@ def resolve_continued_text(root: etree._Element, fact_el: etree._Element) -> str
 
 
 def parse_date(text: str) -> Optional[date]:
+    """Parse an ISO date string into a date object when possible.
+    
+    Parameters
+    ----------
+    text : str
+        Text content to normalize, segment, classify, or tokenize.
+    
+    Returns
+    -------
+    Optional[date]
+        Value returned by this operation.
+    
+    Examples
+    --------
+    >>> result = parse_date(text='example-value')  # doctest: +SKIP
+    """
     value = (text or "").strip()
     if not value or not ISO_DATE_RE.match(value):
         return None
@@ -421,10 +497,44 @@ def parse_date(text: str) -> Optional[date]:
 
 
 def norm_concept_for_linkbase(qname: str) -> str:
+    """Normalize a concept name for linkbase lookup.
+    
+    Parameters
+    ----------
+    qname : str
+        Qualified concept name from taxonomy/linkbase references.
+    
+    Returns
+    -------
+    str
+        String/path value produced while a concept name for linkbase lookup.
+    
+    Examples
+    --------
+    >>> result = norm_concept_for_linkbase(qname='example-value')  # doctest: +SKIP
+    """
     return (qname or "").strip().replace(":", "_")
 
 
 def get_attr_any_ns(el: etree._Element, attr_local: str) -> Optional[str]:
+    """Read an XML attribute by local name across namespaces.
+    
+    Parameters
+    ----------
+    el : etree._Element
+        XML element node under inspection.
+    attr_local : str
+        Local XML attribute name to resolve across namespaces.
+    
+    Returns
+    -------
+    Optional[str]
+        Value returned by this operation.
+    
+    Examples
+    --------
+    >>> result = get_attr_any_ns(el=None, attr_local='example-value')  # doctest: +SKIP
+    """
     for key, value in el.attrib.items():
         if key.split("}")[-1] == attr_local:
             return value
@@ -432,6 +542,22 @@ def get_attr_any_ns(el: etree._Element, attr_local: str) -> Optional[str]:
 
 
 def parse_numeric(text: str) -> Optional[Decimal]:
+    """Parse numeric text into a Decimal value when possible.
+    
+    Parameters
+    ----------
+    text : str
+        Text content to normalize, segment, classify, or tokenize.
+    
+    Returns
+    -------
+    Optional[Decimal]
+        Value returned by this operation.
+    
+    Examples
+    --------
+    >>> result = parse_numeric(text='example-value')  # doctest: +SKIP
+    """
     if text is None:
         return None
     value = text.strip()
@@ -455,6 +581,24 @@ def parse_numeric(text: str) -> Optional[Decimal]:
 
 
 def apply_scale(value: Optional[Decimal], scale: Optional[str]) -> Optional[Decimal]:
+    """Apply iXBRL scale semantics to a numeric value.
+    
+    Parameters
+    ----------
+    value : Optional[Decimal]
+        Input parameter for value.
+    scale : Optional[str]
+        Inline XBRL scale attribute used to adjust numeric values.
+    
+    Returns
+    -------
+    Optional[Decimal]
+        Value returned by this operation.
+    
+    Examples
+    --------
+    >>> result = apply_scale(value=None, scale='example-value')  # doctest: +SKIP
+    """
     if value is None or not scale:
         return value
     try:
@@ -464,6 +608,24 @@ def apply_scale(value: Optional[Decimal], scale: Optional[str]) -> Optional[Deci
 
 
 def apply_sign(value: Optional[Decimal], sign: Optional[str]) -> Optional[Decimal]:
+    """Apply iXBRL sign semantics to a numeric value.
+    
+    Parameters
+    ----------
+    value : Optional[Decimal]
+        Input parameter for value.
+    sign : Optional[str]
+        Inline XBRL sign attribute applied to numeric values.
+    
+    Returns
+    -------
+    Optional[Decimal]
+        Value returned by this operation.
+    
+    Examples
+    --------
+    >>> result = apply_sign(value=None, sign='example-value')  # doctest: +SKIP
+    """
     if value is None:
         return None
     return -value if sign and sign.strip() == "-" else value
@@ -576,6 +738,25 @@ def _parse_monthname_date(text: str) -> Optional[str]:
 
 
 def apply_ix_transform(fmt: Optional[str], raw_text: str) -> Tuple[str, Optional[str]]:
+    """Apply an inline XBRL value transform and return normalized text/date.
+    
+    Parameters
+    ----------
+    fmt : Optional[str]
+        Inline XBRL transform format identifier.
+    raw_text : str
+        Raw text value before normalization or transformation.
+    
+    Returns
+    -------
+    Tuple[str, Optional[str]]
+        Tuple with outputs produced while apply an inline xbrl value transform and return normalized text/date.
+    
+    Examples
+    --------
+    >>> result = apply_ix_transform(fmt='example-value', raw_text='example-value')  # doctest: +SKIP
+    >>> len(result)  # doctest: +SKIP
+    """
     normalized = _norm_fmt(fmt)
     text = (raw_text or "").strip()
     if normalized == "fixed-zero":
@@ -608,6 +789,27 @@ def apply_ix_transform(fmt: Optional[str], raw_text: str) -> Tuple[str, Optional
 
 
 def period_key_from_context(start: Optional[date], end: Optional[date], instant: Optional[date]) -> Tuple[str, Optional[int]]:
+    """Build a canonical period key from context start/end/instant dates.
+    
+    Parameters
+    ----------
+    start : Optional[date]
+        Context period start date.
+    end : Optional[date]
+        Context period end date.
+    instant : Optional[date]
+        Context instant date for as-of facts.
+    
+    Returns
+    -------
+    Tuple[str, Optional[int]]
+        Tuple of outputs produced by this function.
+    
+    Examples
+    --------
+    >>> result = period_key_from_context(start=None, end=None, instant=None)  # doctest: +SKIP
+    >>> len(result)  # doctest: +SKIP
+    """
     if instant:
         return f"ASOF_{instant.strftime('%Y%m%d')}", None
     if start and end:
@@ -646,6 +848,27 @@ def _make_fact_identity(
 
 
 def parse_ixbrl_html(html_bytes: bytes, source_file: str, filing_id: str) -> Tuple[Dict[str, ContextRec], Dict[str, UnitRec], List[FactRec]]:
+    """Parse iXBRL HTML into context, unit, and fact records.
+    
+    Parameters
+    ----------
+    html_bytes : bytes
+        Raw HTML bytes to parse into filing facts and contexts.
+    source_file : str
+        Source filename recorded for parsed filing artifacts.
+    filing_id : str
+        Canonical filing identifier used by manifests and derived artifacts.
+    
+    Returns
+    -------
+    Tuple[Dict[str, ContextRec], Dict[str, UnitRec], List[FactRec]]
+        Tuple with outputs produced while ixbrl html into context, unit, and fact records.
+    
+    Examples
+    --------
+    >>> result = parse_ixbrl_html(html_bytes=None, source_file='example-value', filing_id='0000320193-2025-10K')  # doctest: +SKIP
+    >>> len(result)  # doctest: +SKIP
+    """
     parser = etree.XMLParser(recover=True, huge_tree=True)
     root = etree.parse(io.BytesIO(html_bytes), parser).getroot()
 
@@ -835,12 +1058,45 @@ def parse_ixbrl_html(html_bytes: bytes, source_file: str, filing_id: str) -> Tup
 
 
 def concept_from_href(href: str) -> Optional[str]:
+    """Extract a normalized concept name from a linkbase href.
+    
+    Parameters
+    ----------
+    href : str
+        Linkbase href reference to normalize into a concept name.
+    
+    Returns
+    -------
+    Optional[str]
+        Value returned by this operation.
+    
+    Examples
+    --------
+    >>> result = concept_from_href(href='example-value')  # doctest: +SKIP
+    """
     if not href or "#" not in href:
         return None
     return href.split("#", 1)[1].strip() or None
 
 
 def parse_label_linkbase(xml_bytes: bytes) -> List[Tuple[str, str, str, str]]:
+    """Parse label linkbase arcs into normalized relationship tuples.
+    
+    Parameters
+    ----------
+    xml_bytes : bytes
+        Raw XML bytes to parse from linkbase or taxonomy files.
+    
+    Returns
+    -------
+    List[Tuple[str, str, str, str]]
+        List of records for label linkbase arcs into normalized relationship tuples.
+    
+    Examples
+    --------
+    >>> result = parse_label_linkbase(xml_bytes=None)  # doctest: +SKIP
+    >>> len(result)  # doctest: +SKIP
+    """
     parser = etree.XMLParser(recover=True, huge_tree=True)
     root = etree.parse(io.BytesIO(xml_bytes), parser).getroot()
 
@@ -874,6 +1130,23 @@ def parse_label_linkbase(xml_bytes: bytes) -> List[Tuple[str, str, str, str]]:
 
 
 def parse_presentation_linkbase(xml_bytes: bytes) -> List[Tuple[str, str, str, float, str]]:
+    """Parse presentation linkbase arcs into normalized tuples.
+    
+    Parameters
+    ----------
+    xml_bytes : bytes
+        Raw XML bytes to parse from linkbase or taxonomy files.
+    
+    Returns
+    -------
+    List[Tuple[str, str, str, float, str]]
+        List of records for presentation linkbase arcs into normalized tuples.
+    
+    Examples
+    --------
+    >>> result = parse_presentation_linkbase(xml_bytes=None)  # doctest: +SKIP
+    >>> len(result)  # doctest: +SKIP
+    """
     parser = etree.XMLParser(recover=True, huge_tree=True)
     root = etree.parse(io.BytesIO(xml_bytes), parser).getroot()
     edges = []
@@ -901,6 +1174,23 @@ def parse_presentation_linkbase(xml_bytes: bytes) -> List[Tuple[str, str, str, f
 
 
 def parse_calculation_linkbase(xml_bytes: bytes) -> List[Tuple[str, str, str, float, float]]:
+    """Parse calculation linkbase arcs into normalized tuples.
+    
+    Parameters
+    ----------
+    xml_bytes : bytes
+        Raw XML bytes to parse from linkbase or taxonomy files.
+    
+    Returns
+    -------
+    List[Tuple[str, str, str, float, float]]
+        List of records for calculation linkbase arcs into normalized tuples.
+    
+    Examples
+    --------
+    >>> result = parse_calculation_linkbase(xml_bytes=None)  # doctest: +SKIP
+    >>> len(result)  # doctest: +SKIP
+    """
     parser = etree.XMLParser(recover=True, huge_tree=True)
     root = etree.parse(io.BytesIO(xml_bytes), parser).getroot()
     edges = []
@@ -932,6 +1222,23 @@ def parse_calculation_linkbase(xml_bytes: bytes) -> List[Tuple[str, str, str, fl
 
 
 def parse_definition_linkbase(xml_bytes: bytes) -> List[Tuple[str, str, str, str, float]]:
+    """Parse definition linkbase arcs into normalized tuples.
+    
+    Parameters
+    ----------
+    xml_bytes : bytes
+        Raw XML bytes to parse from linkbase or taxonomy files.
+    
+    Returns
+    -------
+    List[Tuple[str, str, str, str, float]]
+        List of records for definition linkbase arcs into normalized tuples.
+    
+    Examples
+    --------
+    >>> result = parse_definition_linkbase(xml_bytes=None)  # doctest: +SKIP
+    >>> len(result)  # doctest: +SKIP
+    """
     parser = etree.XMLParser(recover=True, huge_tree=True)
     root = etree.parse(io.BytesIO(xml_bytes), parser).getroot()
     edges = []
@@ -959,6 +1266,23 @@ def parse_definition_linkbase(xml_bytes: bytes) -> List[Tuple[str, str, str, str
 
 
 def load_zip_members(zip_path: str) -> Dict[str, bytes]:
+    """Load all members from a zip package into memory.
+    
+    Parameters
+    ----------
+    zip_path : str
+        Path to a filing ZIP package containing iXBRL artifacts.
+    
+    Returns
+    -------
+    Dict[str, bytes]
+        Dictionary with fields produced while load all members from a zip package into memory.
+    
+    Examples
+    --------
+    >>> result = load_zip_members(zip_path='/tmp/file.txt')  # doctest: +SKIP
+    >>> sorted(result.keys())[:3]  # doctest: +SKIP
+    """
     with zipfile.ZipFile(zip_path, "r") as zf:
         return {info.filename: zf.read(info.filename) for info in zf.infolist()}
 
@@ -990,6 +1314,29 @@ def _normalize_preferred_main_html(candidates: Sequence[str], preferred_name: Op
 
 
 def pick_main_html(members: Dict[str, bytes], preferred_name: Optional[str] = None) -> str:
+    """Select the primary HTML member from package zip contents.
+    
+    Parameters
+    ----------
+    members : Dict[str, bytes]
+        ZIP member mapping from member name to raw bytes.
+    preferred_name : Optional[str], optional
+        Preferred HTML member name when multiple candidates exist.
+    
+    Returns
+    -------
+    str
+        String/path value for select the primary html member from package zip contents.
+    
+    Raises
+    ------
+    RuntimeError
+        No root-level .htm/.html found in zip (expected iXBRL HTML).
+    
+    Examples
+    --------
+    >>> result = pick_main_html(members={})  # doctest: +SKIP
+    """
     candidates = _root_level_html_members(members)
     if not candidates:
         raise RuntimeError("No root-level .htm/.html found in zip (expected iXBRL HTML).")
@@ -1026,6 +1373,25 @@ def pick_main_html(members: Dict[str, bytes], preferred_name: Optional[str] = No
 
 
 def pick_ixbrl_html_parts(members: Dict[str, bytes], main_html: str) -> List[str]:
+    """Select HTML parts to parse for inline XBRL facts.
+    
+    Parameters
+    ----------
+    members : Dict[str, bytes]
+        ZIP member mapping from member name to raw bytes.
+    main_html : str
+        Primary HTML member name selected within a filing package.
+    
+    Returns
+    -------
+    List[str]
+        List of output records for this operation.
+    
+    Examples
+    --------
+    >>> result = pick_ixbrl_html_parts(members={}, main_html='example-value')  # doctest: +SKIP
+    >>> len(result)  # doctest: +SKIP
+    """
     candidates = _root_level_html_members(members)
     main_stem = os.path.splitext(os.path.basename(main_html))[0]
     part_pattern = re.compile(rf"^{re.escape(main_stem)}_d\d+$", flags=re.IGNORECASE)
@@ -1048,6 +1414,27 @@ def parse_ixbrl_package(
     filing_id: str,
     html_members: Sequence[str],
 ) -> Tuple[Dict[str, ContextRec], Dict[str, UnitRec], List[FactRec]]:
+    """Parse an iXBRL package zip into normalized pipeline artifacts.
+    
+    Parameters
+    ----------
+    members : Dict[str, bytes]
+        ZIP member mapping from member name to raw bytes.
+    filing_id : str
+        Canonical filing identifier used by manifests and derived artifacts.
+    html_members : Sequence[str]
+        Candidate HTML member names discovered in the package.
+    
+    Returns
+    -------
+    Tuple[Dict[str, ContextRec], Dict[str, UnitRec], List[FactRec]]
+        Tuple containing outputs for an ixbrl package zip into normalized pipeline artifacts.
+    
+    Examples
+    --------
+    >>> result = parse_ixbrl_package(members={}, filing_id='0000320193-2025-10K', html_members=[])  # doctest: +SKIP
+    >>> len(result)  # doctest: +SKIP
+    """
     contexts: Dict[str, ContextRec] = {}
     units: Dict[str, UnitRec] = {}
     facts: List[FactRec] = []
@@ -1062,6 +1449,24 @@ def parse_ixbrl_package(
 
 
 def infer_filing_id(zip_path: str, html_main: str) -> str:
+    """Infer a stable filing identifier from package metadata.
+    
+    Parameters
+    ----------
+    zip_path : str
+        Path to a filing ZIP package containing iXBRL artifacts.
+    html_main : str
+        Selected primary HTML member name used for metadata inference.
+    
+    Returns
+    -------
+    str
+        String/path value produced while infer a stable filing identifier from package metadata.
+    
+    Examples
+    --------
+    >>> result = infer_filing_id(zip_path='/tmp/file.txt', html_main='example-value')  # doctest: +SKIP
+    """
     base = os.path.basename(zip_path)
     match = re.match(r"^(\d{10}-\d{2}-\d{6})-xbrl\.zip$", base, flags=re.IGNORECASE)
     if match:
@@ -1070,6 +1475,22 @@ def infer_filing_id(zip_path: str, html_main: str) -> str:
 
 
 def infer_ticker(html_main: str) -> Optional[str]:
+    """Infer a ticker symbol from the filing main HTML path.
+    
+    Parameters
+    ----------
+    html_main : str
+        Selected primary HTML member name used for metadata inference.
+    
+    Returns
+    -------
+    Optional[str]
+        Value returned by this operation.
+    
+    Examples
+    --------
+    >>> result = infer_ticker(html_main='example-value')  # doctest: +SKIP
+    """
     stem = os.path.splitext(os.path.basename(html_main))[0]
     if "-" in stem:
         left = stem.split("-", 1)[0]
@@ -1102,6 +1523,32 @@ def extract_filing_metadata(
     facts: Sequence[FactRec],
     overrides: Optional[Dict[str, Any]] = None,
 ) -> FilingMetadata:
+    """Extract filing-level metadata from parsed facts and contexts.
+    
+    Parameters
+    ----------
+    filing_id : str
+        Canonical filing identifier used by manifests and derived artifacts.
+    zip_name : str
+        ZIP filename used as fallback metadata source.
+    main_html : str
+        Primary HTML member name selected within a filing package.
+    inferred_ticker : Optional[str]
+        Ticker inferred from package naming conventions.
+    facts : Sequence[FactRec]
+        Parsed fact records extracted from iXBRL content.
+    overrides : Optional[Dict[str, Any]], optional
+        Optional metadata override mapping applied during extraction.
+    
+    Returns
+    -------
+    FilingMetadata
+        Value returned by this operation.
+    
+    Examples
+    --------
+    >>> result = extract_filing_metadata(filing_id='0000320193-2025-10K', zip_name='example-value', main_html='example-value')  # doctest: +SKIP
+    """
     overrides = overrides or {}
     form_type = overrides.get("form_type") or _best_fact_value(facts, ["dei_DocumentType"])
 
@@ -1331,6 +1778,28 @@ def process_zip(
     reset_db: bool = False,
     metadata_overrides: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
+    """Ingest (process and store) one filing zip into the corpus database.
+    
+    Parameters
+    ----------
+    zip_path : str
+        Path to a filing ZIP package containing iXBRL artifacts.
+    out_db : str
+        Destination path for the output SQLite database.
+    ticker : Optional[str], optional
+        Issuer ticker symbol used in manifests and derived outputs.
+    extract_narrative : bool, optional
+        Whether narrative chunks should be extracted during ingestion.
+    reset_db : bool, optional
+        Whether to reset database tables before ingestion.
+    metadata_overrides : Optional[Dict[str, Any]], optional
+        Optional filing metadata values that override inferred package metadata.
+    
+    Returns
+    -------
+    Dict[str, Any]
+        Dictionary with fields produced while and process one filing zip into the corpus database.
+    """
     metadata_overrides = dict(metadata_overrides or {})
     if ticker:
         metadata_overrides["ticker"] = ticker
@@ -1423,6 +1892,22 @@ def _quarter_from_end(end: date) -> Optional[int]:
 
 
 def filing_period_key(metadata: FilingMetadata) -> str:
+    """Build a canonical period key for filing metadata.
+    
+    Parameters
+    ----------
+    metadata : FilingMetadata
+        Filing metadata record used for period classification and normalization.
+    
+    Returns
+    -------
+    str
+        Text or path value produced by this function.
+    
+    Examples
+    --------
+    >>> result = filing_period_key(metadata=None)  # doctest: +SKIP
+    """
     if metadata.fiscal_year_focus and metadata.fiscal_period_focus:
         period = metadata.fiscal_period_focus.upper()
         if period == "FY":
@@ -1584,6 +2069,22 @@ def _classify_period(
 
 
 def normalize_unit_family(unit_json_text: Optional[str]) -> Optional[str]:
+    """Normalize a unit JSON payload to a canonical unit family.
+    
+    Parameters
+    ----------
+    unit_json_text : Optional[str]
+        Serialized unit payload to normalize into a unit family.
+    
+    Returns
+    -------
+    Optional[str]
+        Value returned by this operation.
+    
+    Examples
+    --------
+    >>> result = normalize_unit_family(unit_json_text='example-value')  # doctest: +SKIP
+    """
     if not unit_json_text:
         return None
     try:
@@ -1913,6 +2414,15 @@ def _build_chunk_canon(conn: sqlite3.Connection, filing: FilingMetadata) -> Tupl
 
 
 def rebuild_canonical_layers(conn: sqlite3.Connection, filing_id: Optional[str] = None) -> None:
+    """Rebuild canonical fact and chunk layers from raw tables.
+    
+    Parameters
+    ----------
+    conn : sqlite3.Connection
+        Active SQLite connection bound to the AuditOps corpus database.
+    filing_id : Optional[str], optional
+        Canonical filing identifier used across manifests, facts, and task records.
+    """
     filing_ids = [filing_id] if filing_id else [row["filing_id"] for row in conn.execute("SELECT filing_id FROM filings ORDER BY filing_id")]
     for current_filing_id in filing_ids:
         filing = _fetch_filing(conn, current_filing_id)
@@ -2014,6 +2524,20 @@ def rebuild_canonical_layers(conn: sqlite3.Connection, filing_id: Optional[str] 
 
 
 def fetch_validators(conn: sqlite3.Connection, filing_id: Optional[str] = None) -> List[sqlite3.Row]:
+    """Fetch validator records for one filing or the full corpus. A validator record is something like entity_key, etc., which identifies object.
+    
+    Parameters
+    ----------
+    conn : sqlite3.Connection
+        Open SQLite connection for the corpus database.
+    filing_id : Optional[str], optional
+        Canonical filing identifier used by manifests and derived artifacts.
+    
+    Returns
+    -------
+    List[sqlite3.Row]
+        Validator rows from validators_v0 for one filing or the full corpus.
+    """
     if filing_id:
         return conn.execute(
             "SELECT * FROM validators_v0 WHERE filing_id=? ORDER BY validator_code, entity_key",
@@ -2023,6 +2547,22 @@ def fetch_validators(conn: sqlite3.Connection, filing_id: Optional[str] = None) 
 
 
 def inspect_chunk_canon(conn: sqlite3.Connection, filing_id: str, limit: int = 5) -> List[sqlite3.Row]:
+    """Inspect canonical chunk rows for a filing.
+    
+    Parameters
+    ----------
+    conn : sqlite3.Connection
+        SQLite connection for the corpus database.
+    filing_id : str
+        Canonical filing identifier used by manifests and derived artifacts. e.g., '0000320193-2025-10K'
+    limit : int, optional
+        Maximum number of records to process.
+    
+    Returns
+    -------
+    List[sqlite3.Row]
+        List of records for inspect canonical chunk rows for a filing.
+    """
     return conn.execute(
         """
         SELECT item, heading, char_start, char_end, substr(text_masked, 1, 240) AS preview

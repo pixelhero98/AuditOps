@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from importlib import resources
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+import sqlite3
 
 from .pipeline import _stable_digest, connect_db, parse_date
 
@@ -57,7 +58,7 @@ class Refusal(Exception):
 
 
 class Catalog:
-    def __init__(self, conn, filing_id: Optional[str] = None, ticker: Optional[str] = None):
+    def __init__(self, conn: sqlite3.Connection, filing_id: Optional[str] = None, ticker: Optional[str] = None):
         self.conn = conn
         filing_scope_ids: Optional[List[str]] = None
         if filing_id is not None and ticker is None:
@@ -119,6 +120,18 @@ class Catalog:
             self.cal_edges_by_filing_parent.setdefault((edge["filing_id"], edge["parent_concept_norm"]), []).append(edge)
 
     def periods_for_filing(self, filing_id: str) -> List[PeriodDescriptor]:
+        """Return all period descriptors available for a filing.
+        
+        Parameters
+        ----------
+        filing_id : str
+            Canonical filing identifier used by manifests and derived artifacts. e.g., '0000320193-2025-10K'
+        
+        Returns
+        -------
+        List[PeriodDescriptor]
+            List of records for return all period descriptors available for a filing.
+        """
         seen = set()
         periods: List[PeriodDescriptor] = []
         for fact in self.facts:
@@ -188,6 +201,31 @@ class Catalog:
         unit_family: Optional[str],
         preferred_filing_id: str,
     ) -> Tuple[Dict[str, Any], str]:
+        """Return the best matching fact for the aliases in a period.
+        
+        Parameters
+        ----------
+        ticker : Optional[str]
+            Issuer ticker symbol used in manifests and derived outputs. e.g., 'AAPL'
+        period : PeriodDescriptor
+            Period descriptor with reporting boundaries and fiscal metadata.
+        aliases : Sequence[str]
+            Candidate concept aliases used to resolve canonical facts.
+        unit_family : Optional[str]
+            Canonical unit family used to filter comparable facts.
+        preferred_filing_id : str
+            Identifier for preferred filing.
+        
+        Returns
+        -------
+        Tuple[Dict[str, Any], str]
+            Tuple with outputs produced while return the best matching fact for the aliases in a period.
+        
+        Raises
+        ------
+        Refusal
+            MISSING_INPUT.
+        """
         facts = self.facts_by_ticker.get(ticker, [])
         for alias in aliases:
             matches = [
@@ -210,6 +248,42 @@ class Catalog:
         preferred_filing_id: str,
         max_day_delta: int = 7,
     ) -> Tuple[Dict[str, Any], str]:
+        """Return the alias match nearest to the target as-of date.
+        
+        Parameters
+        ----------
+        ticker : Optional[str]
+            Issuer ticker symbol used in manifests and derived outputs.
+        target_date : Any
+            Reference date used for nearest-period or as-of matching.
+        aliases : Sequence[str]
+            Candidate concept aliases used to resolve canonical facts.
+        unit_family : Optional[str]
+            Canonical unit family used to filter comparable facts.
+        preferred_filing_id : str
+            Identifier for preferred filing.
+        max_day_delta : int, optional
+            Maximum allowed day distance when matching near an as-of date.
+        
+        Returns
+        -------
+        Tuple[Dict[str, Any], str]
+            Tuple with outputs produced while return the alias match nearest to the target as-of date.
+        
+        Raises
+        ------
+        Refusal
+            AMBIGUOUS_CONTEXT.
+        Refusal
+            MISSING_INPUT.
+        
+        Examples
+        --------
+        >>> conn = connect_db('corpora/sp500_latest_2026-03-20/db/corpus.sqlite')
+        >>> catalog = Catalog(conn)
+        >>> result = catalog.find_alias_match_near_asof(ticker='AAPL', target_date=None, aliases=[])  # doctest: +SKIP
+        >>> len(result)  # doctest: +SKIP
+        """
         facts = self.facts_by_ticker.get(ticker, [])
         for alias in aliases:
             matches = []
@@ -254,6 +328,33 @@ class Catalog:
         unit_family: Optional[str],
         preferred_filing_id: str,
     ) -> Tuple[ResolvedInput, str]:
+        """Derive a quarter value from annual and cumulative period values.
+        
+        Parameters
+        ----------
+        ticker : Optional[str]
+            Issuer ticker symbol used in manifests and derived outputs. e.g., 'AAPL'
+        aliases : Sequence[str]
+            Candidate concept aliases used to resolve canonical facts.
+        fiscal_year : int
+            Fiscal year used for period filtering or derivation.
+        fiscal_quarter : int
+            Fiscal quarter used for period filtering or derivation.
+        unit_family : Optional[str]
+            Canonical unit family used to filter comparable facts.
+        preferred_filing_id : str
+            Identifier for preferred filing.
+        
+        Returns
+        -------
+        Tuple[ResolvedInput, str]
+            Tuple with outputs produced while derive a quarter value from annual and cumulative period values.
+        
+        Raises
+        ------
+        Refusal
+            MISSING_INPUT.
+        """
         direct_period = PeriodDescriptor(
             filing_id=preferred_filing_id,
             ticker=ticker,
@@ -376,6 +477,22 @@ class Catalog:
         )
 
     def calc_edge_source(self, filing_id: str, target_aliases: Sequence[str], component_concepts: Sequence[str]) -> str:
+        """Describe the source of a derived edge metric.
+        
+        Parameters
+        ----------
+        filing_id : str
+            Canonical filing identifier used by manifests and derived artifacts. e.g., '0000320193-2025-10K'
+        target_aliases : Sequence[str]
+            Primary concept aliases that define the target metric edge.
+        component_concepts : Sequence[str]
+            Component concepts used to infer calculation-edge provenance.
+        
+        Returns
+        -------
+        str
+            value for describe the source of a derived edge metric.
+        """
         for alias in target_aliases:
             edges = self.cal_edges_by_filing_parent.get((filing_id, alias), [])
             children = {edge["child_concept_norm"] for edge in edges if float(edge["weight"]) > 0}
@@ -385,11 +502,25 @@ class Catalog:
 
 
 def load_metric_specs() -> List[Dict[str, Any]]:
+    """Load metric specs from auditops/specs/resources.files.
+    
+    Returns
+    -------
+    List[Dict[str, Any]]
+        List of records for load metric specs.
+    """
     spec_path = resources.files("auditops.specs").joinpath("metric_specs.json")
     return json.loads(spec_path.read_text(encoding="utf-8"))
 
 
 def load_metric_specs_by_id() -> Dict[str, Dict[str, Any]]:
+    """Load metric specs dictionary indexed by spec["id"]
+    
+    Returns
+    -------
+    Dict[str, Dict[str, Any]]
+        Dictionary with spec["id"] as key str.
+    """
     return {spec["id"]: spec for spec in load_metric_specs()}
 
 
@@ -545,6 +676,27 @@ def _shift_period(period: PeriodDescriptor, selector: str) -> PeriodDescriptor:
 
 
 def resolve_input(catalog: Catalog, base_period: PeriodDescriptor, spec_input: Dict[str, Any]) -> ResolvedInput:
+    """Resolve an input definition into a concrete metric input value.
+    
+    Parameters
+    ----------
+    catalog : Catalog
+        Catalog object used to resolve canonical facts and period descriptors.
+    base_period : PeriodDescriptor
+        Reference period used to resolve shifted or comparative inputs.
+    spec_input : Dict[str, Any]
+        Input definition from a metric specification formula.
+    
+    Returns
+    -------
+    ResolvedInput
+        Return value for resolve an input definition into a concrete metric input value.
+    
+    Raises
+    ------
+    Refusal
+        PERIOD_NOT_SUPPORTED.
+    """
     name = spec_input["name"]
     aliases = spec_input["aliases"]
     unit_family = spec_input.get("unit_family")
@@ -626,6 +778,33 @@ def evaluate_formula(
     catalog: Catalog,
     base_period: PeriodDescriptor,
 ) -> EvalValue:
+    """Evaluate a metric formula from resolved inputs and operators.
+    
+    Parameters
+    ----------
+    formula : Dict[str, Any]
+        Formula expression to evaluate against resolved metric inputs.
+    resolved_inputs : Dict[str, ResolvedInput]
+        Resolved metric inputs keyed by input name.
+    catalog : Catalog
+        Catalog object used to resolve canonical facts and period descriptors.
+    base_period : PeriodDescriptor
+        Reference period used to resolve shifted or comparative inputs.
+    
+    Returns
+    -------
+    EvalValue
+        Value returned by this operation.
+    
+    Raises
+    ------
+    Refusal
+        INCOMPATIBLE_UNITS.
+    Refusal
+        PERIOD_NOT_SUPPORTED.
+    Refusal
+        ZERO_DENOMINATOR.
+    """
     op = formula["op"]
 
     if op == "input":
@@ -783,6 +962,22 @@ def _build_refusal_object(spec: Dict[str, Any], base_period: PeriodDescriptor, c
 
 
 def evaluate_metric_spec(catalog: Catalog, spec: Dict[str, Any], period: PeriodDescriptor) -> Dict[str, Any]:
+    """Evaluate a metric spec for a filing period.
+    
+    Parameters
+    ----------
+    catalog : Catalog
+        Catalog object used to resolve canonical facts and period descriptors.
+    spec : Dict[str, Any]
+        Metric specification payload.
+    period : PeriodDescriptor
+        Period descriptor with reporting boundaries and fiscal metadata.
+    
+    Returns
+    -------
+    Dict[str, Any]
+        Dictionary with output fields for this evaluation.
+    """
     if period.period_type not in spec["applicable_period_types"]:
         return _build_refusal_object(
             spec,
@@ -803,13 +998,57 @@ def evaluate_metric_spec(catalog: Catalog, spec: Dict[str, Any], period: PeriodD
 
 
 def get_period_descriptor(catalog: Catalog, filing_id: str, period_key: str) -> PeriodDescriptor:
+    """Return the period descriptor for the filing and period key.
+    
+    Parameters
+    ----------
+    catalog : Catalog
+        Catalog object used to resolve canonical facts and period descriptors.
+    filing_id : str
+        Canonical filing identifier used by manifests and derived artifacts. e.g., '0000320193-2025-10K'
+    period_key : str
+        Canonical period key such as 'FY2025' or 'Q1FY2026'.
+    
+    Returns
+    -------
+    PeriodDescriptor
+        Period descriptor for the filing and period key.
+    
+    Raises
+    ------
+    KeyError
+        No period {...} found for filing {...}.
+    """
     for period in catalog.periods_for_filing(filing_id):
         if period.period_key == period_key:
             return period
     raise KeyError(f"No period {period_key!r} found for filing {filing_id!r}")
 
 
-def answer_metric_spec(conn, filing_id: str, metric_spec_id: str, period_key: str) -> Dict[str, Any]:
+def answer_metric_spec(conn: sqlite3.Connection, filing_id: str, metric_spec_id: str, period_key: str) -> Dict[str, Any]:
+    """Generate a structured answer for one metric spec and period.
+    
+    Parameters
+    ----------
+    conn : sqlite3.Connection
+        SQLite connection for the corpus database.
+    filing_id : str
+        Canonical filing identifier used by manifests and derived artifacts. e.g., '0000320193-2025-10K'
+    metric_spec_id : str
+        Metric specification identifier from the metric catalog. e.g., 'revenue.total'
+    period_key : str
+        Canonical period key such as 'FY2025' or 'Q1FY2026'.
+    
+    Returns
+    -------
+    Dict[str, Any]
+        Structured response payload for downstream execution or evaluation.
+    
+    Raises
+    ------
+    KeyError
+        Unknown metric spec id: {...}.
+    """
     catalog = Catalog(conn, filing_id=filing_id)
     specs = load_metric_specs_by_id()
     try:
@@ -821,7 +1060,21 @@ def answer_metric_spec(conn, filing_id: str, metric_spec_id: str, period_key: st
     return evaluate_metric_spec(catalog, spec, period)
 
 
-def generate_answer_objects(conn, filing_id: Optional[str] = None) -> List[Dict[str, Any]]:
+def generate_answer_objects(conn: sqlite3.Connection, filing_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Generate metric answer objects from canonical filing facts.
+    
+    Parameters
+    ----------
+    conn : sqlite3.Connection
+        SQLite connection for the corpus database.
+    filing_id : Optional[str], optional
+        Canonical filing identifier used by manifests and derived artifacts. e.g., '0000320193-2025-10K'
+    
+    Returns
+    -------
+    List[Dict[str, Any]]
+        List of records for metric answer objects from canonical filing facts.
+    """
     catalog = Catalog(conn, filing_id=filing_id) if filing_id else Catalog(conn)
     specs = load_metric_specs()
     filing_ids = [filing_id] if filing_id else sorted(catalog.filings)
@@ -838,7 +1091,23 @@ def generate_answer_objects(conn, filing_id: Optional[str] = None) -> List[Dict[
     return answers
 
 
-def write_answer_objects(conn, output_path: str, filing_id: Optional[str] = None) -> int:
+def write_answer_objects(conn: sqlite3.Connection, output_path: str, filing_id: Optional[str] = None) -> int:
+    """Write generated metric answer objects to a JSONL file.
+    
+    Parameters
+    ----------
+    conn : sqlite3.Connection
+        SQLite connection for the corpus database.
+    output_path : str
+        Destination path for generated output artifacts. e.g., auditops-output.jsonl
+    filing_id : Optional[str], optional
+        Canonical filing identifier used by manifests and derived artifacts. e.g., '0000320193-2025-10K'
+    
+    Returns
+    -------
+    int
+        Number of records written by this function.
+    """
     answers = generate_answer_objects(conn, filing_id=filing_id)
     with open(output_path, "w", encoding="utf-8") as handle:
         for answer in answers:
@@ -848,6 +1117,22 @@ def write_answer_objects(conn, output_path: str, filing_id: Optional[str] = None
 
 
 def generate_answer_objects_from_db(db_path: str, output_path: str, filing_id: Optional[str] = None) -> int:
+    """Generate and persist answer objects from a database path.
+    
+    Parameters
+    ----------
+    db_path : str
+        Filesystem path to the SQLite corpus database. e.g., auditops.sqlite
+    output_path : str
+        Destination path for generated output artifacts. e.g., auditops-output.jsonl
+    filing_id : Optional[str], optional
+        Canonical filing identifier used by manifests and derived artifacts. e.g., '0000320193-2025-10K'
+    
+    Returns
+    -------
+    int
+        Number of generated objects.
+    """
     conn = connect_db(db_path)
     try:
         return write_answer_objects(conn, output_path, filing_id=filing_id)

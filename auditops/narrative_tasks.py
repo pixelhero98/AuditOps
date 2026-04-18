@@ -288,6 +288,40 @@ def _base_narrative_task_spec(
 
 
 def validate_narrative_task_spec(task_spec: Mapping[str, Any]) -> None:
+    """Validate a narrative task spec against schema rules.
+    
+    Parameters
+    ----------
+    task_spec : Mapping[str, Any]
+        Task specification payload with routing, evidence, and target-answer metadata.
+    
+    Raises
+    ------
+    ValueError
+        Narrative TaskSpec is missing required fields: {...}.
+    ValueError
+        Unsupported narrative task spec version: {...}.
+    ValueError
+        Unsupported narrative task schema id: {...}.
+    ValueError
+        Unsupported narrative task type: {...}.
+    ValueError
+        Unsupported narrative scope type: {...}.
+    ValueError
+        Unsupported narrative answerability: {...}.
+    ValueError
+        Answerable narrative TaskSpecs must include expected_chunk_ids.
+    ValueError
+        Answerable narrative TaskSpecs must include a non-empty extractive_answer.
+    ValueError
+        Answerable narrative TaskSpecs cannot set refusal_code.
+    ValueError
+        Unanswerable narrative TaskSpecs must not include expected_chunk_ids.
+    ValueError
+        Unanswerable narrative TaskSpecs must not include extractive_answer.
+    ValueError
+        Unanswerable narrative TaskSpecs must include refusal_code.
+    """
     required_fields = {
         "narrative_task_spec_version",
         "narrative_task_schema_id",
@@ -608,6 +642,20 @@ def build_narrative_routing_variants(
     *,
     variants_per_task: int = 1,
 ) -> List[Dict[str, Any]]:
+    """Build synthetic narrative routing variants for evaluation.
+    
+    Parameters
+    ----------
+    task_specs : Sequence[Mapping[str, Any]]
+        Collection of task specification payloads.
+    variants_per_task : int, optional
+        Number of routing-question variants generated per source task.
+    
+    Returns
+    -------
+    List[Dict[str, Any]]
+        List of output records for this operation.
+    """
     variants: List[Dict[str, Any]] = []
     for task_spec in _dedupe_narrative_task_specs(task_specs):
         for variant_index in range(max(1, variants_per_task)):
@@ -883,6 +931,28 @@ def build_narrative_benchmark(
     include_unanswerable: bool = False,
     unanswerable_limit: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
+    """Build narrative task specs from canonical corpus artifacts.
+    
+    Parameters
+    ----------
+    db_path : str
+        Filesystem path to the SQLite corpus database. e.g., 'corpus.sqlite'
+    limit : int, optional
+        Maximum number of records to process.
+    per_filing_limit : int, optional
+        Maximum number of examples generated per filing.
+    filing_ids : Optional[Sequence[str]], optional
+        Filing identifiers to include in this operation.
+    include_unanswerable : bool, optional
+        Whether to include intentionally unanswerable benchmark tasks.
+    unanswerable_limit : Optional[int], optional
+        Maximum number of unanswerable tasks to generate.
+    
+    Returns
+    -------
+    List[Dict[str, Any]]
+        List of records for narrative task specs from canonical corpus artifacts.
+    """
     answerable_limit = limit
     if include_unanswerable:
         answerable_limit = max(1, limit // 2)
@@ -907,6 +977,20 @@ def build_narrative_benchmark(
 
 
 def write_narrative_task_specs(path: str | Path, task_specs: Sequence[Mapping[str, Any]]) -> int:
+    """Write narrative task specs to JSONL and return row count.
+    
+    Parameters
+    ----------
+    path : str | Path
+        Filesystem path to write to. 'auditops-output.jsonl'
+    task_specs : Sequence[Mapping[str, Any]]
+        Collection of task specification payloads.
+    
+    Returns
+    -------
+    int
+        Numeric result produced while narrative task specs to jsonl and return row count.
+    """
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     count = 0
@@ -920,6 +1004,18 @@ def write_narrative_task_specs(path: str | Path, task_specs: Sequence[Mapping[st
 
 
 def read_narrative_task_specs(path: str | Path) -> List[Dict[str, Any]]:
+    """Read narrative task specs from a JSONL file.
+    
+    Parameters
+    ----------
+    path : str | Path
+        Filesystem path to read from. e.g., 'auditops-output.jsonl'
+    
+    Returns
+    -------
+    List[Dict[str, Any]]
+        List of records for narrative task specs from a jsonl file.
+    """
     task_specs: List[Dict[str, Any]] = []
     with Path(path).open("r", encoding="utf-8") as handle:
         for line in handle:
@@ -933,6 +1029,32 @@ def read_narrative_task_specs(path: str | Path) -> List[Dict[str, Any]]:
 
 
 def validate_narrative_answer(answer: Mapping[str, Any]) -> None:
+    """Validate a narrative answer payload against schema rules.
+    
+    Parameters
+    ----------
+    answer : Mapping[str, Any]
+        Structured answer payload to validate, route, or evaluate.
+    
+    Raises
+    ------
+    ValueError
+        Narrative answer is missing required fields: {...}.
+    ValueError
+        Unsupported narrative answer version: {...}.
+    ValueError
+        Unsupported narrative answer status: {...}.
+    ValueError
+        Narrative answer chunk_evidence_ids must be a list.
+    ValueError
+        OK narrative answers must include answer_text.
+    ValueError
+        OK narrative answers must include chunk_evidence_ids.
+    ValueError
+        OK narrative answers cannot include refusal_code.
+    ValueError
+        REFUSAL narrative answers must include refusal_code.
+    """
     required_fields = {
         "narrative_answer_version",
         "task_id",
@@ -1012,6 +1134,33 @@ def route_narrative_question(
     *,
     allow_fuzzy: bool = True,
 ) -> Mapping[str, Any]:
+    """Route a narrative question to the best matching task spec.
+    
+    Parameters
+    ----------
+    question : str
+        Natural-language user question to route and answer.
+    filing_id : str
+        Canonical filing identifier used by manifests and derived artifacts. e.g., '0000320193-2025-10K'
+    task_specs : Sequence[Mapping[str, Any]]
+        Collection of task specification payloads.
+    allow_fuzzy : bool, optional
+        Whether approximate routing matches are permitted.
+    
+    Returns
+    -------
+    Mapping[str, Any]
+        Dictionary with fields produced while a narrative question to the best matching task spec.
+    
+    Raises
+    ------
+    ValueError
+        No narrative TaskSpecs available for filing {...}.
+    ValueError
+        Question did not match any Narrative TaskSpec.
+    ValueError
+        Question matched multiple Narrative TaskSpecs.
+    """
     normalized_question = _normalize_question_key(question)
     filing_candidates = [
         task_spec
@@ -1139,6 +1288,34 @@ def answer_narrative(
     rows_by_filing: Optional[Mapping[str, Sequence[Mapping[str, Any]]]] = None,
     retriever_cache: Optional[Dict[tuple[str, str], Any]] = None,
 ) -> Dict[str, Any]:
+    """Answer a narrative question with retrieval and citation support.
+    
+    Parameters
+    ----------
+    db_path : str
+        Filesystem path to the SQLite corpus database. e.g., 'auditops.sqlite'
+    question : str
+        Natural-language user question to route and answer. e.g., 'What was total revenue in FY2025?'
+    filing_id : str
+        Canonical filing identifier used by manifests and derived artifacts. e.g.,'0000320193-2025-10K'
+    task_specs : Sequence[Mapping[str, Any]]
+        Collection of task specification payloads.
+    top_k : int, optional
+        Top-k cutoff used by retrieval or ranking logic.
+    method : str, optional
+        Retrieval or routing method identifier.
+    candidate_k : Optional[int], optional
+        Candidate pool size before reranking.
+    rows_by_filing : Optional[Mapping[str, Sequence[Mapping[str, Any]]]], optional
+        Pre-grouped row collections keyed by filing identifier.
+    retriever_cache : Optional[Dict[tuple[str, str], Any]], optional
+        Memoized retriever objects keyed by routing scope.
+    
+    Returns
+    -------
+    Dict[str, Any]
+        Structured response payload for downstream execution or evaluation.
+    """
     active_task_specs = _dedupe_narrative_task_specs(task_specs)
     try:
         task_spec = route_narrative_question(question, filing_id, active_task_specs)
@@ -1188,6 +1365,26 @@ def evaluate_narrative_citations(
     method: str = NARRATIVE_RETRIEVAL_METHOD,
     candidate_k: Optional[int] = NARRATIVE_RETRIEVAL_CANDIDATE_K,
 ) -> Dict[str, Any]:
+    """Evaluate citation coverage and correctness for narrative answers.
+    
+    Parameters
+    ----------
+    db_path : str
+        Filesystem path to the SQLite corpus database.  e.g., auditops.sqlite
+    task_specs : Sequence[Mapping[str, Any]]
+        Collection of task specification payloads.
+    top_k : int, optional
+        Top-k cutoff used by retrieval or ranking logic.
+    method : str, optional
+        Retrieval or routing method identifier.
+    candidate_k : Optional[int], optional
+        Candidate pool size before reranking.
+    
+    Returns
+    -------
+    Dict[str, Any]
+        Dictionary with fields produced while citation coverage and correctness for narrative answers.
+    """
     validated_task_specs = [dict(task_spec) for task_spec in task_specs]
     for task_spec in validated_task_specs:
         validate_narrative_task_spec(task_spec)
@@ -1301,6 +1498,26 @@ def evaluate_narrative_answers(
     method: str = NARRATIVE_RETRIEVAL_METHOD,
     candidate_k: Optional[int] = NARRATIVE_RETRIEVAL_CANDIDATE_K,
 ) -> Dict[str, Any]:
+    """Evaluate narrative answer quality across benchmark tasks.
+    
+    Parameters
+    ----------
+    db_path : str
+        Filesystem path to the SQLite corpus database. e.g., 'auditops.sqlite'
+    task_specs : Sequence[Mapping[str, Any]]
+        Collection of task specification payloads.
+    top_k : int, optional
+        Top-k cutoff used by retrieval or ranking logic.
+    method : str, optional
+        Retrieval or routing method identifier.
+    candidate_k : Optional[int], optional
+        Candidate pool size before reranking.
+    
+    Returns
+    -------
+    Dict[str, Any]
+        Dictionary with fields produced while narrative answer quality across benchmark tasks.
+    """
     validated_task_specs = [dict(task_spec) for task_spec in task_specs]
     for task_spec in validated_task_specs:
         validate_narrative_task_spec(task_spec)
@@ -1411,6 +1628,28 @@ def evaluate_narrative_routing(
     method: str = NARRATIVE_RETRIEVAL_METHOD,
     candidate_k: Optional[int] = NARRATIVE_RETRIEVAL_CANDIDATE_K,
 ) -> Dict[str, Any]:
+    """Evaluate narrative question routing accuracy and confidence.
+    
+    Parameters
+    ----------
+    db_path : str
+        Filesystem path to the SQLite corpus database.  e.g., 'auditops.sqlite'
+    task_specs : Sequence[Mapping[str, Any]]
+        Collection of task specification payloads.
+    variants_per_task : int, optional
+        Number of routing-question variants generated per source task.
+    top_k : int, optional
+        Top-k cutoff used by retrieval or ranking logic.
+    method : str, optional
+        Retrieval or routing method identifier.
+    candidate_k : Optional[int], optional
+        Candidate pool size before reranking.
+    
+    Returns
+    -------
+    Dict[str, Any]
+        Dictionary with fields produced while narrative question routing accuracy and confidence.
+    """
     validated_task_specs = [dict(task_spec) for task_spec in task_specs]
     task_specs_by_id: Dict[str, Dict[str, Any]] = {}
     for task_spec in validated_task_specs:
