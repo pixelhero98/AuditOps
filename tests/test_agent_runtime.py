@@ -18,11 +18,81 @@ from auditops.model_adapter import (
     ModelGenerationError,
     ModelOOMError,
     ModelResponse,
+    ModelSchemaError,
     ModelTimeoutError,
     StrictJSONError,
 )
 
 MANIFEST_SHA256 = "a" * 64
+
+
+def test_aborted_generation_cannot_release_an_otherwise_valid_answer():
+    class AbortedAdapter(MockModelAdapter):
+        def generate_json(self, request):
+            response = super().generate_json(request)
+            return ModelResponse(**{**response.__dict__, "finish_reason": "abort"})
+
+    adapter = AbortedAdapter((_answer(),))
+    result = run_agent_case(_task(), runtime_mode="direct", **_common(adapter))
+    assert result.run_record["outcome"] == "INFRASTRUCTURE_FAILURE"
+    assert not result.released
+    assert result.run_record["repair_count"] == 0
+    validate_agent_run_record(result.run_record)
+
+
+def test_completion_cannot_override_the_structured_decoding_guarantee():
+    class UnconstrainedCompletionAdapter(MockModelAdapter):
+        def generate_json(self, request):
+            response = super().generate_json(request)
+            return ModelResponse(
+                **{
+                    **response.__dict__,
+                    "metadata": {
+                        **response.metadata,
+                        "structured_output_applied": False,
+                    },
+                }
+            )
+
+    adapter = UnconstrainedCompletionAdapter((_answer(),))
+    result = run_agent_case(_task(), runtime_mode="direct", **_common(adapter))
+    assert result.run_record["outcome"] == "INFRASTRUCTURE_FAILURE"
+    assert result.run_record["repair_count"] == 0
+    assert result.failure["code"] == "BACKEND_FAILURE"
+    validate_agent_run_record(result.run_record)
+
+
+def test_adapter_without_structured_decoding_fails_with_a_complete_trace():
+    class UnstructuredAdapter(MockModelAdapter):
+        @property
+        def structured_output_applied(self):
+            return False
+
+    adapter = UnstructuredAdapter((_answer(),))
+    result = run_agent_case(_task(), runtime_mode="direct", **_common(adapter))
+    assert result.run_record["outcome"] == "INFRASTRUCTURE_FAILURE"
+    assert result.failure["code"] == "BACKEND_FAILURE"
+    assert result.run_record["repair_count"] == 0
+    assert adapter.requests == []
+    validate_agent_run_record(result.run_record)
+
+
+@pytest.mark.parametrize("error_type", [StrictJSONError, ModelSchemaError])
+def test_aborted_invalid_output_is_not_repaired(error_type):
+    adapter = MockModelAdapter(
+        (
+            error_type(
+                response_sha256="b" * 64,
+                finish_reason="abort",
+                structured_output_applied=True,
+            ),
+        )
+    )
+    result = run_agent_case(_task(), runtime_mode="direct", **_common(adapter))
+    assert result.run_record["outcome"] == "INFRASTRUCTURE_FAILURE"
+    assert result.run_record["repair_count"] == 0
+    assert len(adapter.requests) == 1
+    validate_agent_run_record(result.run_record)
 
 
 def _task(*, question: str = "Calculate current ratio at 2025-12-31."):

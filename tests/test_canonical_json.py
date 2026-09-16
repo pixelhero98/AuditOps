@@ -95,3 +95,10 @@ def test_rejects_excessive_nesting_with_a_typed_error():
         value = [value]
     with pytest.raises(CanonicalJSONError, match="not representable"):
         canonical_json_bytes(value)
+
+
+@pytest.mark.parametrize("value", [{"text": "\ud800"}, {"\udfff": "key"}])
+def test_rejects_non_utf8_strings_before_hashing(value):
+    for encode in (canonical_json_text, canonical_json_bytes, canonical_json_sha256):
+        with pytest.raises(CanonicalJSONError, match="not representable"):
+            encode(value)

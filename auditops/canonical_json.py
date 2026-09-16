@@ -75,6 +75,9 @@ def canonical_json_text(value: Any, *, newline: bool = False) -> str:
             separators=(",", ":"),
             allow_nan=False,
         )
+        # Escaped lone surrogates can survive json.loads but have no UTF-8
+        # representation. Reject them at the same typed boundary as NaN.
+        serialized.encode("utf-8")
     except CanonicalJSONError:
         raise
     except (TypeError, ValueError, RecursionError) as exc:

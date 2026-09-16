@@ -2,6 +2,8 @@
 
 Validation date: 2026-09-16. This is a CPU-only source release, not a new model-performance baseline.
 
+## Initial cleanup
+
 | Check | Result |
 |---|---|
 | Complete pre-cleanup suite | 639 passed, 4 platform skips |
@@ -40,3 +42,40 @@ refusal, context, arithmetic, evidence, review and resumable-batch tests remain.
 
 See [portable execution](execution.md), the [task catalogue](tasks.md), and the
 [Companies House findings](companies-house-findings.md) for operational and evidence limits.
+
+## Follow-up review
+
+The subsequent CI run exposed a Python 3.13 packaging failure: the non-isolated
+build could not import setuptools, although its tests passed. CI now installs build
+requirements in an isolated build environment and does not cancel other matrix
+jobs when one job fails. Development dependencies enable JSON Schema format checks
+instead of silently leaving date-time validation unavailable.
+
+Reproduced and corrected boundary defects:
+
+- Strict parsing now rejects exponent overflow, unpaired Unicode surrogates, and
+  excessively nested data through sanitized typed failures. Duplicate-key error
+  traces no longer retain the rejected key. Existing valid canonical hashes are unchanged.
+- Attempt telemetry is type-checked before runtime use; string booleans and
+  invalid counts cannot trigger truthy coercion or untyped numeric-conversion errors.
+  A completion reporting disabled structured decoding fails closed.
+  Request trace metadata is initialized before backend and demonstration preflight,
+  so an unsupported adapter produces a typed failure rather than a trace-construction crash.
+- Aborted generations cannot release a proposal or consume a repair, including
+  aborts accompanied by malformed JSON or schema errors.
+- Exploratory authorization validation enforces the published field set, all
+  limitation labels, digest syntax, and RFC 3339 timestamps even after rehashing.
+  This remains a configured operator binding, not a cryptographic signature.
+
+The review changes neither model checkpoints nor historical contract schemas.
+GPU inference, experiment execution, and NLP-assisted tagging remain outside this review.
+
+Two local full-suite attempts encountered intermittent Windows `PermissionError`
+failures during different temporary-directory renames. Both affected tests passed
+in isolation. No production retry or test skip was added for these failures.
+The fresh project-scoped full run passed 650 tests with four platform skips.
+The final focused run passed 97 tests, including the additional unsupported-adapter
+preflight regression. The isolated build, installed-wheel 137-task smoke, lint,
+formatting, generated documentation, findings and publication scans passed.
+The CI matrix tests the exact pushed revision on both supported operating systems
+and Python versions; its results are recorded in the repository's Actions checks.

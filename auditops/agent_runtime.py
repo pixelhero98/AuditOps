@@ -489,6 +489,13 @@ def run_agent_case(
             )
         active_run_id = derived_run_id
 
+    def reject_aborted_completion() -> None:
+        nonlocal last_output_sha256
+        if last_call_audit is not None and last_call_audit["finish_reason"] == "abort":
+            last_output_sha256 = None
+            last_call_audit["output_sha256"] = None
+            raise ModelGenerationError("Model generation was aborted") from None
+
     def call_model(
         bundle: PromptBundle,
         max_tokens: int,
@@ -515,21 +522,6 @@ def run_agent_case(
             top_p=float(model_config["top_p"]),
             seed=int(model_config["seed"]),
         )
-        if not adapter.structured_output_applied:
-            raise ModelBackendError(
-                "model adapter cannot guarantee structured-output enforcement"
-            )
-        demonstration_tokens = (
-            adapter.count_messages(bundle.demonstration_messages)
-            if bundle.demonstration_messages
-            else 0
-        )
-        if demonstration_tokens > MAX_DEMONSTRATION_TOKENS:
-            raise ContextOverflowError(
-                demonstration_tokens,
-                MAX_DEMONSTRATION_TOKENS,
-                context_sha256=bundle.visible_context_sha256,
-            )
         # Establish the semantic request binding before tokenizer/backend preflight.
         # Any subsequent typed failure can therefore produce a complete trace
         # instead of leaving a half-consumed repair budget.
@@ -550,8 +542,23 @@ def run_agent_case(
             "parse_category": None,
         }
         try:
+            if not adapter.structured_output_applied:
+                raise ModelBackendError(
+                    "model adapter cannot guarantee structured-output enforcement"
+                )
+            demonstration_tokens = (
+                adapter.count_messages(bundle.demonstration_messages)
+                if bundle.demonstration_messages
+                else 0
+            )
+            if demonstration_tokens > MAX_DEMONSTRATION_TOKENS:
+                raise ContextOverflowError(
+                    demonstration_tokens,
+                    MAX_DEMONSTRATION_TOKENS,
+                    context_sha256=bundle.visible_context_sha256,
+                )
             rendered_input_tokens = adapter.count_messages(bundle.messages)
-        except ModelAdapterError:
+        except (ModelAdapterError, ContextOverflowError):
             last_call_audit["duration_ms"] = (
                 time.perf_counter() - call_started
             ) * 1000.0
@@ -625,6 +632,7 @@ def run_agent_case(
                 "cap_hit": exc.finish_reason == "length",
                 "parse_category": exc.parse_category,
             }
+            reject_aborted_completion()
             raise
         except ModelSchemaError as exc:
             malformed_input_tokens = (
@@ -659,6 +667,7 @@ def run_agent_case(
                 "cap_hit": exc.finish_reason == "length",
                 "parse_category": None,
             }
+            reject_aborted_completion()
             raise
         except ModelAdapterError:
             input_tokens += rendered_input_tokens
@@ -732,6 +741,13 @@ def run_agent_case(
             "cap_hit": response.finish_reason == "length",
             "parse_category": None,
         }
+        reject_aborted_completion()
+        if last_call_audit["structured_output_applied"] is not True:
+            last_output_sha256 = None
+            last_call_audit["output_sha256"] = None
+            raise ModelBackendError(
+                "Model completion lacked structured-output enforcement"
+            )
         try:
             validate_schema_payload(
                 response.payload,

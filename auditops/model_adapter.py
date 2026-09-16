@@ -25,6 +25,7 @@ from typing import Any
 
 from .canonical_json import (
     CANONICAL_JSON_VERSION,
+    canonical_json_bytes,
     canonical_json_sha256,
 )
 
@@ -52,6 +53,15 @@ _XGRAMMAR_SUPPORTED_STRING_FORMATS = {
     "json-pointer",
     "relative-json-pointer",
 }
+
+
+def _nonnegative_finite_number(value: Any) -> bool:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return False
+    try:
+        return math.isfinite(value) and value >= 0
+    except OverflowError:
+        return False
 
 
 class ModelAdapterError(RuntimeError):
@@ -114,12 +124,7 @@ class StrictJSONError(ModelAdapterError):
             or (isinstance(value, int) and not isinstance(value, bool) and value >= 0)
             for value in (input_tokens, output_tokens)
         )
-        duration_valid = duration_ms is None or (
-            isinstance(duration_ms, (int, float))
-            and not isinstance(duration_ms, bool)
-            and math.isfinite(float(duration_ms))
-            and duration_ms >= 0
-        )
+        duration_valid = duration_ms is None or _nonnegative_finite_number(duration_ms)
         finish_reason_valid = finish_reason is None or (
             isinstance(finish_reason, str)
             and finish_reason in {"stop", "length", "abort"}
@@ -129,13 +134,11 @@ class StrictJSONError(ModelAdapterError):
             and not isinstance(output_bytes, bool)
             and output_bytes >= 0
         )
-        parse_category_valid = parse_category is None or parse_category in {
-            "EMPTY",
-            "NON_OBJECT",
-            "SYNTAX",
-            "DUPLICATE_KEY",
-            "NON_JSON_NUMBER",
-        }
+        parse_category_valid = parse_category is None or (
+            isinstance(parse_category, str)
+            and parse_category
+            in {"EMPTY", "NON_OBJECT", "SYNTAX", "DUPLICATE_KEY", "NON_JSON_NUMBER"}
+        )
         constraint_backend_valid = constraint_backend is None or (
             isinstance(constraint_backend, str) and bool(constraint_backend)
         )
@@ -258,14 +261,21 @@ def validate_schema_payload(
 
 
 def _reject_non_json_number(value: str) -> None:
-    raise ValueError(f"Non-JSON numeric constant is not permitted: {value}")
+    raise ValueError("Non-JSON numeric constant is not permitted")
+
+
+def _finite_json_float(value: str) -> float:
+    number = float(value)
+    if not math.isfinite(number):
+        _reject_non_json_number(value)
+    return number
 
 
 def _unique_object(pairs: Sequence[tuple[str, Any]]) -> dict[str, Any]:
     result: dict[str, Any] = {}
     for key, value in pairs:
         if key in result:
-            raise ValueError(f"Duplicate JSON object key is not permitted: {key}")
+            raise ValueError("Duplicate JSON object key is not permitted")
         result[key] = value
     return result
 
@@ -275,8 +285,10 @@ def parse_strict_json_object(text: str) -> dict[str, Any]:
 
     if not isinstance(text, str):
         raise TypeError("Model output must be text")
-    digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
-    output_bytes = len(text.encode("utf-8"))
+    # surrogatepass is only for fingerprinting rejected invalid-Unicode input;
+    # successful payloads must still have a strict canonical UTF-8 encoding.
+    digest = hashlib.sha256(text.encode("utf-8", errors="surrogatepass")).hexdigest()
+    output_bytes = len(text.encode("utf-8", errors="surrogatepass"))
     if not text.strip():
         text = ""
         raise StrictJSONError(
@@ -290,15 +302,18 @@ def parse_strict_json_object(text: str) -> dict[str, Any]:
         value = json.loads(
             text,
             parse_constant=_reject_non_json_number,
+            parse_float=_finite_json_float,
             object_pairs_hook=_unique_object,
         )
-    except ValueError as exc:
+        canonical_json_bytes(value)
+    except (ValueError, RecursionError) as exc:
         parse_failed = True
         message = str(exc)
         if "Duplicate JSON object key" in message:
             parse_category = "DUPLICATE_KEY"
         elif "Non-JSON numeric constant" in message:
             parse_category = "NON_JSON_NUMBER"
+        message = ""
         value = None
     if parse_failed:
         # Raise outside the parser exception handler and clear the source text
@@ -567,20 +582,41 @@ class ModelResponse:
                 raise ModelGenerationError(
                     f"Model response {field_name} is not a nonnegative integer"
                 )
-        if (
-            not isinstance(self.duration_ms, (int, float))
-            or isinstance(self.duration_ms, bool)
-            or not math.isfinite(float(self.duration_ms))
-            or self.duration_ms < 0
-        ):
+        if not _nonnegative_finite_number(self.duration_ms):
             raise ModelGenerationError(
                 "Model response duration_ms is not a finite nonnegative number"
             )
-        if self.finish_reason is not None and not isinstance(self.finish_reason, str):
+        if self.finish_reason is not None and (
+            not isinstance(self.finish_reason, str)
+            or self.finish_reason not in {"stop", "length", "abort"}
+        ):
             raise ModelGenerationError("Model response finish_reason is invalid")
         if not isinstance(self.metadata, Mapping):
             raise ModelGenerationError("Model response metadata is not an object")
         materialized_metadata = copy.deepcopy(dict(self.metadata))
+        for name in ("output_bytes", "peak_vram_bytes"):
+            if name not in materialized_metadata:
+                continue
+            value = materialized_metadata[name]
+            if name == "peak_vram_bytes" and value is None:
+                continue
+            if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+                raise ModelGenerationError(f"Model response {name} is invalid")
+        for name in ("structured_output_applied", "cap_hit"):
+            if name in materialized_metadata and not isinstance(
+                materialized_metadata[name], bool
+            ):
+                raise ModelGenerationError(f"Model response {name} is invalid")
+        if "constraint_backend" in materialized_metadata and (
+            not isinstance(materialized_metadata["constraint_backend"], str)
+            or not materialized_metadata["constraint_backend"].strip()
+        ):
+            raise ModelGenerationError("Model response constraint_backend is invalid")
+        initialization_ms = materialized_metadata.get("engine_initialization_ms", 0)
+        if not _nonnegative_finite_number(initialization_ms):
+            raise ModelGenerationError(
+                "Model response engine_initialization_ms is invalid"
+            )
         try:
             canonical_json_sha256(materialized_metadata)
         except (TypeError, ValueError) as exc:

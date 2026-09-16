@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import shutil
 import tempfile
 from collections import Counter
@@ -63,6 +64,16 @@ _CHECK_NAMES = (
     "semantic_anchors",
     "refusal_validity",
 )
+
+
+def _exploratory_limitations() -> dict[str, Any]:
+    return {
+        "assurance": _ASSURANCE,
+        "experiment_label": _EXPERIMENT_LABEL,
+        "generalization_label": "cached-20",
+        "external_human_approval": False,
+        "official_baseline": False,
+    }
 
 
 def _utc_now() -> str:
@@ -1075,13 +1086,7 @@ def write_exploratory_authorization_v24p(
         raise ValueError(
             "Exploratory authorizer must be an explicit non-empty identity"
         )
-    limitations = {
-        "assurance": _ASSURANCE,
-        "experiment_label": _EXPERIMENT_LABEL,
-        "generalization_label": "cached-20",
-        "external_human_approval": False,
-        "official_baseline": False,
-    }
+    limitations = _exploratory_limitations()
     material = {
         "authorization_version": EXPLORATORY_AUTHORIZATION_VERSION_V24P,
         "benchmark_id": manifest["benchmark_id"],
@@ -1114,6 +1119,30 @@ def write_exploratory_authorization_v24p(
 def validate_exploratory_authorization_v24p(
     authorization: Mapping[str, Any], *, benchmark_id: str, expected_authorizer: str
 ) -> dict[str, Any]:
+    required_fields = {
+        "authorization_version",
+        "benchmark_id",
+        "gate_metrics_sha256",
+        "decision",
+        "authorized_by",
+        "authorized_at",
+        "assurance",
+        "experiment_label",
+        "known_limitations",
+        "known_limitations_sha256",
+        "authorization_id",
+    }
+    if not isinstance(authorization, Mapping) or set(authorization) != required_fields:
+        raise ValueError("Exploratory authorization fields do not match the contract")
+    for name in (
+        "benchmark_id",
+        "gate_metrics_sha256",
+        "known_limitations_sha256",
+        "authorization_id",
+    ):
+        value = authorization[name]
+        if not isinstance(value, str) or re.fullmatch(r"[0-9a-f]{64}", value) is None:
+            raise ValueError("Exploratory authorization digest is invalid")
     if (
         not isinstance(expected_authorizer, str)
         or not expected_authorizer.strip()
@@ -1137,6 +1166,7 @@ def validate_exploratory_authorization_v24p(
         or authorization.get("assurance") != _ASSURANCE
         or authorization.get("experiment_label") != _EXPERIMENT_LABEL
         or not isinstance(limitations, Mapping)
+        or limitations != _exploratory_limitations()
         or limitations.get("external_human_approval") is not False
         or limitations.get("official_baseline") is not False
         or authorization.get("known_limitations_sha256")
@@ -1145,18 +1175,19 @@ def validate_exploratory_authorization_v24p(
     ):
         raise ValueError("Exploratory full-run authorization is invalid")
     timestamp = authorization.get("authorized_at")
-    if not isinstance(timestamp, str):
-        raise TypeError("Exploratory authorization timestamp is required")
-    parsed = datetime.fromisoformat(timestamp)
+    if (
+        not isinstance(timestamp, str)
+        or re.fullmatch(
+            r"[0-9]{4}-[0-9]{2}-[0-9]{2}[Tt][0-9]{2}:[0-9]{2}:[0-9]{2}"
+            r"(?:\.[0-9]+)?(?:[Zz]|[+-][0-9]{2}:[0-9]{2})",
+            timestamp,
+        )
+        is None
+    ):
+        raise ValueError("Exploratory authorization requires an RFC 3339 timestamp")
+    parsed = datetime.fromisoformat(timestamp.upper())
     if parsed.tzinfo is None:
         raise ValueError("Exploratory authorization timestamp must include timezone")
-    digest = authorization.get("gate_metrics_sha256")
-    if (
-        not isinstance(digest, str)
-        or len(digest) != 64
-        or any(character not in "0123456789abcdef" for character in digest)
-    ):
-        raise ValueError("Exploratory authorization gate metrics hash is invalid")
     return dict(authorization)
 
 

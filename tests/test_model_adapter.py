@@ -16,6 +16,7 @@ from auditops.model_adapter import (
     ModelDependencyError,
     ModelGenerationError,
     ModelRequest,
+    ModelResponse,
     OfflineVLLMAdapter,
     StrictJSONError,
     parse_strict_json_object,
@@ -27,6 +28,61 @@ OBJECT_SCHEMA = {
     "required": ["answer"],
     "properties": {"answer": {"type": "string"}},
 }
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        '{"answer":1e999}',
+        '{"answer":-1e999}',
+        '{"answer":"\\ud800"}',
+        '{"\\udfff":"answer"}',
+        '{"answer":"' + chr(0xD800) + '"}',
+        '{"answer":' + "[" * 1100 + "0" + "]" * 1100 + "}",
+    ],
+    ids=[
+        "positive-overflow",
+        "negative-overflow",
+        "escaped-surrogate",
+        "surrogate-key",
+        "raw-surrogate",
+        "deep-nesting",
+    ],
+)
+def test_strict_json_rejects_unrepresentable_data_with_typed_failure(text):
+    with pytest.raises(StrictJSONError) as caught:
+        parse_strict_json_object(text)
+    assert caught.value.__cause__ is None
+    assert caught.value.__context__ is None
+    for frame in _tracebacks(caught.value):
+        assert text not in str(frame.tb_frame.f_locals)
+
+
+def test_duplicate_key_error_does_not_retain_untrusted_key():
+    marker = "PRIVATE_DUPLICATE_KEY_MARKER"
+    with pytest.raises(StrictJSONError) as caught:
+        parse_strict_json_object(json.dumps({marker: 1})[:-1] + f',"{marker}":2}}')
+    for frame in _tracebacks(caught.value):
+        assert marker not in str(frame.tb_frame.f_locals)
+
+
+@pytest.mark.parametrize(
+    "metadata",
+    [
+        {"output_bytes": "not-a-count"},
+        {"output_bytes": True},
+        {"output_bytes": -1},
+        {"structured_output_applied": "false"},
+        {"constraint_backend": []},
+        {"engine_initialization_ms": -1},
+        {"engine_initialization_ms": 10**500},
+        {"peak_vram_bytes": True},
+        {"cap_hit": "false"},
+    ],
+)
+def test_model_response_rejects_invalid_attempt_telemetry(metadata):
+    with pytest.raises(ModelGenerationError):
+        ModelResponse("id", {"answer": "ok"}, "a" * 64, metadata=metadata)
 
 
 def _request(**overrides):
@@ -97,6 +153,8 @@ def test_strict_json_error_retains_only_canonical_safe_metadata():
         {"input_tokens": True},
         {"output_tokens": -1},
         {"duration_ms": float("nan")},
+        {"duration_ms": 10**500},
+        {"parse_category": [marker]},
         {"finish_reason": marker},
         {"finish_reason": {"environment": marker}},
         {"finish_reason": [marker]},
@@ -341,6 +399,17 @@ def test_offline_vllm_adapter_lazy_loads_and_uses_in_process_chat(
     assert exc_info.value.__context__ is None
     for traceback in _tracebacks(exc_info.value):
         assert FakeCompletion.text not in str(traceback.tb_frame.f_locals)
+
+    for malformed in ('{"answer":"\\ud800"}', '{"answer":1e999}'):
+        FakeCompletion.text = malformed
+        FakeCompletion.finish_reason = "stop"
+        with pytest.raises(StrictJSONError) as stopped_error:
+            adapter.generate_json(_request(request_id="invalid-stopped"))
+        assert stopped_error.value.finish_reason == "stop"
+        assert stopped_error.value.structured_output_applied is True
+        assert stopped_error.value.__context__ is None
+        for traceback in _tracebacks(stopped_error.value):
+            assert malformed not in str(traceback.tb_frame.f_locals)
 
     marker = "RAW_BACKEND_TELEMETRY_MARKER"
     malformed_text = FakeCompletion.text

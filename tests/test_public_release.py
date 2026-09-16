@@ -85,6 +85,43 @@ def test_published_findings_are_consistent():
     verify(ROOT)
 
 
+@pytest.mark.parametrize(
+    "mutation", ["extra", "missing_label", "wrong_label", "timestamp", "non_digest"]
+)
+def test_rehashed_authorizations_still_enforce_the_public_contract(mutation):
+    value = authorization()
+    expected_benchmark = value["benchmark_id"]
+    if mutation == "extra":
+        value["unexpected"] = "not-permitted"
+    elif mutation == "missing_label":
+        del value["known_limitations"]["generalization_label"]
+    elif mutation == "wrong_label":
+        value["known_limitations"]["assurance"] = "HUMAN_APPROVED"
+    elif mutation == "timestamp":
+        value["authorized_at"] = "2026-09-16 12:00:00+00:00"
+    else:
+        value["benchmark_id"] = expected_benchmark = "not-a-digest"
+    value["known_limitations_sha256"] = canonical_json_sha256(
+        value["known_limitations"]
+    )
+    value["authorization_id"] = canonical_json_sha256(
+        {key: item for key, item in value.items() if key != "authorization_id"}
+    )
+    schema = json.loads(
+        (
+            ROOT / "auditops/specs/exploratory_run_authorization.v2.4p.1.schema.json"
+        ).read_text()
+    )
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.Draft202012Validator(
+            schema, format_checker=jsonschema.FormatChecker()
+        ).validate(value)
+    with pytest.raises(ValueError):
+        validate_exploratory_authorization_v24p(
+            value, benchmark_id=expected_benchmark, expected_authorizer="review-owner"
+        )
+
+
 def test_model_and_container_pins_are_preserved():
     models = json.loads((ROOT / "config/model_revisions.json").read_text())["models"]
     assert len(models) == 4
