@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import calendar
 import hashlib
 import io
 import json
@@ -7,7 +8,6 @@ import os
 import re
 import sqlite3
 import zipfile
-import calendar
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
@@ -16,11 +16,29 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from lxml import etree
 
-from .narrative import NarrativeChunk, Section, build_narrative_chunks, extract_narrative_text
-
+from .narrative import (
+    NarrativeChunk,
+    Section,
+    build_narrative_chunks,
+    extract_narrative_text,
+)
 
 ISO_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 NUM_MASK_RE = re.compile(r"\b\d[\d,.\-%]*\b")
+SEC_ACCESSION_RE = re.compile(r"^\d{10}-\d{2}-\d{6}$")
+
+_NON_TAXONOMY_NAMESPACE_URIS = {
+    "http://www.w3.org/1999/xhtml",
+    "http://www.w3.org/2000/xmlns/",
+    "http://www.w3.org/2001/xmlschema",
+    "http://www.w3.org/2001/xmlschema-instance",
+    "http://www.w3.org/1999/xlink",
+    "http://www.xbrl.org/2003/instance",
+    "http://www.xbrl.org/2003/linkbase",
+    "http://www.xbrl.org/2003/iso4217",
+    "http://www.xbrl.org/2006/xbrldi",
+    "http://www.xbrl.org/2013/inlinexbrl",
+}
 
 
 @dataclass(frozen=True)
@@ -34,6 +52,12 @@ class FilingMetadata:
     fiscal_year_focus: Optional[int]
     fiscal_period_focus: Optional[str]
     report_date: Optional[date]
+    cik: Optional[str] = None
+    accession: Optional[str] = None
+    source_sha256: Optional[str] = None
+    source_size_bytes: Optional[int] = None
+    taxonomy_refs: Tuple[str, ...] = ()
+    taxonomy_identifiers: Tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -103,7 +127,13 @@ CREATE TABLE IF NOT EXISTS filings (
   form_type TEXT,
   fiscal_year_focus INTEGER,
   fiscal_period_focus TEXT,
-  report_date TEXT
+  report_date TEXT,
+  cik TEXT,
+  accession TEXT,
+  source_sha256 TEXT,
+  source_size_bytes INTEGER,
+  taxonomy_refs_json TEXT NOT NULL DEFAULT '[]',
+  taxonomy_identifiers_json TEXT NOT NULL DEFAULT '[]'
 );
 
 CREATE TABLE IF NOT EXISTS contexts (
@@ -250,6 +280,9 @@ CREATE TABLE IF NOT EXISTS facts_canon (
   unit_canon TEXT,
   value_num_exact TEXT,
   value_text TEXT,
+  context_id TEXT,
+  entity_identifier TEXT,
+  dimensions_json TEXT NOT NULL DEFAULT '{}',
   selection_rank INTEGER NOT NULL,
   selection_reason TEXT NOT NULL,
   source_anchor TEXT,
@@ -327,8 +360,13 @@ def ensure_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
     narrative_chunks_sql_row = conn.execute(
         "SELECT sql FROM sqlite_master WHERE type='table' AND name='narrative_chunks'"
     ).fetchone()
-    narrative_chunks_sql = (narrative_chunks_sql_row["sql"] if narrative_chunks_sql_row else "") or ""
-    if "PRIMARY KEY (filing_id, source_file, item, chunk_index)" in narrative_chunks_sql:
+    narrative_chunks_sql = (
+        narrative_chunks_sql_row["sql"] if narrative_chunks_sql_row else ""
+    ) or ""
+    if (
+        "PRIMARY KEY (filing_id, source_file, item, chunk_index)"
+        in narrative_chunks_sql
+    ):
         conn.executescript(
             """
             ALTER TABLE narrative_chunks RENAME TO narrative_chunks_legacy;
@@ -362,6 +400,14 @@ def ensure_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
             """
         )
     for table_name, required_columns in {
+        "filings": {
+            "cik": "TEXT",
+            "accession": "TEXT",
+            "source_sha256": "TEXT",
+            "source_size_bytes": "INTEGER",
+            "taxonomy_refs_json": "TEXT NOT NULL DEFAULT '[]'",
+            "taxonomy_identifiers_json": "TEXT NOT NULL DEFAULT '[]'",
+        },
         "narrative_chunks": {
             "heading": "TEXT",
             "subheading": "TEXT",
@@ -373,6 +419,11 @@ def ensure_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
             "heading_path": "TEXT",
             "retrieval_text": "TEXT",
         },
+        "facts_canon": {
+            "context_id": "TEXT",
+            "entity_identifier": "TEXT",
+            "dimensions_json": "TEXT NOT NULL DEFAULT '{}'",
+        },
     }.items():
         existing = {
             row["name"]
@@ -380,7 +431,9 @@ def ensure_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
         }
         for column_name, column_type in required_columns.items():
             if column_name not in existing:
-                conn.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}")
+                conn.execute(
+                    f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}"
+                )
     conn.commit()
 
 
@@ -401,7 +454,9 @@ def resolve_continued_text(root: etree._Element, fact_el: etree._Element) -> str
     seen = set()
     while cont_id and cont_id not in seen:
         seen.add(cont_id)
-        els = root.xpath(f"//*[@id='{cont_id}' or @xml:id='{cont_id}'][local-name()='continuation']")
+        els = root.xpath(
+            f"//*[@id='{cont_id}' or @xml:id='{cont_id}'][local-name()='continuation']"
+        )
         if not els:
             break
         cont_el = els[0]
@@ -563,7 +618,9 @@ def _words_to_int(text: str) -> Optional[int]:
 
 
 def _parse_monthname_date(text: str) -> Optional[str]:
-    match = re.search(r"([A-Za-z]{3,9})\.?\s+(\d{1,2})\s*,\s*(\d{4})", (text or "").strip())
+    match = re.search(
+        r"([A-Za-z]{3,9})\.?\s+(\d{1,2})\s*,\s*(\d{4})", (text or "").strip()
+    )
     if not match:
         return None
     month = _MONTHS.get(match.group(1).lower())
@@ -586,7 +643,9 @@ def apply_ix_transform(fmt: Optional[str], raw_text: str) -> Tuple[str, Optional
         return "false", "bool"
     if normalized == "numwordsen":
         number = _words_to_int(text)
-        return (str(number) if number is not None else text), ("numeric" if number is not None else None)
+        return (str(number) if number is not None else text), (
+            "numeric" if number is not None else None
+        )
     if normalized in {"durday", "durmonth", "duryear", "durwordsen"}:
         number = None
         match = re.search(r"(-?\d+)", text)
@@ -607,14 +666,21 @@ def apply_ix_transform(fmt: Optional[str], raw_text: str) -> Tuple[str, Optional
     return text, None
 
 
-def period_key_from_context(start: Optional[date], end: Optional[date], instant: Optional[date]) -> Tuple[str, Optional[int]]:
+def period_key_from_context(
+    start: Optional[date], end: Optional[date], instant: Optional[date]
+) -> Tuple[str, Optional[int]]:
     if instant:
         return f"ASOF_{instant.strftime('%Y%m%d')}", None
     if start and end:
         days = (end - start).days
         if 330 <= days <= 370:
             return f"FY{end.year}", days
-        if 80 <= days <= 110 and (end.month, end.day) in {(3, 31), (6, 30), (9, 30), (12, 31)}:
+        if 80 <= days <= 110 and (end.month, end.day) in {
+            (3, 31),
+            (6, 30),
+            (9, 30),
+            (12, 31),
+        }:
             quarter = {3: 1, 6: 2, 9: 3, 12: 4}[end.month]
             return f"Q{quarter}_{end.year}", days
         return f"DUR_{start.strftime('%Y%m%d')}_{end.strftime('%Y%m%d')}", days
@@ -639,45 +705,72 @@ def _make_fact_identity(
     if xml_fact_id:
         evidence_id = f"{filing_id}::{source_file}#{xml_fact_id}"
         return xml_fact_id, evidence_id, f"{source_file}#{xml_fact_id}"
-    digest = _stable_digest(source_file, ordinal, qname, context_id, unit_id, raw_text_lexical)[:12]
+    digest = _stable_digest(
+        source_file, ordinal, qname, context_id, unit_id, raw_text_lexical
+    )[:12]
     synthetic_id = f"synthetic-{ordinal:06d}-{digest}"
     evidence_id = f"{filing_id}::{source_file}::ord={ordinal:06d}::{digest}"
     return synthetic_id, evidence_id, None
 
 
-def parse_ixbrl_html(html_bytes: bytes, source_file: str, filing_id: str) -> Tuple[Dict[str, ContextRec], Dict[str, UnitRec], List[FactRec]]:
+def parse_ixbrl_html(
+    html_bytes: bytes, source_file: str, filing_id: str
+) -> Tuple[Dict[str, ContextRec], Dict[str, UnitRec], List[FactRec]]:
     parser = etree.XMLParser(recover=True, huge_tree=True)
     root = etree.parse(io.BytesIO(html_bytes), parser).getroot()
 
     contexts: Dict[str, ContextRec] = {}
     for context_el in root.xpath("//*[local-name()='context']"):
-        context_id = context_el.get("id") or context_el.get("{http://www.w3.org/XML/1998/namespace}id")
+        context_id = context_el.get("id") or context_el.get(
+            "{http://www.w3.org/XML/1998/namespace}id"
+        )
         if not context_id:
             continue
 
         identifier = ""
-        for candidate in context_el.xpath(".//*[local-name()='entity']//*[local-name()='identifier']"):
+        for candidate in context_el.xpath(
+            ".//*[local-name()='entity']//*[local-name()='identifier']"
+        ):
             identifier = safe_text(candidate)
             break
 
         start = end = instant = None
         period_el = next(iter(context_el.xpath(".//*[local-name()='period']")), None)
         if period_el is not None:
-            instant_el = next(iter(period_el.xpath(".//*[local-name()='instant']")), None)
+            instant_el = next(
+                iter(period_el.xpath(".//*[local-name()='instant']")), None
+            )
             if instant_el is not None:
                 instant = parse_date(safe_text(instant_el))
             else:
-                start = parse_date(safe_text(next(iter(period_el.xpath(".//*[local-name()='startDate']")), None)))
-                end = parse_date(safe_text(next(iter(period_el.xpath(".//*[local-name()='endDate']")), None)))
+                start = parse_date(
+                    safe_text(
+                        next(
+                            iter(period_el.xpath(".//*[local-name()='startDate']")),
+                            None,
+                        )
+                    )
+                )
+                end = parse_date(
+                    safe_text(
+                        next(
+                            iter(period_el.xpath(".//*[local-name()='endDate']")), None
+                        )
+                    )
+                )
 
         dimensions: Dict[str, Any] = {}
         for member in context_el.xpath(".//*[local-name()='explicitMember']"):
-            dimension = member.get("dimension") or member.get("{http://www.xbrl.org/2006/xbrldi}dimension")
+            dimension = member.get("dimension") or member.get(
+                "{http://www.xbrl.org/2006/xbrldi}dimension"
+            )
             value = safe_text(member)
             if dimension and value:
                 dimensions[dimension] = value
         for member in context_el.xpath(".//*[local-name()='typedMember']"):
-            dimension = member.get("dimension") or member.get("{http://www.xbrl.org/2006/xbrldi}dimension")
+            dimension = member.get("dimension") or member.get(
+                "{http://www.xbrl.org/2006/xbrldi}dimension"
+            )
             value = safe_text(member)
             if dimension and value:
                 dimensions[dimension] = value
@@ -699,18 +792,33 @@ def parse_ixbrl_html(html_bytes: bytes, source_file: str, filing_id: str) -> Tup
 
     units: Dict[str, UnitRec] = {}
     for unit_el in root.xpath("//*[local-name()='unit']"):
-        unit_id = unit_el.get("id") or unit_el.get("{http://www.w3.org/XML/1998/namespace}id")
+        unit_id = unit_el.get("id") or unit_el.get(
+            "{http://www.w3.org/XML/1998/namespace}id"
+        )
         if not unit_id:
             continue
         unit_obj: Dict[str, Any] = {}
-        measures = [safe_text(measure) for measure in unit_el.xpath(".//*[local-name()='measure']")]
+        measures = [
+            safe_text(measure)
+            for measure in unit_el.xpath(".//*[local-name()='measure']")
+        ]
         measures = [measure for measure in measures if measure]
         if measures:
             unit_obj["measures"] = measures
         divide_el = next(iter(unit_el.xpath(".//*[local-name()='divide']")), None)
         if divide_el is not None:
-            numerator = [safe_text(measure) for measure in divide_el.xpath(".//*[local-name()='unitNumerator']//*[local-name()='measure']")]
-            denominator = [safe_text(measure) for measure in divide_el.xpath(".//*[local-name()='unitDenominator']//*[local-name()='measure']")]
+            numerator = [
+                safe_text(measure)
+                for measure in divide_el.xpath(
+                    ".//*[local-name()='unitNumerator']//*[local-name()='measure']"
+                )
+            ]
+            denominator = [
+                safe_text(measure)
+                for measure in divide_el.xpath(
+                    ".//*[local-name()='unitDenominator']//*[local-name()='measure']"
+                )
+            ]
             unit_obj["divide"] = {
                 "numerator": [value for value in numerator if value],
                 "denominator": [value for value in denominator if value],
@@ -718,9 +826,14 @@ def parse_ixbrl_html(html_bytes: bytes, source_file: str, filing_id: str) -> Tup
         units[unit_id] = UnitRec(unit_id=unit_id, unit_json=unit_obj)
 
     facts: List[FactRec] = []
-    for ordinal, fact_el in enumerate(root.xpath("//*[local-name()='nonFraction' or local-name()='nonNumeric']"), start=1):
+    for ordinal, fact_el in enumerate(
+        root.xpath("//*[local-name()='nonFraction' or local-name()='nonNumeric']"),
+        start=1,
+    ):
         local_name = fact_el.tag.split("}")[-1]
-        xml_fact_id = fact_el.get("id") or fact_el.get("{http://www.w3.org/XML/1998/namespace}id")
+        xml_fact_id = fact_el.get("id") or fact_el.get(
+            "{http://www.w3.org/XML/1998/namespace}id"
+        )
         qname = fact_el.get("name") or ""
         concept_norm = norm_concept_for_linkbase(qname)
         context_id = fact_el.get("contextRef")
@@ -734,7 +847,11 @@ def parse_ixbrl_html(html_bytes: bytes, source_file: str, filing_id: str) -> Tup
         if nil_value and nil_value.lower() == "true":
             raw_text_lexical = ""
         else:
-            raw_text_lexical = resolve_continued_text(root, fact_el) if local_name == "nonNumeric" else safe_text(fact_el)
+            raw_text_lexical = (
+                resolve_continued_text(root, fact_el)
+                if local_name == "nonNumeric"
+                else safe_text(fact_el)
+            )
 
         fact_id, fact_evidence_id, source_anchor = _make_fact_identity(
             filing_id=filing_id,
@@ -858,7 +975,11 @@ def parse_label_linkbase(xml_bytes: bytes) -> List[Tuple[str, str, str, str]]:
         if not label_id:
             continue
         role = get_attr_any_ns(label_el, "role") or ""
-        lang = get_attr_any_ns(label_el, "lang") or label_el.get("{http://www.w3.org/XML/1998/namespace}lang") or ""
+        lang = (
+            get_attr_any_ns(label_el, "lang")
+            or label_el.get("{http://www.w3.org/XML/1998/namespace}lang")
+            or ""
+        )
         label_map[label_id] = (role, lang, safe_text(label_el))
 
     rows = []
@@ -873,7 +994,9 @@ def parse_label_linkbase(xml_bytes: bytes) -> List[Tuple[str, str, str, str]]:
     return rows
 
 
-def parse_presentation_linkbase(xml_bytes: bytes) -> List[Tuple[str, str, str, float, str]]:
+def parse_presentation_linkbase(
+    xml_bytes: bytes,
+) -> List[Tuple[str, str, str, float, str]]:
     parser = etree.XMLParser(recover=True, huge_tree=True)
     root = etree.parse(io.BytesIO(xml_bytes), parser).getroot()
     edges = []
@@ -900,7 +1023,9 @@ def parse_presentation_linkbase(xml_bytes: bytes) -> List[Tuple[str, str, str, f
     return edges
 
 
-def parse_calculation_linkbase(xml_bytes: bytes) -> List[Tuple[str, str, str, float, float]]:
+def parse_calculation_linkbase(
+    xml_bytes: bytes,
+) -> List[Tuple[str, str, str, float, float]]:
     parser = etree.XMLParser(recover=True, huge_tree=True)
     root = etree.parse(io.BytesIO(xml_bytes), parser).getroot()
     edges = []
@@ -931,7 +1056,9 @@ def parse_calculation_linkbase(xml_bytes: bytes) -> List[Tuple[str, str, str, fl
     return edges
 
 
-def parse_definition_linkbase(xml_bytes: bytes) -> List[Tuple[str, str, str, str, float]]:
+def parse_definition_linkbase(
+    xml_bytes: bytes,
+) -> List[Tuple[str, str, str, str, float]]:
     parser = etree.XMLParser(recover=True, huge_tree=True)
     root = etree.parse(io.BytesIO(xml_bytes), parser).getroot()
     edges = []
@@ -958,6 +1085,16 @@ def parse_definition_linkbase(xml_bytes: bytes) -> List[Tuple[str, str, str, str
     return edges
 
 
+def _source_file_lineage(path: str) -> Tuple[str, int]:
+    digest = hashlib.sha256()
+    size_bytes = 0
+    with open(path, "rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+            size_bytes += len(chunk)
+    return digest.hexdigest(), size_bytes
+
+
 def load_zip_members(zip_path: str) -> Dict[str, bytes]:
     with zipfile.ZipFile(zip_path, "r") as zf:
         return {info.filename: zf.read(info.filename) for info in zf.infolist()}
@@ -971,7 +1108,9 @@ def _root_level_html_members(members: Dict[str, bytes]) -> List[str]:
     )
 
 
-def _normalize_preferred_main_html(candidates: Sequence[str], preferred_name: Optional[str]) -> Optional[str]:
+def _normalize_preferred_main_html(
+    candidates: Sequence[str], preferred_name: Optional[str]
+) -> Optional[str]:
     if not preferred_name:
         return None
 
@@ -989,10 +1128,14 @@ def _normalize_preferred_main_html(candidates: Sequence[str], preferred_name: Op
     return preferred
 
 
-def pick_main_html(members: Dict[str, bytes], preferred_name: Optional[str] = None) -> str:
+def pick_main_html(
+    members: Dict[str, bytes], preferred_name: Optional[str] = None
+) -> str:
     candidates = _root_level_html_members(members)
     if not candidates:
-        raise RuntimeError("No root-level .htm/.html found in zip (expected iXBRL HTML).")
+        raise RuntimeError(
+            "No root-level .htm/.html found in zip (expected iXBRL HTML)."
+        )
 
     preferred_candidate = _normalize_preferred_main_html(candidates, preferred_name)
 
@@ -1008,9 +1151,14 @@ def pick_main_html(members: Dict[str, bytes], preferred_name: Optional[str] = No
     ]
     if exact_matches:
         if preferred_candidate:
-            preferred_stem = os.path.splitext(os.path.basename(preferred_candidate))[0].lower()
+            preferred_stem = os.path.splitext(os.path.basename(preferred_candidate))[
+                0
+            ].lower()
             for candidate in exact_matches:
-                if os.path.splitext(os.path.basename(candidate))[0].lower() == preferred_stem:
+                if (
+                    os.path.splitext(os.path.basename(candidate))[0].lower()
+                    == preferred_stem
+                ):
                     return candidate
         exact_matches.sort(key=lambda name: (len(name), name.lower()))
         return exact_matches[0]
@@ -1039,7 +1187,10 @@ def pick_ixbrl_html_parts(members: Dict[str, bytes], main_html: str) -> List[str
     if main_html not in parts:
         parts.insert(0, main_html)
 
-    parts = sorted(dict.fromkeys(parts), key=lambda name: (0 if name == main_html else 1, name.lower()))
+    parts = sorted(
+        dict.fromkeys(parts),
+        key=lambda name: (0 if name == main_html else 1, name.lower()),
+    )
     return parts
 
 
@@ -1053,7 +1204,9 @@ def parse_ixbrl_package(
     facts: List[FactRec] = []
 
     for html_name in html_members:
-        part_contexts, part_units, part_facts = parse_ixbrl_html(members[html_name], html_name, filing_id)
+        part_contexts, part_units, part_facts = parse_ixbrl_html(
+            members[html_name], html_name, filing_id
+        )
         contexts.update(part_contexts)
         units.update(part_units)
         facts.extend(part_facts)
@@ -1061,12 +1214,86 @@ def parse_ixbrl_package(
     return contexts, units, facts
 
 
-def infer_filing_id(zip_path: str, html_main: str) -> str:
-    base = os.path.basename(zip_path)
-    match = re.match(r"^(\d{10}-\d{2}-\d{6})-xbrl\.zip$", base, flags=re.IGNORECASE)
-    if match:
-        return match.group(1)
+def _optional_text(value: Any) -> Optional[str]:
+    if value is None:
+        return None
+    normalized = str(value).strip()
+    return normalized or None
+
+
+def _normalized_text_tuple(value: Any) -> Tuple[str, ...]:
+    if value is None:
+        return ()
+    values = (value,) if isinstance(value, (str, bytes)) else value
+    try:
+        normalized = {_optional_text(item) for item in values}
+    except TypeError:
+        normalized = {_optional_text(value)}
+    return tuple(sorted(item for item in normalized if item))
+
+
+def _normalize_cik(value: Any) -> Optional[str]:
+    normalized = _optional_text(value)
+    if normalized is None:
+        return None
+    if normalized.upper().startswith("CIK"):
+        normalized = normalized[3:].strip()
+    if not normalized.isdigit():
+        return None
+    return str(int(normalized))
+
+
+def infer_accession(zip_path: str) -> Optional[str]:
+    stem = os.path.splitext(os.path.basename(zip_path))[0]
+    if stem.lower().endswith("-xbrl"):
+        stem = stem[:-5]
+    if SEC_ACCESSION_RE.fullmatch(stem):
+        return stem
+    match = re.search(r"(?:^|_)(\d{10}-\d{2}-\d{6})$", stem)
+    return match.group(1) if match else None
+
+
+def infer_filing_id(
+    zip_path: str,
+    html_main: str,
+    accession: Optional[str] = None,
+) -> str:
+    explicit_accession = _optional_text(accession)
+    if explicit_accession and SEC_ACCESSION_RE.fullmatch(explicit_accession):
+        return explicit_accession
+    inferred_accession = infer_accession(zip_path)
+    if inferred_accession:
+        return inferred_accession
     return os.path.splitext(os.path.basename(html_main))[0]
+
+
+def extract_taxonomy_metadata(
+    members: Dict[str, bytes],
+    html_members: Sequence[str],
+) -> Tuple[Tuple[str, ...], Tuple[str, ...]]:
+    schema_refs: set[str] = set()
+    taxonomy_identifiers: set[str] = set()
+    for html_name in html_members:
+        parser = etree.XMLParser(
+            recover=True,
+            huge_tree=True,
+            no_network=True,
+            resolve_entities=False,
+        )
+        root = etree.parse(io.BytesIO(members[html_name]), parser).getroot()
+        for schema_ref in root.xpath("//*[local-name()='schemaRef']"):
+            href = _optional_text(get_attr_any_ns(schema_ref, "href"))
+            if href:
+                schema_refs.add(href)
+        for element in root.iter():
+            for namespace_uri in element.nsmap.values():
+                identifier = _optional_text(namespace_uri)
+                if (
+                    identifier
+                    and identifier.casefold() not in _NON_TAXONOMY_NAMESPACE_URIS
+                ):
+                    taxonomy_identifiers.add(identifier)
+    return tuple(sorted(schema_refs)), tuple(sorted(taxonomy_identifiers))
 
 
 def infer_ticker(html_main: str) -> Optional[str]:
@@ -1080,14 +1307,24 @@ def infer_ticker(html_main: str) -> Optional[str]:
 
 def _best_fact_value(facts: Sequence[FactRec], aliases: Sequence[str]) -> Optional[str]:
     alias_set = set(aliases)
-    filtered = [fact for fact in facts if fact.concept_norm in alias_set and fact.value_text]
+    filtered = [
+        fact for fact in facts if fact.concept_norm in alias_set and fact.value_text
+    ]
     if not filtered:
         return None
-    filtered.sort(key=lambda fact: (0 if fact.is_consolidated else 1, 0 if fact.source_anchor else 1, fact.fact_ordinal))
+    filtered.sort(
+        key=lambda fact: (
+            0 if fact.is_consolidated else 1,
+            0 if fact.source_anchor else 1,
+            fact.fact_ordinal,
+        )
+    )
     return filtered[0].value_text
 
 
-def _best_date_value(facts: Sequence[FactRec], aliases: Sequence[str]) -> Optional[date]:
+def _best_date_value(
+    facts: Sequence[FactRec], aliases: Sequence[str]
+) -> Optional[date]:
     value = _best_fact_value(facts, aliases)
     if not value:
         return None
@@ -1101,9 +1338,12 @@ def extract_filing_metadata(
     inferred_ticker: Optional[str],
     facts: Sequence[FactRec],
     overrides: Optional[Dict[str, Any]] = None,
+    entity_identifiers: Sequence[str] = (),
 ) -> FilingMetadata:
     overrides = overrides or {}
-    form_type = overrides.get("form_type") or _best_fact_value(facts, ["dei_DocumentType"])
+    form_type = overrides.get("form_type") or _best_fact_value(
+        facts, ["dei_DocumentType"]
+    )
 
     fiscal_year_focus = overrides.get("fiscal_year_focus")
     if fiscal_year_focus is None:
@@ -1114,11 +1354,49 @@ def extract_filing_metadata(
     fiscal_period_focus = overrides.get("fiscal_period_focus") or _best_fact_value(
         facts, ["dei_DocumentFiscalPeriodFocus"]
     )
-    report_date = overrides.get("report_date") or _best_date_value(facts, ["dei_DocumentPeriodEndDate"])
+    report_date = overrides.get("report_date") or _best_date_value(
+        facts, ["dei_DocumentPeriodEndDate"]
+    )
     if isinstance(report_date, str):
         report_date = parse_date(report_date)
 
-    ticker = overrides.get("ticker") or _best_fact_value(facts, ["dei_TradingSymbol"]) or inferred_ticker
+    ticker = (
+        overrides.get("ticker")
+        or _best_fact_value(facts, ["dei_TradingSymbol"])
+        or inferred_ticker
+    )
+
+    raw_cik = overrides.get("cik")
+    cik = _normalize_cik(raw_cik)
+    if raw_cik is not None and cik is None:
+        raise ValueError("Filing metadata CIK must contain only decimal digits")
+    context_ciks = {
+        normalized
+        for value in entity_identifiers
+        if (normalized := _normalize_cik(value)) is not None
+    }
+    if cik is not None and context_ciks and cik not in context_ciks:
+        raise ValueError("Filing metadata CIK does not match the filing contexts")
+    if cik is None:
+        cik = _normalize_cik(_best_fact_value(facts, ["dei_EntityCentralIndexKey"]))
+    if cik is None:
+        if len(context_ciks) == 1:
+            cik = next(iter(context_ciks))
+
+    accession = _optional_text(overrides.get("accession")) or infer_accession(zip_name)
+    source_sha256 = _optional_text(overrides.get("source_sha256"))
+    if source_sha256 is not None and not re.fullmatch(r"[0-9a-f]{64}", source_sha256):
+        raise ValueError("Filing source_sha256 must be a lowercase SHA-256 digest")
+    source_size_bytes = overrides.get("source_size_bytes")
+    if source_size_bytes is not None:
+        if isinstance(source_size_bytes, bool):
+            raise ValueError("Filing source_size_bytes must be an integer")
+        source_size_bytes = int(source_size_bytes)
+        if source_size_bytes < 0:
+            raise ValueError("Filing source_size_bytes must be non-negative")
+
+    taxonomy_refs = _normalized_text_tuple(overrides.get("taxonomy_refs"))
+    taxonomy_identifiers = _normalized_text_tuple(overrides.get("taxonomy_identifiers"))
 
     return FilingMetadata(
         filing_id=filing_id,
@@ -1130,6 +1408,12 @@ def extract_filing_metadata(
         fiscal_year_focus=fiscal_year_focus,
         fiscal_period_focus=fiscal_period_focus,
         report_date=report_date,
+        cik=cik,
+        accession=accession,
+        source_sha256=source_sha256,
+        source_size_bytes=source_size_bytes,
+        taxonomy_refs=taxonomy_refs,
+        taxonomy_identifiers=taxonomy_identifiers,
     )
 
 
@@ -1148,8 +1432,10 @@ def _insert_raw_tables(
         """
         INSERT OR REPLACE INTO filings(
           filing_id, ticker, zip_name, main_html, processed_at,
-          form_type, fiscal_year_focus, fiscal_period_focus, report_date
-        ) VALUES (?,?,?,?,?,?,?,?,?)
+          form_type, fiscal_year_focus, fiscal_period_focus, report_date,
+          cik, accession, source_sha256, source_size_bytes,
+          taxonomy_refs_json, taxonomy_identifiers_json
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """,
         (
             filing.filing_id,
@@ -1161,6 +1447,12 @@ def _insert_raw_tables(
             filing.fiscal_year_focus,
             filing.fiscal_period_focus,
             filing.report_date.isoformat() if filing.report_date else None,
+            filing.cik,
+            filing.accession,
+            filing.source_sha256,
+            filing.source_size_bytes,
+            _json_dumps(list(filing.taxonomy_refs)),
+            _json_dumps(list(filing.taxonomy_identifiers)),
         ),
     )
 
@@ -1192,7 +1484,10 @@ def _insert_raw_tables(
 
     conn.executemany(
         "INSERT OR REPLACE INTO units(filing_id, unit_id, unit_json) VALUES (?,?,?)",
-        [(filing.filing_id, unit.unit_id, _json_dumps(unit.unit_json)) for unit in units.values()],
+        [
+            (filing.filing_id, unit.unit_id, _json_dumps(unit.unit_json))
+            for unit in units.values()
+        ],
     )
 
     conn.executemany(
@@ -1224,8 +1519,12 @@ def _insert_raw_tables(
                 fact.value_type,
                 fact.value_text,
                 fact.value_lexical,
-                str(fact.value_num_reported) if fact.value_num_reported is not None else None,
-                str(fact.value_num_unscaled) if fact.value_num_unscaled is not None else None,
+                str(fact.value_num_reported)
+                if fact.value_num_reported is not None
+                else None,
+                str(fact.value_num_unscaled)
+                if fact.value_num_unscaled is not None
+                else None,
                 fact.period_key,
                 _json_dumps(fact.dimensions),
                 1 if fact.is_consolidated else 0,
@@ -1243,25 +1542,37 @@ def _insert_raw_tables(
               filing_id, concept_norm, label_role, label_lang, label_text
             ) VALUES (?,?,?,?,?)
             """,
-            [(filing.filing_id, concept, role, lang, text) for concept, role, lang, text in labels],
+            [
+                (filing.filing_id, concept, role, lang, text)
+                for concept, role, lang, text in labels
+            ],
         )
 
     if pre_edges:
         conn.executemany(
             "INSERT INTO pre_edges(filing_id, role, parent_concept_norm, child_concept_norm, ord, preferred_label) VALUES (?,?,?,?,?,?)",
-            [(filing.filing_id, role, parent, child, order, preferred) for role, parent, child, order, preferred in pre_edges],
+            [
+                (filing.filing_id, role, parent, child, order, preferred)
+                for role, parent, child, order, preferred in pre_edges
+            ],
         )
 
     if cal_edges:
         conn.executemany(
             "INSERT INTO cal_edges(filing_id, role, parent_concept_norm, child_concept_norm, weight, ord) VALUES (?,?,?,?,?,?)",
-            [(filing.filing_id, role, parent, child, weight, order) for role, parent, child, weight, order in cal_edges],
+            [
+                (filing.filing_id, role, parent, child, weight, order)
+                for role, parent, child, weight, order in cal_edges
+            ],
         )
 
     if def_edges:
         conn.executemany(
             "INSERT INTO def_edges(filing_id, role, arcrole, parent_concept_norm, child_concept_norm, ord) VALUES (?,?,?,?,?,?)",
-            [(filing.filing_id, role, arcrole, parent, child, order) for role, arcrole, parent, child, order in def_edges],
+            [
+                (filing.filing_id, role, arcrole, parent, child, order)
+                for role, arcrole, parent, child, order in def_edges
+            ],
         )
 
     conn.commit()
@@ -1277,10 +1588,18 @@ def _store_narrative(
 ) -> Tuple[Sequence[Section], Sequence[NarrativeChunk]]:
     html = html_bytes.decode("utf-8", errors="replace")
     text = extract_narrative_text(html)
-    sections, chunks = build_narrative_chunks(text, chunk_chars=chunk_chars, overlap=overlap)
+    sections, chunks = build_narrative_chunks(
+        text, chunk_chars=chunk_chars, overlap=overlap
+    )
 
-    conn.execute("DELETE FROM narrative_sections WHERE filing_id=? AND source_file=?", (filing_id, source_file))
-    conn.execute("DELETE FROM narrative_chunks WHERE filing_id=? AND source_file=?", (filing_id, source_file))
+    conn.execute(
+        "DELETE FROM narrative_sections WHERE filing_id=? AND source_file=?",
+        (filing_id, source_file),
+    )
+    conn.execute(
+        "DELETE FROM narrative_chunks WHERE filing_id=? AND source_file=?",
+        (filing_id, source_file),
+    )
 
     if sections:
         conn.executemany(
@@ -1289,7 +1608,17 @@ def _store_narrative(
               filing_id, source_file, item, heading, start_char, end_char
             ) VALUES (?,?,?,?,?,?)
             """,
-            [(filing_id, source_file, section.item, section.heading, section.start, section.end) for section in sections],
+            [
+                (
+                    filing_id,
+                    source_file,
+                    section.item,
+                    section.heading,
+                    section.start,
+                    section.end,
+                )
+                for section in sections
+            ],
         )
 
     if chunks:
@@ -1335,23 +1664,83 @@ def process_zip(
     if ticker:
         metadata_overrides["ticker"] = ticker
 
+    source_sha256, source_size_bytes = _source_file_lineage(zip_path)
+    expected_sha256 = next(
+        (
+            metadata_overrides[key]
+            for key in ("source_sha256", "downloaded_source_sha256", "sha256")
+            if metadata_overrides.get(key) is not None
+        ),
+        None,
+    )
+    if expected_sha256 is not None and str(expected_sha256).casefold() != source_sha256:
+        raise ValueError("Filing source SHA-256 does not match the downloaded file")
+    expected_size = next(
+        (
+            metadata_overrides[key]
+            for key in ("source_size_bytes", "downloaded_source_size_bytes", "bytes")
+            if metadata_overrides.get(key) is not None
+        ),
+        None,
+    )
+    if expected_size is not None and int(expected_size) != source_size_bytes:
+        raise ValueError("Filing source byte size does not match the downloaded file")
+
     members = load_zip_members(zip_path)
     preferred_main_html = metadata_overrides.get("preferred_main_html")
     html_main = pick_main_html(members, preferred_name=preferred_main_html)
     html_parts = pick_ixbrl_html_parts(members, html_main)
-    filing_id = infer_filing_id(zip_path, html_main)
+    explicit_accession = _optional_text(metadata_overrides.get("accession"))
+    filename_accession = infer_accession(zip_path)
+    if (
+        explicit_accession
+        and SEC_ACCESSION_RE.fullmatch(explicit_accession)
+        and filename_accession
+        and explicit_accession != filename_accession
+    ):
+        raise ValueError("Filing accession does not match the downloaded filename")
+    filing_id = infer_filing_id(
+        zip_path,
+        html_main,
+        accession=explicit_accession,
+    )
     inferred_ticker = infer_ticker(html_main)
 
     contexts, units, facts = parse_ixbrl_package(members, filing_id, html_parts)
+    taxonomy_refs, taxonomy_identifiers = extract_taxonomy_metadata(members, html_parts)
+    metadata_overrides["source_sha256"] = source_sha256
+    metadata_overrides["source_size_bytes"] = source_size_bytes
+    metadata_overrides["taxonomy_refs"] = tuple(
+        sorted(
+            set(taxonomy_refs)
+            | set(_normalized_text_tuple(metadata_overrides.get("taxonomy_refs")))
+        )
+    )
+    metadata_overrides["taxonomy_identifiers"] = tuple(
+        sorted(
+            set(taxonomy_identifiers)
+            | set(
+                _normalized_text_tuple(metadata_overrides.get("taxonomy_identifiers"))
+            )
+        )
+    )
     labels = []
     pre_edges = []
     cal_edges = []
     def_edges = []
 
-    lab_name = next((name for name in members if name.lower().endswith("_lab.xml")), None)
-    pre_name = next((name for name in members if name.lower().endswith("_pre.xml")), None)
-    cal_name = next((name for name in members if name.lower().endswith("_cal.xml")), None)
-    def_name = next((name for name in members if name.lower().endswith("_def.xml")), None)
+    lab_name = next(
+        (name for name in members if name.lower().endswith("_lab.xml")), None
+    )
+    pre_name = next(
+        (name for name in members if name.lower().endswith("_pre.xml")), None
+    )
+    cal_name = next(
+        (name for name in members if name.lower().endswith("_cal.xml")), None
+    )
+    def_name = next(
+        (name for name in members if name.lower().endswith("_def.xml")), None
+    )
     if lab_name:
         labels = parse_label_linkbase(members[lab_name])
     if pre_name:
@@ -1368,6 +1757,7 @@ def process_zip(
         inferred_ticker=inferred_ticker,
         facts=facts,
         overrides=metadata_overrides,
+        entity_identifiers=[context.entity_identifier for context in contexts.values()],
     )
 
     conn = connect_db(out_db)
@@ -1387,14 +1777,22 @@ def process_zip(
 
         sections = chunks = ()
         if extract_narrative:
-            sections, chunks = _store_narrative(conn, filing_id, html_main, members[html_main])
+            sections, chunks = _store_narrative(
+                conn, filing_id, html_main, members[html_main]
+            )
 
         rebuild_canonical_layers(conn, filing_id)
         return {
             "db": out_db,
             "filing_id": filing_id,
             "ticker": filing.ticker,
+            "cik": filing.cik,
+            "accession": filing.accession,
             "main_html": html_main,
+            "source_sha256": filing.source_sha256,
+            "source_size_bytes": filing.source_size_bytes,
+            "taxonomy_refs": list(filing.taxonomy_refs),
+            "taxonomy_identifiers": list(filing.taxonomy_identifiers),
             "facts": len(facts),
             "contexts": len(contexts),
             "units": len(units),
@@ -1457,15 +1855,23 @@ def _infer_fiscal_year_end_date(metadata: FilingMetadata) -> Optional[date]:
     return _add_months_preserve_eom(metadata.report_date, offsets[focus])
 
 
-def _infer_fiscal_year_for_date(as_of_date: date, metadata: FilingMetadata) -> Optional[int]:
+def _infer_fiscal_year_for_date(
+    as_of_date: date, metadata: FilingMetadata
+) -> Optional[int]:
     fy_end = _infer_fiscal_year_end_date(metadata)
     if fy_end is None:
         return None
     fy_end_md = (fy_end.month, fy_end.day)
-    return as_of_date.year if (as_of_date.month, as_of_date.day) <= fy_end_md else as_of_date.year + 1
+    return (
+        as_of_date.year
+        if (as_of_date.month, as_of_date.day) <= fy_end_md
+        else as_of_date.year + 1
+    )
 
 
-def _infer_historical_fiscal_year_for_date(as_of_date: date, metadata: FilingMetadata) -> Optional[int]:
+def _infer_historical_fiscal_year_for_date(
+    as_of_date: date, metadata: FilingMetadata
+) -> Optional[int]:
     if metadata.report_date is None or metadata.fiscal_year_focus is None:
         return None
     if as_of_date > metadata.report_date:
@@ -1474,11 +1880,17 @@ def _infer_historical_fiscal_year_for_date(as_of_date: date, metadata: FilingMet
     return metadata.fiscal_year_focus - int(round(delta_days / 364.25))
 
 
-def _infer_fiscal_quarter_for_date(as_of_date: date, metadata: FilingMetadata, fiscal_year: Optional[int]) -> Optional[int]:
+def _infer_fiscal_quarter_for_date(
+    as_of_date: date, metadata: FilingMetadata, fiscal_year: Optional[int]
+) -> Optional[int]:
     fy_end = _infer_fiscal_year_end_date(metadata)
     if fy_end is None or fiscal_year is None:
         return None
-    q4 = date(fiscal_year, fy_end.month, min(fy_end.day, calendar.monthrange(fiscal_year, fy_end.month)[1]))
+    q4 = date(
+        fiscal_year,
+        fy_end.month,
+        min(fy_end.day, calendar.monthrange(fiscal_year, fy_end.month)[1]),
+    )
     quarter_ends = {
         1: _add_months_preserve_eom(q4, -9),
         2: _add_months_preserve_eom(q4, -6),
@@ -1498,16 +1910,28 @@ def _classify_period(
     instant_date: Optional[date],
 ) -> Dict[str, Any]:
     reference_date = instant_date or end_date
-    historical_fiscal_year = _infer_historical_fiscal_year_for_date(reference_date, metadata) if reference_date else None
+    historical_fiscal_year = (
+        _infer_historical_fiscal_year_for_date(reference_date, metadata)
+        if reference_date
+        else None
+    )
     inferred_fiscal_year = historical_fiscal_year or (
-        _infer_fiscal_year_for_date(reference_date, metadata) if reference_date else None
+        _infer_fiscal_year_for_date(reference_date, metadata)
+        if reference_date
+        else None
     )
     inferred_fiscal_quarter = (
-        _infer_fiscal_quarter_for_date(reference_date, metadata, inferred_fiscal_year) if reference_date else None
+        _infer_fiscal_quarter_for_date(reference_date, metadata, inferred_fiscal_year)
+        if reference_date
+        else None
     )
 
     if instant_date:
-        quarter = inferred_fiscal_quarter or _quarter_from_focus(metadata.fiscal_period_focus) or _quarter_from_end(instant_date)
+        quarter = (
+            inferred_fiscal_quarter
+            or _quarter_from_focus(metadata.fiscal_period_focus)
+            or _quarter_from_end(instant_date)
+        )
         fiscal_year = inferred_fiscal_year or instant_date.year
         return {
             "period_type": "ASOF",
@@ -1534,9 +1958,15 @@ def _classify_period(
     fiscal_year = inferred_fiscal_year or end_date.year
     focus_quarter = _quarter_from_focus(metadata.fiscal_period_focus)
     end_matches_report = bool(
-        metadata.report_date and (end_date.month, end_date.day) == (metadata.report_date.month, metadata.report_date.day)
+        metadata.report_date
+        and (end_date.month, end_date.day)
+        == (metadata.report_date.month, metadata.report_date.day)
     )
-    quarter = inferred_fiscal_quarter or (focus_quarter if end_matches_report and focus_quarter else _quarter_from_end(end_date))
+    quarter = inferred_fiscal_quarter or (
+        focus_quarter
+        if end_matches_report and focus_quarter
+        else _quarter_from_end(end_date)
+    )
 
     if 330 <= days <= 370:
         return {
@@ -1617,8 +2047,24 @@ def normalize_unit_family(unit_json_text: Optional[str]) -> Optional[str]:
     return "other"
 
 
+def _decode_text_array(value: Optional[str], field_name: str) -> Tuple[str, ...]:
+    if value is None:
+        return ()
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError as error:
+        raise ValueError(f"Invalid {field_name} JSON in filings table") from error
+    if not isinstance(parsed, list):
+        raise ValueError(
+            f"Invalid {field_name} in filings table: expected a JSON array"
+        )
+    return _normalized_text_tuple(parsed)
+
+
 def _fetch_filing(conn: sqlite3.Connection, filing_id: str) -> FilingMetadata:
-    row = conn.execute("SELECT * FROM filings WHERE filing_id=?", (filing_id,)).fetchone()
+    row = conn.execute(
+        "SELECT * FROM filings WHERE filing_id=?", (filing_id,)
+    ).fetchone()
     if row is None:
         raise KeyError(f"Unknown filing_id: {filing_id}")
     return FilingMetadata(
@@ -1631,6 +2077,16 @@ def _fetch_filing(conn: sqlite3.Connection, filing_id: str) -> FilingMetadata:
         fiscal_year_focus=row["fiscal_year_focus"],
         fiscal_period_focus=row["fiscal_period_focus"],
         report_date=parse_date(row["report_date"]) if row["report_date"] else None,
+        cik=row["cik"],
+        accession=row["accession"],
+        source_sha256=row["source_sha256"],
+        source_size_bytes=row["source_size_bytes"],
+        taxonomy_refs=_decode_text_array(
+            row["taxonomy_refs_json"], "taxonomy_refs_json"
+        ),
+        taxonomy_identifiers=_decode_text_array(
+            row["taxonomy_identifiers_json"], "taxonomy_identifiers_json"
+        ),
     )
 
 
@@ -1640,7 +2096,9 @@ def _build_candidate(row: sqlite3.Row, filing: FilingMetadata) -> Dict[str, Any]
     instant = parse_date(row["instant_date"]) if row["instant_date"] else None
     period = _classify_period(filing, start, end, instant)
     unit_canon = normalize_unit_family(row["unit_json"])
-    raw_fact_ref = row["source_anchor"] or f"{row['source_file']}::ord={row['fact_ordinal']:06d}"
+    raw_fact_ref = (
+        row["source_anchor"] or f"{row['source_file']}::ord={row['fact_ordinal']:06d}"
+    )
     return {
         "filing_id": filing.filing_id,
         "ticker": filing.ticker,
@@ -1655,7 +2113,11 @@ def _build_candidate(row: sqlite3.Row, filing: FilingMetadata) -> Dict[str, Any]
         "value_text": row["value_text"],
         "source_anchor": row["source_anchor"],
         "context_id": row["context_id"],
-        "dimension_count": row["dimension_count"] if row["dimension_count"] is not None else 0,
+        "entity_identifier": row["entity_identifier"],
+        "dimensions_json": row["dimensions_json"] or "{}",
+        "dimension_count": row["dimension_count"]
+        if row["dimension_count"] is not None
+        else 0,
         "start_date": row["start_date"],
         "end_date": row["end_date"],
         "instant_date": row["instant_date"],
@@ -1663,8 +2125,16 @@ def _build_candidate(row: sqlite3.Row, filing: FilingMetadata) -> Dict[str, Any]
     }
 
 
-def _validation_key(filing_id: str, code: str, entity_kind: str, entity_key: str, details: Dict[str, Any]) -> str:
-    return _stable_digest(filing_id, code, entity_kind, entity_key, _json_dumps(details))
+def _validation_key(
+    filing_id: str,
+    code: str,
+    entity_kind: str,
+    entity_key: str,
+    details: Dict[str, Any],
+) -> str:
+    return _stable_digest(
+        filing_id, code, entity_kind, entity_key, _json_dumps(details)
+    )
 
 
 def _add_validator(
@@ -1690,12 +2160,15 @@ def _selection_reason(candidate: Dict[str, Any]) -> str:
     )
 
 
-def _build_facts_canon_and_validators(conn: sqlite3.Connection, filing: FilingMetadata) -> Tuple[List[Dict[str, Any]], List[ValidationRecord]]:
+def _build_facts_canon_and_validators(
+    conn: sqlite3.Connection, filing: FilingMetadata
+) -> Tuple[List[Dict[str, Any]], List[ValidationRecord]]:
     rows = conn.execute(
         """
         SELECT
           f.*,
           c.start_date, c.end_date, c.instant_date, c.dimension_count,
+          c.entity_identifier, c.dimensions_json,
           u.unit_json
         FROM facts f
         LEFT JOIN contexts c
@@ -1722,7 +2195,10 @@ def _build_facts_canon_and_validators(conn: sqlite3.Connection, filing: FilingMe
                 "Raw fact is missing a deterministic evidence identifier.",
                 {"concept_norm": candidate["concept_norm"]},
             )
-        if candidate["period_type"] == "DUR_OTHER" or candidate["period_key"] == "UNKNOWN_PERIOD":
+        if (
+            candidate["period_type"] == "DUR_OTHER"
+            or candidate["period_key"] == "UNKNOWN_PERIOD"
+        ):
             _add_validator(
                 validators,
                 filing.filing_id,
@@ -1739,10 +2215,18 @@ def _build_facts_canon_and_validators(conn: sqlite3.Connection, filing: FilingMe
 
     grouped_numeric: Dict[Tuple[str, str, Optional[str]], set[str]] = defaultdict(set)
     for candidate in candidates:
-        if candidate["dimension_count"] == 0 and candidate["value_type"] == "numeric" and candidate["value_num_exact"] is not None:
-            grouped_numeric[(candidate["concept_norm"], candidate["period_key"], candidate["unit_canon"])].add(
-                str(candidate["value_num_exact"])
-            )
+        if (
+            candidate["dimension_count"] == 0
+            and candidate["value_type"] == "numeric"
+            and candidate["value_num_exact"] is not None
+        ):
+            grouped_numeric[
+                (
+                    candidate["concept_norm"],
+                    candidate["period_key"],
+                    candidate["unit_canon"],
+                )
+            ].add(str(candidate["value_num_exact"]))
     for (concept_norm, period_key, unit_canon), values in grouped_numeric.items():
         if len(values) > 1:
             _add_validator(
@@ -1760,7 +2244,9 @@ def _build_facts_canon_and_validators(conn: sqlite3.Connection, filing: FilingMe
                 },
             )
 
-    groups: Dict[Tuple[str, str, str, Optional[str]], List[Dict[str, Any]]] = defaultdict(list)
+    groups: Dict[Tuple[str, str, str, Optional[str]], List[Dict[str, Any]]] = (
+        defaultdict(list)
+    )
     for candidate in candidates:
         key = (
             candidate["concept_norm"],
@@ -1772,7 +2258,9 @@ def _build_facts_canon_and_validators(conn: sqlite3.Connection, filing: FilingMe
 
     canon_rows: List[Dict[str, Any]] = []
     for key, group in groups.items():
-        dimensionless = [candidate for candidate in group if candidate["dimension_count"] == 0]
+        dimensionless = [
+            candidate for candidate in group if candidate["dimension_count"] == 0
+        ]
         if not dimensionless:
             _add_validator(
                 validators,
@@ -1781,13 +2269,19 @@ def _build_facts_canon_and_validators(conn: sqlite3.Connection, filing: FilingMe
                 "fact_group",
                 "|".join("" if part is None else str(part) for part in key),
                 "No dimensionless candidate exists for this concept-period-unit group.",
-                {"group": key, "raw_fact_refs": [candidate["raw_fact_ref"] for candidate in group]},
+                {
+                    "group": key,
+                    "raw_fact_refs": [candidate["raw_fact_ref"] for candidate in group],
+                },
             )
             continue
 
         scored: Dict[Tuple[int, int], List[Dict[str, Any]]] = defaultdict(list)
         for candidate in dimensionless:
-            business_score = (0 if candidate["source_anchor"] else 1, 0 if candidate["context_id"] else 1)
+            business_score = (
+                0 if candidate["source_anchor"] else 1,
+                0 if candidate["context_id"] else 1,
+            )
             scored[business_score].append(candidate)
         top_score = sorted(scored)[0]
         top_candidates = scored[top_score]
@@ -1796,7 +2290,9 @@ def _build_facts_canon_and_validators(conn: sqlite3.Connection, filing: FilingMe
                 (
                     candidate["context_id"],
                     candidate["unit_canon"],
-                    str(candidate["value_num_exact"]) if candidate["value_num_exact"] is not None else None,
+                    str(candidate["value_num_exact"])
+                    if candidate["value_num_exact"] is not None
+                    else None,
                     candidate["value_text"],
                 )
                 for candidate in top_candidates
@@ -1804,7 +2300,10 @@ def _build_facts_canon_and_validators(conn: sqlite3.Connection, filing: FilingMe
             if len(signatures) == 1:
                 top_candidates = sorted(
                     top_candidates,
-                    key=lambda candidate: (candidate["source_anchor"] or "", candidate["fact_evidence_id"]),
+                    key=lambda candidate: (
+                        candidate["source_anchor"] or "",
+                        candidate["fact_evidence_id"],
+                    ),
                 )
                 chosen = top_candidates[0]
             else:
@@ -1815,7 +2314,12 @@ def _build_facts_canon_and_validators(conn: sqlite3.Connection, filing: FilingMe
                     "fact_group",
                     "|".join("" if part is None else str(part) for part in key),
                     "Multiple top-ranked dimensionless candidates remain after deterministic selection rules.",
-                    {"group": key, "raw_fact_refs": [candidate["raw_fact_ref"] for candidate in top_candidates]},
+                    {
+                        "group": key,
+                        "raw_fact_refs": [
+                            candidate["raw_fact_ref"] for candidate in top_candidates
+                        ],
+                    },
                 )
                 continue
         else:
@@ -1845,6 +2349,9 @@ def _build_facts_canon_and_validators(conn: sqlite3.Connection, filing: FilingMe
                 "unit_canon": chosen["unit_canon"],
                 "value_num_exact": chosen["value_num_exact"],
                 "value_text": chosen["value_text"],
+                "context_id": chosen["context_id"],
+                "entity_identifier": chosen["entity_identifier"],
+                "dimensions_json": chosen["dimensions_json"],
                 "selection_rank": 1,
                 "selection_reason": _selection_reason(chosen),
                 "source_anchor": chosen["source_anchor"],
@@ -1854,7 +2361,9 @@ def _build_facts_canon_and_validators(conn: sqlite3.Connection, filing: FilingMe
     return canon_rows, list(validators.values())
 
 
-def _build_chunk_canon(conn: sqlite3.Connection, filing: FilingMetadata) -> Tuple[List[Dict[str, Any]], List[ValidationRecord]]:
+def _build_chunk_canon(
+    conn: sqlite3.Connection, filing: FilingMetadata
+) -> Tuple[List[Dict[str, Any]], List[ValidationRecord]]:
     rows = conn.execute(
         """
         SELECT
@@ -1912,8 +2421,17 @@ def _build_chunk_canon(conn: sqlite3.Connection, filing: FilingMetadata) -> Tupl
     return chunk_rows, list(validators.values())
 
 
-def rebuild_canonical_layers(conn: sqlite3.Connection, filing_id: Optional[str] = None) -> None:
-    filing_ids = [filing_id] if filing_id else [row["filing_id"] for row in conn.execute("SELECT filing_id FROM filings ORDER BY filing_id")]
+def rebuild_canonical_layers(
+    conn: sqlite3.Connection, filing_id: Optional[str] = None
+) -> None:
+    filing_ids = (
+        [filing_id]
+        if filing_id
+        else [
+            row["filing_id"]
+            for row in conn.execute("SELECT filing_id FROM filings ORDER BY filing_id")
+        ]
+    )
     for current_filing_id in filing_ids:
         filing = _fetch_filing(conn, current_filing_id)
         facts_canon, fact_validators = _build_facts_canon_and_validators(conn, filing)
@@ -1922,7 +2440,9 @@ def rebuild_canonical_layers(conn: sqlite3.Connection, filing_id: Optional[str] 
 
         conn.execute("DELETE FROM facts_canon WHERE filing_id=?", (current_filing_id,))
         conn.execute("DELETE FROM chunk_canon WHERE filing_id=?", (current_filing_id,))
-        conn.execute("DELETE FROM validators_v0 WHERE filing_id=?", (current_filing_id,))
+        conn.execute(
+            "DELETE FROM validators_v0 WHERE filing_id=?", (current_filing_id,)
+        )
 
         if facts_canon:
             conn.executemany(
@@ -1931,8 +2451,9 @@ def rebuild_canonical_layers(conn: sqlite3.Connection, filing_id: Optional[str] 
                   canon_id, filing_id, ticker, fact_evidence_id, raw_fact_ref,
                   concept_norm, value_type, period_type, period_key, period_start, period_end,
                   fiscal_year, fiscal_quarter, is_ytd, unit_canon,
-                  value_num_exact, value_text, selection_rank, selection_reason, source_anchor
-                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                  value_num_exact, value_text, context_id, entity_identifier, dimensions_json,
+                  selection_rank, selection_reason, source_anchor
+                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """,
                 [
                     (
@@ -1953,6 +2474,9 @@ def rebuild_canonical_layers(conn: sqlite3.Connection, filing_id: Optional[str] 
                         row["unit_canon"],
                         row["value_num_exact"],
                         row["value_text"],
+                        row["context_id"],
+                        row["entity_identifier"],
+                        row["dimensions_json"],
                         row["selection_rank"],
                         row["selection_reason"],
                         row["source_anchor"],
@@ -1998,7 +2522,13 @@ def rebuild_canonical_layers(conn: sqlite3.Connection, filing_id: Optional[str] 
                 """,
                 [
                     (
-                        _validation_key(current_filing_id, record.validator_code, record.entity_kind, record.entity_key, record.details),
+                        _validation_key(
+                            current_filing_id,
+                            record.validator_code,
+                            record.entity_kind,
+                            record.entity_key,
+                            record.details,
+                        ),
                         current_filing_id,
                         record.validator_code,
                         record.entity_kind,
@@ -2013,16 +2543,22 @@ def rebuild_canonical_layers(conn: sqlite3.Connection, filing_id: Optional[str] 
         conn.commit()
 
 
-def fetch_validators(conn: sqlite3.Connection, filing_id: Optional[str] = None) -> List[sqlite3.Row]:
+def fetch_validators(
+    conn: sqlite3.Connection, filing_id: Optional[str] = None
+) -> List[sqlite3.Row]:
     if filing_id:
         return conn.execute(
             "SELECT * FROM validators_v0 WHERE filing_id=? ORDER BY validator_code, entity_key",
             (filing_id,),
         ).fetchall()
-    return conn.execute("SELECT * FROM validators_v0 ORDER BY filing_id, validator_code, entity_key").fetchall()
+    return conn.execute(
+        "SELECT * FROM validators_v0 ORDER BY filing_id, validator_code, entity_key"
+    ).fetchall()
 
 
-def inspect_chunk_canon(conn: sqlite3.Connection, filing_id: str, limit: int = 5) -> List[sqlite3.Row]:
+def inspect_chunk_canon(
+    conn: sqlite3.Connection, filing_id: str, limit: int = 5
+) -> List[sqlite3.Row]:
     return conn.execute(
         """
         SELECT item, heading, char_start, char_end, substr(text_masked, 1, 240) AS preview

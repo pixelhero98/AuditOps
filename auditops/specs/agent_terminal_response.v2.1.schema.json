@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent_terminal_response.v2.1",
+  "title": "AuditOps AgentTerminalResponseV2.1",
+  "type": "object",
+  "oneOf": [
+    {"$ref": "#/$defs/quantAnswer"},
+    {"$ref": "#/$defs/narrativeAnswer"},
+    {"$ref": "#/$defs/refusal"}
+  ],
+  "$defs": {
+    "canonicalDecimal": {"type": "string", "pattern": "^-?(?:0|[1-9][0-9]*)(?:\\.[0-9]*[1-9])?$", "maxLength": 128},
+    "evidenceIds": {"type": "array", "minItems": 1, "maxItems": 5, "items": {"type": "string", "minLength": 1, "maxLength": 256}},
+    "commonAnswer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["task_id", "action", "period_key", "evidence_ids"],
+      "properties": {
+        "task_id": {"type": "string", "minLength": 1},
+        "action": {"const": "ANSWER"},
+        "period_key": {"type": "string", "minLength": 1},
+        "evidence_ids": {"$ref": "#/$defs/evidenceIds"}
+      }
+    },
+    "quantAnswer": {
+      "type": "object", "additionalProperties": false,
+      "required": ["task_id", "action", "period_key", "value", "unit", "evidence_ids"],
+      "properties": {
+        "task_id": {"type": "string", "minLength": 1}, "action": {"const": "ANSWER"},
+        "period_key": {"type": "string", "minLength": 1}, "value": {"$ref": "#/$defs/canonicalDecimal"},
+        "unit": {"type": "string", "minLength": 1, "maxLength": 128}, "evidence_ids": {"$ref": "#/$defs/evidenceIds"}
+      }
+    },
+    "narrativeAnswer": {
+      "type": "object", "additionalProperties": false,
+      "required": ["task_id", "action", "period_key", "answer_text", "evidence_ids", "claims"],
+      "properties": {
+        "task_id": {"type": "string", "minLength": 1}, "action": {"const": "ANSWER"},
+        "period_key": {"type": "string", "minLength": 1},
+        "answer_text": {"type": "string", "minLength": 1, "maxLength": 2000},
+        "evidence_ids": {"$ref": "#/$defs/evidenceIds"},
+        "claims": {
+          "type": "array", "minItems": 1, "maxItems": 3,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["claim_id", "text", "evidence_ids", "supporting_text"],
+            "properties": {
+              "claim_id": {"type": "string", "minLength": 1, "maxLength": 128},
+              "text": {"type": "string", "minLength": 1, "maxLength": 1000},
+              "evidence_ids": {"$ref": "#/$defs/evidenceIds"},
+              "supporting_text": {"type": "string", "minLength": 1, "maxLength": 1000}
+            }
+          }
+        }
+      }
+    },
+    "refusal": {
+      "type": "object", "additionalProperties": false,
+      "required": ["task_id", "action", "period_key", "refusal_code"],
+      "properties": {
+        "task_id": {"type": "string", "minLength": 1}, "action": {"const": "REFUSE"},
+        "period_key": {"type": "string", "minLength": 1},
+        "refusal_code": {"type": "string", "minLength": 1, "maxLength": 128}
+      }
+    }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://auditops.local/specs/provisional_benchmark_acceptance.v2.4p.schema.json",
+  "title": "ProvisionalBenchmarkAcceptanceV2.4p",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["provisional_acceptance_version", "candidate_id", "candidate_manifest_sha256", "review_packet_sha256", "source_manifest_sha256", "r1_feedback_report_sha256", "primary_review", "critic_review", "approved_task_ids_sha256", "approved_case_count", "assurance", "experiment_label", "external_human_approval", "accepted_at", "acceptance_id"],
+  "properties": {
+    "provisional_acceptance_version": {"const": "auditops-benchmark-provisional-acceptance.v2.4p"},
+    "candidate_id": {"$ref": "#/$defs/digest"},
+    "candidate_manifest_sha256": {"$ref": "#/$defs/digest"},
+    "review_packet_sha256": {"$ref": "#/$defs/digest"},
+    "source_manifest_sha256": {"$ref": "#/$defs/digest"},
+    "r1_feedback_report_sha256": {"$ref": "#/$defs/digest"},
+    "primary_review": {"$ref": "#/$defs/reviewBinding"},
+    "critic_review": {"$ref": "#/$defs/reviewBinding"},
+    "approved_task_ids_sha256": {"$ref": "#/$defs/digest"},
+    "approved_case_count": {"const": 200},
+    "assurance": {"const": "PROVISIONAL_AI_REVIEW"},
+    "experiment_label": {"const": "EXPLORATORY"},
+    "external_human_approval": {"const": false},
+    "accepted_at": {"type": "string", "format": "date-time"},
+    "acceptance_id": {"$ref": "#/$defs/digest"}
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "reviewBinding": {
+      "type": "object", "additionalProperties": false,
+      "required": ["sha256", "review_id", "case_count"],
+      "properties": {
+        "sha256": {"$ref": "#/$defs/digest"},
+        "review_id": {"$ref": "#/$defs/digest"},
+        "case_count": {"enum": [40, 200]}
+      }
+    }
+  }
+}

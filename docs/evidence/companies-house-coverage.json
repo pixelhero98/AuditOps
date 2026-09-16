@@ -1,0 +1,220 @@
+{
+  "version": "auditops-ch-coverage-observation.v1",
+  "assurance": "HISTORICAL_METADATA_OBSERVATION; NOT EXTRACTION_ACCURACY",
+  "coverage_source_sha256": "960e512cf2d31ae832064fd80695a700c95c65a937fe7a793287bf859119c2e6",
+  "listed_source_sha256": "fea21a6ef0a3e396e2f3f6221c52983335dc0dbddba7bb1f55001d1dd529a312",
+  "electronic_frame_metrics": {
+    "frame": "January 2026 Accounts Monthly Data Product",
+    "run_scope": "sample",
+    "max_companies_requested": "2000",
+    "zip_member_count": "289424",
+    "zip_parsed_member_count": "289256",
+    "zip_unique_companies": "288144",
+    "companies_processed": "2000",
+    "companies_with_january_accounts_found": "1999",
+    "companies_with_pdf_ixbrl_pair": "1999",
+    "company_pair_coverage_ratio_processed": "0.9995",
+    "company_pair_coverage_ratio_with_jan_accounts": "1.0000",
+    "filing_denominator_all": "2030",
+    "filing_metadata_observed_denominator": "2030",
+    "filings_pdf_available": "2030",
+    "filings_ixbrl_available": "2007",
+    "filings_xbrl_xml_available": "0",
+    "filings_pdf_and_ixbrl_available": "2007",
+    "filings_pdf_only": "23",
+    "filings_ixbrl_only": "0",
+    "filings_neither_pdf_nor_ixbrl": "0",
+    "filings_missing_metadata_link": "0",
+    "filings_metadata_errors": "0",
+    "history_errors": "0",
+    "filing_pair_coverage_ratio_all": "0.9887",
+    "filing_pair_coverage_ratio_all_wilson95_low": "0.9831",
+    "filing_pair_coverage_ratio_all_wilson95_high": "0.9924",
+    "filing_pair_coverage_ratio_metadata_observed": "0.9887",
+    "company_pair_coverage_ratio_processed_wilson95_low": "0.9972",
+    "company_pair_coverage_ratio_processed_wilson95_high": "0.9999",
+    "missing_metadata_ratio_all": "0.0000"
+  },
+  "listed_parent_observations": [
+    {
+      "sample_id": "uk_shell",
+      "company_number": "04366849",
+      "filing_date": "2026-04-14",
+      "period_end": "2025-12-31",
+      "structured_available": "no",
+      "resources": "application/pdf",
+      "document_metadata_url": "https://document-api.company-information.service.gov.uk/document/R0JL1llsOeZyN83lnpNaISZzxZ9u979WOvEqgWXBL5k"
+    },
+    {
+      "sample_id": "uk_bp",
+      "company_number": "00102498",
+      "filing_date": "2026-05-20",
+      "period_end": "2025-12-31",
+      "structured_available": "no",
+      "resources": "application/pdf",
+      "document_metadata_url": "https://document-api.company-information.service.gov.uk/document/OOPOwOGda0KnQ34WygJm_pJ7sA52PU3kqe0w7kTT3wE"
+    },
+    {
+      "sample_id": "uk_rio_tinto",
+      "company_number": "00719885",
+      "filing_date": "2026-04-16",
+      "period_end": "2025-12-31",
+      "structured_available": "no",
+      "resources": "application/pdf",
+      "document_metadata_url": "https://document-api.company-information.service.gov.uk/document/LCR5strZ5kbHFGTq5xF-G2M-1I9_UGfgegnAvUIbfzc"
+    },
+    {
+      "sample_id": "uk_anglo_american",
+      "company_number": "03564138",
+      "filing_date": "2025-05-07",
+      "period_end": "2024-12-31",
+      "structured_available": "no",
+      "resources": "application/pdf",
+      "document_metadata_url": "https://document-api.company-information.service.gov.uk/document/Mw-3CKTfeSTVnI8Eo6iTraXl-5XVGiFidGKH6_EMq4w"
+    },
+    {
+      "sample_id": "uk_hsbc",
+      "company_number": "00617987",
+      "filing_date": "2026-05-20",
+      "period_end": "2025-12-31",
+      "structured_available": "no",
+      "resources": "application/pdf",
+      "document_metadata_url": "https://document-api.company-information.service.gov.uk/document/8Zs7VXtgzgRFuu59rzYGCToQoHcm7wkbE_5g3yMymno"
+    },
+    {
+      "sample_id": "uk_barclays",
+      "company_number": "00048839",
+      "filing_date": "2026-05-31",
+      "period_end": "2025-12-31",
+      "structured_available": "no",
+      "resources": "application/pdf",
+      "document_metadata_url": "https://document-api.company-information.service.gov.uk/document/BL6jicFHKKMX69hlgR5mk0oVZ_43LKesJuAjvU-tewE"
+    },
+    {
+      "sample_id": "uk_aviva",
+      "company_number": "02468686",
+      "filing_date": "2026-05-18",
+      "period_end": "2025-12-31",
+      "structured_available": "no",
+      "resources": "application/pdf",
+      "document_metadata_url": "https://document-api.company-information.service.gov.uk/document/P13Gm_8REEfHVXHXIFmh7nP1t2GkUEqqSSZqdXOpDlo"
+    },
+    {
+      "sample_id": "uk_legal_general",
+      "company_number": "01417162",
+      "filing_date": "2026-05-10",
+      "period_end": "2026-02-02",
+      "structured_available": "no",
+      "resources": "application/pdf",
+      "document_metadata_url": "https://document-api.company-information.service.gov.uk/document/W3u5Y5snE7JrAQ8UnMIdmX8JLyVzp8Jo2Vs9t8wnsp0"
+    },
+    {
+      "sample_id": "uk_astrazeneca",
+      "company_number": "02723534",
+      "filing_date": "2026-04-25",
+      "period_end": "2025-12-31",
+      "structured_available": "no",
+      "resources": "application/pdf",
+      "document_metadata_url": "https://document-api.company-information.service.gov.uk/document/tdFITU0udU57HX1h6U3mRmv2R5kaKBW1rcg9W9UvYM8"
+    },
+    {
+      "sample_id": "uk_gsk",
+      "company_number": "03888792",
+      "filing_date": "2026-04-26",
+      "period_end": "2025-12-31",
+      "structured_available": "no",
+      "resources": "application/pdf",
+      "document_metadata_url": "https://document-api.company-information.service.gov.uk/document/gqqOTHbh3AdzCdmscslKABqbyisS5d3bfXQqBv3uKbw"
+    },
+    {
+      "sample_id": "uk_unilever",
+      "company_number": "00041424",
+      "filing_date": "2026-04-26",
+      "period_end": "2025-12-31",
+      "structured_available": "no",
+      "resources": "application/pdf",
+      "document_metadata_url": "https://document-api.company-information.service.gov.uk/document/C9c-1thOrOV7hAUGJGQRSx1aW9gv9-Nl11JXTa8E4PU"
+    },
+    {
+      "sample_id": "uk_diageo",
+      "company_number": "00023307",
+      "filing_date": "2025-11-15",
+      "period_end": "2025-06-30",
+      "structured_available": "no",
+      "resources": "application/pdf",
+      "document_metadata_url": "https://document-api.company-information.service.gov.uk/document/l8zpcXnDhU8GuLuksbut1FCqh6nOi8zv51De7y7HAqg"
+    },
+    {
+      "sample_id": "uk_tesco",
+      "company_number": "00445790",
+      "filing_date": "2025-07-15",
+      "period_end": "2025-02-26",
+      "structured_available": "no",
+      "resources": "application/pdf",
+      "document_metadata_url": "https://document-api.company-information.service.gov.uk/document/gnhHdY1QS-LnojDWaLlg1pl1nSkI0KgAXbY2NKwEJTA"
+    },
+    {
+      "sample_id": "uk_relx",
+      "company_number": "00077536",
+      "filing_date": "2025-05-19",
+      "period_end": "2024-12-31",
+      "structured_available": "no",
+      "resources": "application/pdf",
+      "document_metadata_url": "https://document-api.company-information.service.gov.uk/document/rnobWSzWUWk3e4tJr7HLTjWnsIpNPlVuuOseTCkHUCM"
+    },
+    {
+      "sample_id": "uk_lseg",
+      "company_number": "05369106",
+      "filing_date": "2026-05-05",
+      "period_end": "2025-12-31",
+      "structured_available": "no",
+      "resources": "application/pdf",
+      "document_metadata_url": "https://document-api.company-information.service.gov.uk/document/_S5qt-mxt5VB8coE03FV-bE_oh0BIMzAB2f6mR1w8GI"
+    },
+    {
+      "sample_id": "uk_bae",
+      "company_number": "01470151",
+      "filing_date": "2025-06-30",
+      "period_end": "2024-12-31",
+      "structured_available": "no",
+      "resources": "application/pdf",
+      "document_metadata_url": "https://document-api.company-information.service.gov.uk/document/zXGaF0VdWgKg7eqofXxR8_iMfj7rMDt7D6iICm4RXpc"
+    },
+    {
+      "sample_id": "uk_rolls_royce",
+      "company_number": "07524813",
+      "filing_date": "2026-05-18",
+      "period_end": "2025-12-31",
+      "structured_available": "no",
+      "resources": "application/pdf",
+      "document_metadata_url": "https://document-api.company-information.service.gov.uk/document/290Q5B-syFwHjOrC0QjgmMAAfVgDHxEfsIuWAOXgjqU"
+    },
+    {
+      "sample_id": "uk_national_grid",
+      "company_number": "04031152",
+      "filing_date": "2025-07-18",
+      "period_end": "2025-03-31",
+      "structured_available": "no",
+      "resources": "application/pdf",
+      "document_metadata_url": "https://document-api.company-information.service.gov.uk/document/XVc3FklwP5GHewozU-MAVLVSilEUD3KRaYtHtBI3DpY"
+    },
+    {
+      "sample_id": "uk_vodafone",
+      "company_number": "01833679",
+      "filing_date": "2025-08-08",
+      "period_end": "2025-03-31",
+      "structured_available": "no",
+      "resources": "application/pdf",
+      "document_metadata_url": "https://document-api.company-information.service.gov.uk/document/JBBc-VCsjG_2ND4Ch4rBKzvKJlLrOPN8FS9ZhLZ9bhg"
+    },
+    {
+      "sample_id": "uk_landsec",
+      "company_number": "04369054",
+      "filing_date": "2025-08-08",
+      "period_end": "2025-03-31",
+      "structured_available": "no",
+      "resources": "application/pdf",
+      "document_metadata_url": "https://document-api.company-information.service.gov.uk/document/wQlC5iGJFBjQEUy3Ezq5HX_ijDqIse_7bUb1RwLQG5c"
+    }
+  ]
+}

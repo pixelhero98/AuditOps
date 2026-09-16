@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://auditops.local/specs/provisional_ai_review.v2.4p.schema.json",
+  "title": "ProvisionalAIReviewV2.4p",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["provisional_ai_review_version", "candidate_id", "candidate_manifest_sha256", "rendered_packet_sha256", "review_packet_sha256", "source_manifest_sha256", "review_bundle_id", "assurance", "experiment_label", "reviewer", "method", "decisions", "decision_set_sha256", "review_id"],
+  "properties": {
+    "provisional_ai_review_version": {"const": "auditops-benchmark-provisional-ai-review.v2.4p"},
+    "candidate_id": {"$ref": "#/$defs/digest"},
+    "candidate_manifest_sha256": {"$ref": "#/$defs/digest"},
+    "rendered_packet_sha256": {"$ref": "#/$defs/digest"},
+    "review_packet_sha256": {"$ref": "#/$defs/digest"},
+    "source_manifest_sha256": {"$ref": "#/$defs/digest"},
+    "review_bundle_id": {"$ref": "#/$defs/digest"},
+    "assurance": {"const": "PROVISIONAL_AI_REVIEW"},
+    "experiment_label": {"const": "EXPLORATORY"},
+    "reviewer": {"$ref": "#/$defs/aiReviewer"},
+    "method": {
+      "type": "object", "additionalProperties": false,
+      "required": ["method_id", "complete_scope_used_for_refusals", "deterministic_preflight_used", "human_approval"],
+      "properties": {
+        "method_id": {"const": "auditops.codex_provisional_review.v2.4p"},
+        "complete_scope_used_for_refusals": {"const": true},
+        "deterministic_preflight_used": {"const": true},
+        "human_approval": {"const": false}
+      }
+    },
+    "decisions": {"type": "array", "minItems": 40, "maxItems": 200, "items": {"$ref": "#/$defs/decision"}},
+    "decision_set_sha256": {"$ref": "#/$defs/digest"},
+    "review_id": {"$ref": "#/$defs/digest"}
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "aiReviewer": {
+      "type": "object", "additionalProperties": false,
+      "required": ["reviewer_kind", "model_identity", "deployment_identifier", "deployment_identifier_status", "pass_kind", "pass_id", "independence_claim", "reviewed_at", "attestation"],
+      "properties": {
+        "reviewer_kind": {"const": "AI"},
+        "model_identity": {"const": "Codex/GPT-5"},
+        "deployment_identifier": {"type": "null"},
+        "deployment_identifier_status": {"const": "NOT_EXPOSED_TO_AGENT"},
+        "pass_kind": {"enum": ["PRIMARY", "CRITIC"]},
+        "pass_id": {"type": "string", "minLength": 1},
+        "independence_claim": {"const": false},
+        "reviewed_at": {"type": "string", "format": "date-time"},
+        "attestation": {"type": "string", "minLength": 1}
+      }
+    },
+    "checks": {
+      "type": "object", "additionalProperties": false,
+      "required": ["question_quality", "subtype", "scope", "answerability", "evidence", "semantic_anchors", "refusal_validity"],
+      "properties": {
+        "question_quality": {"type": "boolean"}, "subtype": {"type": "boolean"},
+        "scope": {"type": "boolean"}, "answerability": {"type": "boolean"},
+        "evidence": {"type": "boolean"}, "semantic_anchors": {"type": "boolean"},
+        "refusal_validity": {"type": "boolean"}
+      }
+    },
+    "decision": {
+      "type": "object", "additionalProperties": false,
+      "required": ["task_id", "decision", "checks", "comment"],
+      "properties": {
+        "task_id": {"type": "string", "minLength": 1},
+        "decision": {"enum": ["APPROVE", "REJECT"]},
+        "checks": {"$ref": "#/$defs/checks"},
+        "comment": {"type": ["string", "null"]}
+      },
+      "allOf": [
+        {"if": {"properties": {"decision": {"const": "REJECT"}}}, "then": {"properties": {"comment": {"type": "string", "minLength": 1}}}},
+        {"if": {"properties": {"decision": {"const": "APPROVE"}}}, "then": {"properties": {"comment": {"type": "null"}}}}
+      ]
+    }
+  }
+}

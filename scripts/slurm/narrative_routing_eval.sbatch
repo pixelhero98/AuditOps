@@ -36,7 +36,7 @@ echo "CANDIDATE_K=$CANDIDATE_K"
 echo "VARIANTS_PER_TASK=$VARIANTS_PER_TASK"
 echo "LOG=$LOG_FILE"
 
-auditops eval-narrative-routing \
+python -m auditops.cli eval-narrative-routing \
   --db "$DB_PATH" \
   --tasks "$TASK_PATH" \
   --variants-per-task "$VARIANTS_PER_TASK" \

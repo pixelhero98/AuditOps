@@ -1,0 +1,16 @@
+{
+  "manifest_version": "auditops-container-source.v1",
+  "image": "vllm/vllm-openai",
+  "tag": "v0.26.0-ubuntu2404",
+  "version": "0.26.0",
+  "target_os": "linux",
+  "target_architectures": [
+    "arm64",
+    "amd64"
+  ],
+  "oci_index_digest": "sha256:ef7bfc14df9233e3e5d41e733e3be0afa6abbe5ae5f14ee0758110030f6cd53e",
+  "arm64_manifest_digest": "sha256:3016f449f5bf9bbe171406b7715822acb49026a4a404ba830f482575c02302d6",
+  "amd64_manifest_digest": "sha256:1161da8a5edbdff239ab1812784d7fe5d28775c675809a8420e8a0a05d0e56d1",
+  "source": "registry-1.docker.io/v2/vllm/vllm-openai/manifests/v0.26.0-ubuntu2404",
+  "resolved_on": "2026-08-21"
+}

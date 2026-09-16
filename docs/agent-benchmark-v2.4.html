@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>AuditOps v2.4 benchmark quality gate</title>
+  <style>
+    body { font: 16px/1.55 system-ui, sans-serif; max-width: 980px; margin: 2rem auto; padding: 0 1rem; color: #17202a; }
+    table { border-collapse: collapse; width: 100%; } th, td { border: 1px solid #d5d8dc; padding: .55rem; text-align: left; }
+    code { background: #f2f4f4; padding: .1rem .25rem; } .implemented { color: #176b36; font-weight: 700; }
+  </style>
+</head>
+<body>
+<h1>AuditOps v2.4 — benchmark quality gate</h1>
+<p><span class="implemented">IMPLEMENTED.</span> This document describes benchmark packaging and approval. The text-agent runtime, prompts, exact-quote selection, proposal contract, and deterministic verifier remain v2.3.</p>
+
+<h2>Artifact lifecycle</h2>
+<ol>
+  <li><code>draft-agent-benchmark-v24</code> creates a content-addressed candidate and evaluator-only JSON review packet. It cannot create a benchmark manifest.</li>
+  <li><code>render-agent-benchmark-review-v24</code> renders the 200 narrative cases, top-five evidence, answer windows/anchors, and refusal scope into self-contained HTML.</li>
+  <li><code>prepare-agent-benchmark-review-bundle-v24</code> creates a checksum-bound offline directory containing the exact HTML, decision templates, all 20 filing documents, and searchable full-scope text. Standard refusals bind <code>canonical_scope.txt</code>; CAM refusals bind the canonical scope plus the recorded raw-CAM supplement. The bundle is evaluator-only and carries no approval.</li>
+  <li>A primary human reviews all 200 cases. A second human independently reviews the frozen 40-case sample. A disagreement forces both reviewers to re-review the complete affected subtype.</li>
+  <li><code>approve-agent-benchmark-v24</code> verifies different human identities, reviewer roles, exact memberships, boolean checks, rejection comments, packet/source hashes, and subtype-wide adjudication. Codex, templates, or another model cannot be a reviewer.</li>
+  <li><code>freeze-agent-benchmark-v24</code> publishes only an approved candidate. Review and gold artifacts remain evaluator-only.</li>
+</ol>
+
+<h2>Frozen membership</h2>
+<table>
+<thead><tr><th>Family</th><th>Per issuer</th><th>Total</th><th>Balance</th></tr></thead>
+<tbody>
+<tr><td>Quantitative</td><td>15</td><td>300</td><td>150 answers / 150 <code>MISSING_INPUT</code> refusals</td></tr>
+<tr><td>Footnote</td><td>2 answers + 2 refusals</td><td>80</td><td>40 / 40</td></tr>
+<tr><td>Accounting policy</td><td>1 + 1</td><td>40</td><td>20 / 20</td></tr>
+<tr><td>Opinion language</td><td>1 + 1</td><td>40</td><td>20 / 20</td></tr>
+<tr><td>Critical audit matter</td><td>1 + 1</td><td>40</td><td>20 / 20</td></tr>
+</tbody>
+</table>
+
+<h2>Narrative gold</h2>
+<p><code>NarrativeGoldV2.4</code> is evaluator-only. An answer may match any approved answer set, but every selected exact quote must remain inside its evidence-bound support window (maximum 1,000 characters) and contain all required semantic anchors. Preferred wording is diagnostic only. Refusals carry a human-reviewed filing scope and causal negative type.</p>
+<p>Candidate construction uses the canonical narrative chunks for footnote, accounting-policy, and opinion tasks. For CAM tasks only, it also reads the matching frozen raw filing ZIP and recovers sentence-bounded CAM text when table layout omitted the matter body from canonical chunks. The corpus ZIP checksum, HTML-member checksum, extraction-policy version, section hash, and sentence count are recorded in the source manifest. This supplement is ranked before support is selected and never consults gold.</p>
+
+<h2>Human-review separation</h2>
+<p>The primary template contains all 200 narrative task IDs. The secondary template contains only the deterministic 40-case sample and must be completed without access to the primary decisions. Templates fail closed as <code>REJECT</code>, use a deliberately invalid reviewer identity, and remain inside the read-only bundle; reviewers copy them to a separate decisions directory before editing.</p>
+<p>Top-five evidence can establish positive support but cannot prove absence. Every refusal is therefore mapped to the exact complete text scope and SHA-256 used during construction. Reviewers search the bound scope for the stated claim and reasonable synonyms. A real defect requires a new candidate; adjudication cannot repair or waive an immutable candidate defect.</p>
+
+<h2>Go/no-go sequence</h2>
+<p>The frozen 50-case gate contains 20 footnote, 10 accounting-policy, 10 opinion-language, and 10 CAM cases, balanced by answerability, with all 20 issuers represented at least twice. Exact Gemma requests must first pass the 14,336-token preflight. Technical evaluation then requires 50 typed results and zero malformed stopped outputs, cap hits, context/infrastructure/integrity failures, unsupported releases, invalid citations, arithmetic discrepancies, verifier bypasses, or second repairs.</p>
+<p>A technical pass is not authorization. A human must confirm that every released quote answers its question and that no benchmark defect was found. A separate explicit <code>GO</code> authorization bound to the gate metrics is required before the full 500-case runner will start.</p>
+
+<h2>Exploratory v2.4p path</h2>
+<p><span class="implemented">IMPLEMENTED.</span> Candidate r2 corrects the r1 anchor, exact-source binding, section/scope, and synonym-aware negative-screening defects. The separate <code>agent_benchmark.v2.4p</code> workflow records two Codex passes as <code>PROVISIONAL_AI_REVIEW</code>; it sets <code>reviewer_kind=AI</code>, <code>independence_claim=false</code>, and never satisfies the external-human schemas above.</p>
+<p><span class="implemented">IMPLEMENTED.</span> A provisional acceptance requires 200/200 primary approvals and 40/40 critic approvals with no disagreement. The critic artifact is produced before the primary artifact exists. Any rejection or discovered defect blocks freezing and requires another candidate identity.</p>
+<p><span class="implemented">IMPLEMENTED.</span> The v2.4p preflight, batch, evaluation, gate-review, and <code>GO_EXPLORATORY</code> authorization identities are distinct and content-bound. Every output is labelled <code>EXPLORATORY</code>, <code>PROVISIONAL_AI_REVIEW</code>, and <code>cached-20</code>. This path does not create an official baseline or claim human approval.</p>
+<p><strong>DEFERRED.</strong> A later pair of real human reviewers may approve the corrected candidate through the unchanged normative v2.4 workflow.</p>
+
+<h2>Interpretation boundary</h2>
+<p>The result is labelled <code>cached-20</code>. Filing-clustered and subtype metrics are reported; task rows are not treated as independent observations. The benchmark verifies public-filing evidence and deterministic calculations. It does not issue audit opinions or generalize to the S&amp;P 500.</p>
+</body>
+</html>

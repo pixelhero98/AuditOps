@@ -7,7 +7,6 @@ import pytest
 
 from auditops.pipeline import connect_db, process_zip
 
-
 FIXTURE_ROOT = Path(__file__).parent / "fixtures"
 
 

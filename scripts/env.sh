@@ -14,6 +14,12 @@ _auditops_finalize_env() {
   export AUDITOPS_LOG_ROOT="${AUDITOPS_LOG_ROOT:-$AUDITOPS_STATE_ROOT/logs}"
   export AUDITOPS_RUN_ROOT="${AUDITOPS_RUN_ROOT:-$AUDITOPS_STATE_ROOT/runs}"
   export AUDITOPS_TMP_ROOT="${AUDITOPS_TMP_ROOT:-$AUDITOPS_STATE_ROOT/tmp}"
+  export AUDITOPS_MODEL_ROOT="${AUDITOPS_MODEL_ROOT:-$AUDITOPS_STATE_ROOT/models}"
+  export AUDITOPS_MODEL_REGISTRY="$AUDITOPS_REPO_ROOT/config/model_revisions.json"
+  export AUDITOPS_CONTAINER_ROOT="${AUDITOPS_CONTAINER_ROOT:-$AUDITOPS_STATE_ROOT/containers}"
+  export AUDITOPS_BENCHMARK_ROOT="${AUDITOPS_BENCHMARK_ROOT:-$AUDITOPS_STATE_ROOT/benchmarks}"
+  export AUDITOPS_PACKAGE_LOCK_FILE="${AUDITOPS_PACKAGE_LOCK_FILE:-$AUDITOPS_REPO_ROOT/requirements/auditops-py311.lock}"
+
 
   mkdir -p \
     "$AUDITOPS_ENV_ROOT" \
@@ -40,17 +46,6 @@ _auditops_finalize_env() {
 
   export AUDITOPS_GENERIC_ENV_LOADED=1
 }
-
-if [[ -n "${AUDITOPS_PROFILE:-}" && "${AUDITOPS_SKIP_PROFILE:-0}" != "1" ]]; then
-  PROFILE_ENV="$AUDITOPS_REPO_ROOT/ops/$AUDITOPS_PROFILE/env.sh"
-  if [[ ! -f "$PROFILE_ENV" ]]; then
-    echo "AuditOps profile '$AUDITOPS_PROFILE' not found at $PROFILE_ENV" >&2
-    exit 1
-  fi
-  export AUDITOPS_PROFILE_BOOTSTRAP_ACTIVE=1
-  source "$PROFILE_ENV"
-  unset AUDITOPS_PROFILE_BOOTSTRAP_ACTIVE
-fi
 
 if [[ "${AUDITOPS_DEFER_FINALIZE:-0}" != "1" ]]; then
   _auditops_finalize_env

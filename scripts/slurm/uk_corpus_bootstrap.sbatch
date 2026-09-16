@@ -27,10 +27,10 @@ echo "CONSTITUENTS_CSV=$CONSTITUENTS_CSV"
 echo "SNAPSHOT_DATE=$SNAPSHOT_DATE"
 echo "LOG=$LOG_FILE"
 
-auditops build-uk-manifest \
+python -m auditops.cli build-uk-manifest \
   --constituents "$CONSTITUENTS_CSV" \
   --corpus-root "$CORPUS_ROOT" \
   --snapshot-date "$SNAPSHOT_DATE" \
   --constituent-source "$CONSTITUENT_SOURCE"
 
-auditops download-uk-filings --corpus-root "$CORPUS_ROOT"
+python -m auditops.cli download-uk-filings --corpus-root "$CORPUS_ROOT"

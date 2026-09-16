@@ -8,16 +8,22 @@ from haystack import Document
 from auditops.pipeline import connect_db
 from auditops.retrieval import (
     RetrievalExample,
-    _is_benchmarkable_row,
     _build_index_document_text,
     _build_query_from_chunk,
+    _is_benchmarkable_row,
     _rerank_documents,
     build_retrieval_benchmark_examples,
     evaluate_bm25_retrieval,
 )
 
 
-def _chunk_id(conn, filing_id: str, chunk_evidence_id: str | None = None, heading_path: str | None = None, text_like: str | None = None):
+def _chunk_id(
+    conn,
+    filing_id: str,
+    chunk_evidence_id: str | None = None,
+    heading_path: str | None = None,
+    text_like: str | None = None,
+):
     clauses = ["filing_id = ?"]
     params = [filing_id]
     if chunk_evidence_id is not None:
@@ -103,7 +109,9 @@ def test_bm25_retrieval_hits_expected_fixture_chunks(populated_db):
 
 
 def test_benchmark_builder_produces_diverse_fixture_examples(populated_db):
-    examples = build_retrieval_benchmark_examples(str(populated_db), limit=4, per_filing_limit=1)
+    examples = build_retrieval_benchmark_examples(
+        str(populated_db), limit=4, per_filing_limit=1
+    )
 
     assert len(examples) == 3
     assert len({example.filing_id for example in examples}) == 3
@@ -150,7 +158,9 @@ def test_index_document_text_strips_table_of_contents_noise():
     content = _build_index_document_text(row)
     lowered = content.lower()
 
-    assert lowered.startswith("item 8\nfinancial statements and supplementary data.\nforged wheels")
+    assert lowered.startswith(
+        "item 8\nfinancial statements and supplementary data.\nforged wheels"
+    )
     assert "table of contents" not in lowered
     assert "segment adjusted" in lowered
     assert "capital expenditures" in lowered
@@ -284,7 +294,9 @@ def test_eval_retrieval_reports_rerank_method(populated_db):
     finally:
         conn.close()
 
-    result = evaluate_bm25_retrieval(str(populated_db), examples, top_k=3, method="bm25_rerank", candidate_k=9)
+    result = evaluate_bm25_retrieval(
+        str(populated_db), examples, top_k=3, method="bm25_rerank", candidate_k=9
+    )
 
     assert result["summary"]["method"] == "bm25_rerank"
     assert result["summary"]["candidate_k"] == 9

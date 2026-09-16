@@ -22,12 +22,19 @@ from auditops.narrative_tasks import (
 )
 
 
-def test_build_narrative_benchmark_produces_answerable_note_tasks(populated_db, tmp_path):
-    task_specs = build_narrative_benchmark(str(populated_db), limit=10, per_filing_limit=1)
+def test_build_narrative_benchmark_produces_answerable_note_tasks(
+    populated_db, tmp_path
+):
+    task_specs = build_narrative_benchmark(
+        str(populated_db), limit=10, per_filing_limit=1
+    )
 
     assert task_specs
     assert all(task_spec["answerability"] == "ANSWERABLE" for task_spec in task_specs)
-    assert all(task_spec["label"] in {"footnote_note", "accounting_policy"} for task_spec in task_specs)
+    assert all(
+        task_spec["label"] in {"footnote_note", "accounting_policy"}
+        for task_spec in task_specs
+    )
     assert all(task_spec["scope_type"] == "note" for task_spec in task_specs)
     assert all(task_spec["extractive_answer"] for task_spec in task_specs)
 
@@ -41,9 +48,13 @@ def test_build_narrative_benchmark_produces_answerable_note_tasks(populated_db, 
 
 
 def test_evaluate_narrative_citations_hits_fixture_chunks(populated_db):
-    task_specs = build_narrative_benchmark(str(populated_db), limit=10, per_filing_limit=1)
+    task_specs = build_narrative_benchmark(
+        str(populated_db), limit=10, per_filing_limit=1
+    )
 
-    result = evaluate_narrative_citations(str(populated_db), task_specs, top_k=5, method="bm25_rerank", candidate_k=15)
+    result = evaluate_narrative_citations(
+        str(populated_db), task_specs, top_k=5, method="bm25_rerank", candidate_k=15
+    )
 
     assert result["summary"]["task_count"] == len(task_specs)
     assert result["summary"]["answerable_task_count"] == len(task_specs)
@@ -56,35 +67,44 @@ def test_evaluate_narrative_citations_hits_fixture_chunks(populated_db):
 
 
 def test_narrative_label_excludes_audit_report_and_index_chunks():
-    assert _narrative_label(
-        {
-            "heading": "Financial Statements",
-            "subheading": "Opinion on Internal Control Over Financial Reporting",
-            "heading_path": "Item 8 > Financial Statements > Opinion on Internal Control Over Financial Reporting",
-            "retrieval_text": "Definition and limitations of internal control over financial reporting.",
-        }
-    ) is None
+    assert (
+        _narrative_label(
+            {
+                "heading": "Financial Statements",
+                "subheading": "Opinion on Internal Control Over Financial Reporting",
+                "heading_path": "Item 8 > Financial Statements > Opinion on Internal Control Over Financial Reporting",
+                "retrieval_text": "Definition and limitations of internal control over financial reporting.",
+            }
+        )
+        is None
+    )
 
-    assert _narrative_label(
-        {
-            "heading": "Financial Statements",
-            "subheading": "Index to Consolidated Financial Statements",
-            "heading_path": "Item 8 > Financial Statements > Index to Consolidated Financial Statements",
-            "retrieval_text": "Index to consolidated financial statements",
-        }
-    ) is None
+    assert (
+        _narrative_label(
+            {
+                "heading": "Financial Statements",
+                "subheading": "Index to Consolidated Financial Statements",
+                "heading_path": "Item 8 > Financial Statements > Index to Consolidated Financial Statements",
+                "retrieval_text": "Index to consolidated financial statements",
+            }
+        )
+        is None
+    )
 
 
 def test_narrative_candidate_excludes_internal_control_and_forward_looking_text():
-    assert _is_excluded_narrative_candidate(
-        {
-            "heading": "Financial Statements",
-            "subheading": "Assessment of Internal Control Over Financial Reporting",
-            "heading_path": "Item 8 > Financial Statements and Supplementary Data > Assessment of Internal Control Over Financial Reporting",
-            "retrieval_text": "Assessment of Internal Control Over Financial Reporting",
-        },
-        "We have audited the accompanying consolidated balance sheets.",
-    ) is True
+    assert (
+        _is_excluded_narrative_candidate(
+            {
+                "heading": "Financial Statements",
+                "subheading": "Assessment of Internal Control Over Financial Reporting",
+                "heading_path": "Item 8 > Financial Statements and Supplementary Data > Assessment of Internal Control Over Financial Reporting",
+                "retrieval_text": "Assessment of Internal Control Over Financial Reporting",
+            },
+            "We have audited the accompanying consolidated balance sheets.",
+        )
+        is True
+    )
 
 
 def test_build_narrative_benchmark_can_include_unanswerable_tasks(populated_db):
@@ -113,7 +133,12 @@ def test_build_narrative_benchmark_can_include_unanswerable_tasks(populated_db):
             "refusal_code": None,
             "negative_type": None,
             "donor_task_id": None,
-            "citation_policy": {"require_chunk_evidence_ids": True, "retrieval_method": "bm25_rerank", "top_k": 5, "candidate_k": 15},
+            "citation_policy": {
+                "require_chunk_evidence_ids": True,
+                "retrieval_method": "bm25_rerank",
+                "top_k": 5,
+                "candidate_k": 15,
+            },
         },
         {
             "narrative_task_spec_version": "v1",
@@ -139,7 +164,12 @@ def test_build_narrative_benchmark_can_include_unanswerable_tasks(populated_db):
             "refusal_code": None,
             "negative_type": None,
             "donor_task_id": None,
-            "citation_policy": {"require_chunk_evidence_ids": True, "retrieval_method": "bm25_rerank", "top_k": 5, "candidate_k": 15},
+            "citation_policy": {
+                "require_chunk_evidence_ids": True,
+                "retrieval_method": "bm25_rerank",
+                "top_k": 5,
+                "candidate_k": 15,
+            },
         },
         {
             "narrative_task_spec_version": "v1",
@@ -165,7 +195,12 @@ def test_build_narrative_benchmark_can_include_unanswerable_tasks(populated_db):
             "refusal_code": None,
             "negative_type": None,
             "donor_task_id": None,
-            "citation_policy": {"require_chunk_evidence_ids": True, "retrieval_method": "bm25_rerank", "top_k": 5, "candidate_k": 15},
+            "citation_policy": {
+                "require_chunk_evidence_ids": True,
+                "retrieval_method": "bm25_rerank",
+                "top_k": 5,
+                "candidate_k": 15,
+            },
         },
         {
             "narrative_task_spec_version": "v1",
@@ -191,7 +226,12 @@ def test_build_narrative_benchmark_can_include_unanswerable_tasks(populated_db):
             "refusal_code": None,
             "negative_type": None,
             "donor_task_id": None,
-            "citation_policy": {"require_chunk_evidence_ids": True, "retrieval_method": "bm25_rerank", "top_k": 5, "candidate_k": 15},
+            "citation_policy": {
+                "require_chunk_evidence_ids": True,
+                "retrieval_method": "bm25_rerank",
+                "top_k": 5,
+                "candidate_k": 15,
+            },
         },
         {
             "narrative_task_spec_version": "v1",
@@ -217,7 +257,12 @@ def test_build_narrative_benchmark_can_include_unanswerable_tasks(populated_db):
             "refusal_code": None,
             "negative_type": None,
             "donor_task_id": None,
-            "citation_policy": {"require_chunk_evidence_ids": True, "retrieval_method": "bm25_rerank", "top_k": 5, "candidate_k": 15},
+            "citation_policy": {
+                "require_chunk_evidence_ids": True,
+                "retrieval_method": "bm25_rerank",
+                "top_k": 5,
+                "candidate_k": 15,
+            },
         },
     ]
     answerable_tasks = [
@@ -229,10 +274,37 @@ def test_build_narrative_benchmark_can_include_unanswerable_tasks(populated_db):
     task_specs = _build_unanswerable_narrative_tasks(
         answerable_tasks,
         {
-            "filing-a": {"revenue", "recognition", "contract", "assets", "deferred", "inventory", "valuation", "raw", "materials", "obsolescence"},
-            "filing-a-prior": {"share", "based", "compensation", "restricted", "stock", "vesting", "expense"},
+            "filing-a": {
+                "revenue",
+                "recognition",
+                "contract",
+                "assets",
+                "deferred",
+                "inventory",
+                "valuation",
+                "raw",
+                "materials",
+                "obsolescence",
+            },
+            "filing-a-prior": {
+                "share",
+                "based",
+                "compensation",
+                "restricted",
+                "stock",
+                "vesting",
+                "expense",
+            },
             "filing-b": {"inventory", "valuation", "raw", "materials", "obsolescence"},
-            "filing-c": {"summary", "significant", "accounting", "policies", "estimates", "impairment", "goodwill"},
+            "filing-c": {
+                "summary",
+                "significant",
+                "accounting",
+                "policies",
+                "estimates",
+                "impairment",
+                "goodwill",
+            },
         },
         limit=8,
         donor_task_specs=donor_pool,
@@ -245,15 +317,35 @@ def test_build_narrative_benchmark_can_include_unanswerable_tasks(populated_db):
     assert "unsupported_attribute" in negative_types
     assert "cross_label_query_transfer" in negative_types
     assert "cross_filing_query_transfer" in negative_types
-    same_issuer_tasks = [task_spec for task_spec in task_specs if task_spec["negative_type"] == "same_issuer_wrong_period"]
-    unsupported_tasks = [task_spec for task_spec in task_specs if task_spec["negative_type"] == "unsupported_attribute"]
-    cross_filing_tasks = [task_spec for task_spec in task_specs if task_spec["negative_type"] == "cross_filing_query_transfer"]
+    same_issuer_tasks = [
+        task_spec
+        for task_spec in task_specs
+        if task_spec["negative_type"] == "same_issuer_wrong_period"
+    ]
+    unsupported_tasks = [
+        task_spec
+        for task_spec in task_specs
+        if task_spec["negative_type"] == "unsupported_attribute"
+    ]
+    cross_filing_tasks = [
+        task_spec
+        for task_spec in task_specs
+        if task_spec["negative_type"] == "cross_filing_query_transfer"
+    ]
     assert same_issuer_tasks
     assert unsupported_tasks
     assert cross_filing_tasks
-    assert all(task_spec["question"].startswith("For this period, does the ") for task_spec in same_issuer_tasks)
-    assert all(task_spec["question"].startswith("Does the ") for task_spec in unsupported_tasks)
-    assert all(task_spec["question"].startswith("Does the ") for task_spec in cross_filing_tasks)
+    assert all(
+        task_spec["question"].startswith("For this period, does the ")
+        for task_spec in same_issuer_tasks
+    )
+    assert all(
+        task_spec["question"].startswith("Does the ") for task_spec in unsupported_tasks
+    )
+    assert all(
+        task_spec["question"].startswith("Does the ")
+        for task_spec in cross_filing_tasks
+    )
     for unanswerable_task in task_specs:
         assert unanswerable_task["expected_chunk_ids"] == []
         assert unanswerable_task["extractive_answer"] is None
@@ -262,7 +354,9 @@ def test_build_narrative_benchmark_can_include_unanswerable_tasks(populated_db):
 
 
 def _mixed_fixture_tasks(populated_db):
-    answerable_tasks = build_narrative_benchmark(str(populated_db), limit=10, per_filing_limit=1)
+    answerable_tasks = build_narrative_benchmark(
+        str(populated_db), limit=10, per_filing_limit=1
+    )
     answerable_task = answerable_tasks[0]
     unanswerable_task = {
         **answerable_task,
@@ -285,8 +379,16 @@ def _mixed_fixture_tasks(populated_db):
 
 def test_answer_narrative_returns_extract_and_refusal(populated_db):
     task_specs = _mixed_fixture_tasks(populated_db)
-    answerable_task = next(task_spec for task_spec in task_specs if task_spec["answerability"] == "ANSWERABLE")
-    unanswerable_task = next(task_spec for task_spec in task_specs if task_spec["answerability"] == "UNANSWERABLE")
+    answerable_task = next(
+        task_spec
+        for task_spec in task_specs
+        if task_spec["answerability"] == "ANSWERABLE"
+    )
+    unanswerable_task = next(
+        task_spec
+        for task_spec in task_specs
+        if task_spec["answerability"] == "UNANSWERABLE"
+    )
 
     answerable_result = answer_narrative(
         str(populated_db),
@@ -300,7 +402,9 @@ def test_answer_narrative_returns_extract_and_refusal(populated_db):
     validate_narrative_answer(answerable_result)
     assert answerable_result["status"] == "OK"
     assert answerable_result["answer_text"] == answerable_task["extractive_answer"]
-    assert answerable_result["chunk_evidence_ids"] == answerable_task["expected_chunk_ids"]
+    assert (
+        answerable_result["chunk_evidence_ids"] == answerable_task["expected_chunk_ids"]
+    )
 
     unanswerable_result = answer_narrative(
         str(populated_db),
@@ -318,21 +422,35 @@ def test_answer_narrative_returns_extract_and_refusal(populated_db):
 
 def test_route_narrative_question_matches_loose_variant(populated_db):
     task_specs = _mixed_fixture_tasks(populated_db)
-    answerable_task = next(task_spec for task_spec in task_specs if task_spec["answerability"] == "ANSWERABLE")
+    answerable_task = next(
+        task_spec
+        for task_spec in task_specs
+        if task_spec["answerability"] == "ANSWERABLE"
+    )
     variant = next(
         variant
-        for variant in build_narrative_routing_variants([answerable_task], variants_per_task=1)
+        for variant in build_narrative_routing_variants(
+            [answerable_task], variants_per_task=1
+        )
         if variant["source_task_id"] == answerable_task["task_id"]
     )
 
-    matched = route_narrative_question(variant["question"], answerable_task["filing_id"], task_specs)
+    matched = route_narrative_question(
+        variant["question"], answerable_task["filing_id"], task_specs
+    )
 
     assert matched["task_id"] == answerable_task["task_id"]
 
 
-def test_build_narrative_routing_variants_strips_same_issuer_period_prefix(populated_db):
+def test_build_narrative_routing_variants_strips_same_issuer_period_prefix(
+    populated_db,
+):
     task_specs = _mixed_fixture_tasks(populated_db)
-    answerable_task = next(task_spec for task_spec in task_specs if task_spec["answerability"] == "ANSWERABLE")
+    answerable_task = next(
+        task_spec
+        for task_spec in task_specs
+        if task_spec["answerability"] == "ANSWERABLE"
+    )
     same_issuer_task = {
         **answerable_task,
         "task_id": "manual-same-issuer-period",
@@ -349,32 +467,50 @@ def test_build_narrative_routing_variants_strips_same_issuer_period_prefix(popul
 
     variant = next(
         variant
-        for variant in build_narrative_routing_variants([same_issuer_task], variants_per_task=1)
+        for variant in build_narrative_routing_variants(
+            [same_issuer_task], variants_per_task=1
+        )
         if variant["source_task_id"] == same_issuer_task["task_id"]
     )
 
-    assert variant["question"].startswith("For this period, does the Revenue Recognition note discuss ")
-    assert "Does the Revenue Recognition note discuss For this period" not in variant["question"]
+    assert variant["question"].startswith(
+        "For this period, does the Revenue Recognition note discuss "
+    )
+    assert (
+        "Does the Revenue Recognition note discuss For this period"
+        not in variant["question"]
+    )
     assert "deferred revenue contract liabilities" in variant["question"]
 
 
 def test_evaluate_narrative_answers_scores_answerable_and_unanswerable(populated_db):
     task_specs = _mixed_fixture_tasks(populated_db)
 
-    result = evaluate_narrative_answers(str(populated_db), task_specs, top_k=5, method="bm25_rerank", candidate_k=15)
+    result = evaluate_narrative_answers(
+        str(populated_db), task_specs, top_k=5, method="bm25_rerank", candidate_k=15
+    )
 
     assert result["summary"]["task_count"] == len(task_specs)
     assert result["summary"]["answerability_accuracy"] == 1.0
     assert result["summary"]["citation_exactness"] == 1.0
     assert result["summary"]["answer_text_exactness"] == 1.0
     assert result["summary"]["refusal_correctness"] == 1.0
-    assert result["summary"]["negative_type_counts"] == {"cross_filing_query_transfer": 1}
+    assert result["summary"]["negative_type_counts"] == {
+        "cross_filing_query_transfer": 1
+    }
 
 
 def test_evaluate_narrative_routing_scores_loose_variants(populated_db):
     task_specs = _mixed_fixture_tasks(populated_db)
 
-    result = evaluate_narrative_routing(str(populated_db), task_specs, variants_per_task=1, top_k=5, method="bm25_rerank", candidate_k=15)
+    result = evaluate_narrative_routing(
+        str(populated_db),
+        task_specs,
+        variants_per_task=1,
+        top_k=5,
+        method="bm25_rerank",
+        candidate_k=15,
+    )
 
     assert result["summary"]["variant_count"] == len(task_specs)
     assert result["summary"]["routing_accuracy"] == 1.0
@@ -383,14 +519,19 @@ def test_evaluate_narrative_routing_scores_loose_variants(populated_db):
     assert result["summary"]["answer_text_exactness"] == 1.0
     assert result["summary"]["refusal_correctness"] == 1.0
     assert result["summary"]["safe_refusal_accuracy"] == 1.0
-    assert result["summary"]["negative_type_counts"] == {"cross_filing_query_transfer": 1}
+    assert result["summary"]["negative_type_counts"] == {
+        "cross_filing_query_transfer": 1
+    }
 
-    assert _is_excluded_narrative_candidate(
-        {
-            "heading": "Financial Statements",
-            "subheading": "Special Cautionary Notice Regarding Forward-Looking Statements",
-            "heading_path": "Item 1 > Financial Statements > Special Cautionary Notice Regarding Forward-Looking Statements",
-            "retrieval_text": "Forward-looking statements.",
-        },
-        "A material weakness in internal control related to ineffective information technology controls.",
-    ) is True
+    assert (
+        _is_excluded_narrative_candidate(
+            {
+                "heading": "Financial Statements",
+                "subheading": "Special Cautionary Notice Regarding Forward-Looking Statements",
+                "heading_path": "Item 1 > Financial Statements > Special Cautionary Notice Regarding Forward-Looking Statements",
+                "retrieval_text": "Forward-looking statements.",
+            },
+            "A material weakness in internal control related to ineffective information technology controls.",
+        )
+        is True
+    )

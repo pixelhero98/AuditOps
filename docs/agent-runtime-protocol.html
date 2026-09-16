@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="AuditOps v2.2 safety-hybrid text-agent runtime, exact-quote narrative selection, verification, repair, and terminal failure protocol.">
+  <title>AuditOps v2.2 — Runtime Protocol</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172033;
+      --muted: #5d687c;
+      --paper: #f4f7fb;
+      --panel: #ffffff;
+      --line: #d8e1ed;
+      --navy: #17365d;
+      --blue: #2364aa;
+      --teal: #087e8b;
+      --green: #16794d;
+      --amber: #8a5a00;
+      --red: #a63838;
+      --code: #10233f;
+      --code-ink: #edf6ff;
+      --shadow: 0 12px 34px rgba(23, 54, 93, .09);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font: 15px/1.58 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    a { color: var(--blue); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+    code, pre { font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace; }
+    code { font-size: .92em; }
+    .hero {
+      background: linear-gradient(125deg, #102d50 0%, #174f78 58%, #087e8b 100%);
+      color: white;
+      padding: 44px max(24px, calc((100vw - 1180px) / 2));
+    }
+    .eyebrow { margin: 0 0 8px; font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; opacity: .84; }
+    h1 { max-width: 900px; margin: 0; font-size: clamp(34px, 5vw, 56px); line-height: 1.04; letter-spacing: -.035em; }
+    .lede { max-width: 880px; margin: 17px 0 0; font-size: 18px; opacity: .92; }
+    .hero-meta { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 21px; }
+    .pill { border: 1px solid rgba(255,255,255,.34); border-radius: 999px; padding: 6px 11px; font-size: 12px; font-weight: 750; background: rgba(255,255,255,.08); }
+    .shell { display: grid; grid-template-columns: 248px minmax(0, 1fr); gap: 28px; max-width: 1240px; margin: 0 auto; padding: 28px 24px 70px; }
+    aside { position: sticky; top: 18px; align-self: start; max-height: calc(100vh - 36px); overflow: auto; }
+    .toc, .panel, .card { background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow); }
+    .toc { border-radius: 16px; padding: 18px; }
+    .toc strong { display: block; color: var(--navy); margin-bottom: 9px; }
+    .toc a { display: block; padding: 5px 0; color: var(--muted); text-decoration: none; }
+    .toc a:hover { color: var(--blue); }
+    main { min-width: 0; }
+    section { scroll-margin-top: 20px; margin-bottom: 30px; }
+    h2 { margin: 0 0 14px; color: var(--navy); font-size: 27px; line-height: 1.2; letter-spacing: -.02em; }
+    h3 { margin: 23px 0 9px; color: var(--navy); font-size: 19px; }
+    p { margin: 8px 0 14px; }
+    ul, ol { margin: 8px 0 16px; padding-left: 23px; }
+    li { margin: 5px 0; }
+    .panel { border-radius: 18px; padding: 24px; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .card { border-radius: 15px; padding: 18px; }
+    .card h3 { margin-top: 0; }
+    .status { display: inline-block; margin: 0 0 9px; border-radius: 999px; padding: 3px 9px; font-size: 11px; font-weight: 850; letter-spacing: .08em; }
+    .implemented { color: #0f613c; background: #def3e8; }
+    .proposed { color: #784d00; background: #ffefc1; }
+    .deferred { color: #40536c; background: #e8edf4; }
+    .callout { border-left: 5px solid var(--blue); background: #edf5ff; padding: 14px 16px; border-radius: 8px; margin: 16px 0; }
+    .callout.good { border-color: var(--green); background: #edf9f3; }
+    .callout.warn { border-color: var(--amber); background: #fff8e7; }
+    .callout.security { border-color: var(--red); background: #fff2f2; }
+    table { width: 100%; border-collapse: collapse; margin: 12px 0 20px; font-size: 13.5px; }
+    .table-scroll { max-width: 100%; overflow-x: auto; }
+    th, td { padding: 10px 11px; border: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { background: #eaf0f7; color: var(--navy); font-size: 12px; letter-spacing: .025em; }
+    tbody tr:nth-child(even) { background: #fafcff; }
+    pre { margin: 13px 0 20px; padding: 17px; overflow: auto; border-radius: 13px; background: var(--code); color: var(--code-ink); font-size: 12.5px; line-height: 1.52; }
+    .flow { display: grid; grid-template-columns: repeat(4, minmax(120px, 1fr)); gap: 10px; margin: 18px 0; }
+    .flow > div { position: relative; border: 1px solid var(--line); background: white; border-radius: 13px; padding: 13px; text-align: center; font-size: 12.5px; }
+    .flow > div:not(:last-child)::after { content: "→"; position: absolute; right: -10px; top: calc(50% - 10px); color: var(--teal); font-weight: 900; z-index: 2; }
+    .small { color: var(--muted); font-size: 12.5px; }
+    footer { max-width: 1240px; margin: 0 auto 30px; padding: 0 24px; color: var(--muted); font-size: 12px; }
+    @media (max-width: 900px) {
+      .shell { grid-template-columns: 1fr; }
+      aside { position: static; max-height: none; }
+      .grid { grid-template-columns: 1fr; }
+      .flow { grid-template-columns: 1fr; }
+      .flow > div:not(:last-child)::after { content: "↓"; right: auto; left: calc(50% - 5px); top: auto; bottom: -13px; }
+    }
+    @media print {
+      body { background: white; font-size: 10pt; }
+      .hero { background: white; color: black; padding: 0 0 18px; }
+      .shell { display: block; max-width: none; padding: 0; }
+      aside { display: none; }
+      .panel, .card { box-shadow: none; break-inside: avoid; }
+      pre { white-space: pre-wrap; }
+      a { color: inherit; }
+    }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <p class="eyebrow">AuditOps v2.2 • safety-hybrid filing verification</p>
+    <h1>Runtime Protocol</h1>
+    <p class="lede">The model proposes. Registered deterministic code executes tools, independently verifies support, permits at most one safe repair, and emits one typed terminal outcome.</p>
+    <div class="hero-meta">
+      <span class="pill">Runtime: v2.2</span>
+      <span class="pill">Prompt: v2.2</span>
+      <span class="pill">Temperature 0 • seed 20260821</span>
+      <span class="pill">No persistent inference server</span>
+    </div>
+  </header>
+
+  <div class="shell">
+    <aside>
+      <nav class="toc" aria-label="Contents">
+        <strong>Contents</strong>
+        <a href="#status">1. Runtime authority</a>
+        <a href="#boundary">2. Trust boundary</a>
+        <a href="#preflight">3. Preconditions</a>
+        <a href="#context">4. Context construction</a>
+        <a href="#modes">5. Three runtime modes</a>
+        <a href="#state-machine">6. State machine</a>
+        <a href="#repair">7. One safe repair</a>
+        <a href="#verification">8. Release verification</a>
+        <a href="#outcomes">9. Terminal outcomes</a>
+        <a href="#identity">10. Request and run identity</a>
+        <a href="#batch">11. Batch and replay</a>
+        <a href="#vlm">12. VLM separation</a>
+        <a href="#future">13. Proposed extension</a>
+        <a href="#deferred">14. Deferred work</a>
+        <a href="#sources">15. Normative sources</a>
+        <a href="agent-tool-schema.html">Tool schema →</a>
+      </nav>
+    </aside>
+
+    <main>
+      <section id="status" class="panel" data-status="IMPLEMENTED">
+        <span class="status implemented">IMPLEMENTED</span>
+        <h2>Runtime authority and scope</h2>
+        <p>This protocol describes the additive v2.2 text-agent runtime. Existing v2.1 schemas, benchmarks, source snapshots, runs, and reports remain immutable legacy artifacts and are replayed with their frozen source snapshot rather than converted.</p>
+        <div class="callout security"><strong>Filing verification, not autonomous audit.</strong> The runtime may calculate registered metrics, extract filing text, check citations, and safely refuse. It cannot issue an audit opinion, perform a statutory audit, make professional-judgment conclusions, contact an external party, or attest that a filing is true or complete.</div>
+      </section>
+
+      <section id="boundary" data-status="IMPLEMENTED">
+        <span class="status implemented">IMPLEMENTED</span>
+        <h2>Trust and visibility boundary</h2>
+        <div class="grid">
+          <div class="card">
+            <h3>Model-visible</h3>
+            <ul>
+              <li>Sanitized <code>AgentTaskInputV2.2</code>.</li>
+              <li>The complete ordered context pack.</li>
+              <li>Zero or four approved, same-family few-shot examples.</li>
+              <li>Only capability-agent and narrative-hybrid tool observations.</li>
+              <li>Only allowlisted repair-safe diagnostics.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Never model-visible</h3>
+            <ul>
+              <li><code>gold.jsonl</code>, expected answers, and refusal labels.</li>
+              <li>Verifier-only recomputation and replay results.</li>
+              <li>Credentials, environment capture, local sibling files, or network services.</li>
+              <li>Target-sensitive verifier details and raw exceptions.</li>
+            </ul>
+          </div>
+        </div>
+        <p>Instructions found inside a task, filing, or evidence chunk are untrusted data. They never supersede the system prompt, operation registry, runtime policy, or verifier.</p>
+      </section>
+
+      <section id="preflight" class="panel" data-status="IMPLEMENTED">
+        <span class="status implemented">IMPLEMENTED</span>
+        <h2>Case preconditions</h2>
+        <ol>
+          <li>Validate the v2.2 task and recursively reject gold-like fields.</li>
+          <li>Resolve its exact registry binding: task type, one operation, argument schema, observation schema, terminal schema, and refusal codes.</li>
+          <li>Verify corpus, benchmark, filing, task, and evidence membership and hashes.</li>
+          <li>Sanitize prompt-visible strings and identify hostile embedded instructions.</li>
+          <li>Construct and hash the complete context before deriving the run ID.</li>
+        </ol>
+        <p>A text task named <code>vlm_diagnostic</code>, a wrong operation, an unknown schema ID, or a task/artifact binding mismatch never reaches the model.</p>
+      </section>
+
+      <section id="context" data-status="IMPLEMENTED">
+        <span class="status implemented">IMPLEMENTED</span>
+        <h2>Deterministic, complete-or-fail context</h2>
+        <div class="panel">
+          <p>Context is stateless per case. Quantitative tasks materialize frozen typed facts. Narrative retrieval is frozen upstream with <code>candidate_k=15</code>; planning receives no evidence chunks, and <code>load_frozen_evidence</code> returns the ordered top-five scope exactly once for synthesis. Both paths admit zero through five evidence items.</p>
+          <table>
+            <thead><tr><th>Constraint</th><th>Runtime behavior</th></tr></thead>
+            <tbody>
+              <tr><td>Model context</td><td>16,384 tokens.</td></tr>
+              <tr><td>Prompt-visible input cap</td><td>14,336 tokens using the pinned tokenizer in production.</td></tr>
+              <tr><td>Evidence atomicity</td><td>No evidence ID, source descriptor, or item is partially cut.</td></tr>
+              <tr><td>Empty scope</td><td>Preserved with its deterministic <code>selection_method</code> and typed <code>empty_reason</code>.</td></tr>
+              <tr><td>Overflow</td><td>A valid indivisible context that cannot fit returns typed <code>CONTEXT_OVERFLOW</code>.</td></tr>
+            </tbody>
+          </table>
+          <p>There is no vector database, cross-case memory, autonomous delegation, or LLM summarization layer.</p>
+        </div>
+      </section>
+
+      <section id="modes" data-status="IMPLEMENTED">
+        <span class="status implemented">IMPLEMENTED</span>
+        <h2>Three unambiguous runtime modes</h2>
+        <div class="grid">
+          <div class="card">
+            <h3><code>direct</code></h3>
+            <p>The model receives frozen facts or evidence and produces a terminal proposal without tools. Quantitative prompts include the registered metric operation contract so formula conventions are explicit. The verifier independently recomputes or replays the operation.</p>
+          </div>
+          <div class="card">
+            <h3><code>capability_agent</code></h3>
+            <p>The model proposes the exact registered action, receives its typed observation, and then produces a terminal proposal. Stage schemas prohibit terminal actions during planning and prohibit tool calls during synthesis.</p>
+          </div>
+          <div class="card">
+            <h3><code>safety_hybrid</code></h3>
+            <p>This is the deployable baseline. Routing is deterministic. Quantitative tool results become verifier-checked answers or refusals without model synthesis. Narrative generation selects one to three exact quotes after the frozen scope is loaded; the runtime derives all released prose, claims, and citations.</p>
+          </div>
+        </div>
+        <p>Safety-hybrid quantitative records carry no model configuration or model tokens; they bind the deterministic executor and operation-registry hashes instead. Results are reported separately by task family and mode.</p>
+      </section>
+
+      <section id="state-machine" class="panel" data-status="IMPLEMENTED">
+        <span class="status implemented">IMPLEMENTED</span>
+        <h2>One model-neutral state machine</h2>
+        <div class="flow" aria-label="Runtime state flow">
+          <div><strong>Sanitize</strong><br>validate and bind</div>
+          <div><strong>Context</strong><br>construct and hash</div>
+          <div><strong>Propose</strong><br>plan or direct final</div>
+          <div><strong>Execute</strong><br>registered tool only</div>
+          <div><strong>Synthesize</strong><br>answer or refusal</div>
+          <div><strong>Verify</strong><br>independent checks</div>
+          <div><strong>Repair</strong><br>zero or one</div>
+          <div><strong>Terminate</strong><br>typed outcome</div>
+        </div>
+        <table>
+          <thead><tr><th>Stage</th><th>Success transition</th><th>Failure behavior</th></tr></thead>
+          <tbody>
+            <tr><td>Plan</td><td>Validated <code>CALL_TOOL</code> enters deterministic execution.</td><td>Safely repairable syntax/shape may consume the single repair; otherwise <code>MODEL_FAILURE</code>.</td></tr>
+            <tr><td>Tool</td><td>Exact typed observation enters synthesis.</td><td>Execution/backend failure is infrastructure; replay or binding mismatch is integrity.</td></tr>
+            <tr><td>Synthesis</td><td>A quantitative terminal result or narrative exact-quote selection enters final verification.</td><td>Support, citation, arithmetic, and observation failures are terminal and non-repairable.</td></tr>
+            <tr><td>Verification</td><td>Release as <code>RELEASED</code> or <code>SAFE_REFUSAL</code>.</td><td>Return a typed non-release outcome; the model cannot override the gate.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="repair" data-status="IMPLEMENTED">
+        <span class="status implemented">IMPLEMENTED</span>
+        <h2>One repair, only with safe diagnostics</h2>
+        <div class="panel">
+          <p>The repair budget is global to the case, not one attempt per stage. A repair request is legal only when a repair remains and at least one failure has an allowlisted, non-target-sensitive diagnostic.</p>
+          <table>
+            <thead><tr><th>Repairable</th><th>Terminal and non-repairable</th></tr></thead>
+            <tbody>
+              <tr><td>Malformed JSON; public schema syntax; action-shape errors; canonical decimal/unit lexical form.</td><td>Gold/target-sensitive comparisons; evidence, citation, arithmetic, refusal, cross-task, observation-binding, prompt-injection-policy, and integrity failures.</td></tr>
+            </tbody>
+          </table>
+          <p>For mixed failures, the prompt receives only safe diagnostics. If filtering leaves no diagnostic, the runtime returns <code>MODEL_FAILURE</code> without calling the repair prompt builder and without incrementing <code>repair_count</code>. A repaired output is verified once; failure is terminal and no second repair path exists.</p>
+          <h3>Repair-safe diagnostic excerpt</h3>
+          <pre><code class="language-json">{
+  "expected_action": "FINAL",
+  "repair_errors": [
+    {
+      "code": "SCHEMA_VALID",
+      "field": "proposal.value",
+      "message": "proposal contract violation (INVALID_CANONICAL_DECIMAL)"
+    }
+  ],
+  "rejected_proposal": null,
+  "tool_observation": null
+}</code></pre>
+        </div>
+      </section>
+
+      <section id="verification" data-status="IMPLEMENTED">
+        <span class="status implemented">IMPLEMENTED</span>
+        <h2>Independent deterministic release verification</h2>
+        <div class="grid">
+          <div class="card">
+            <h3>Quantitative</h3>
+            <p>Check task/filing/period/unit/context/dimensions, registered formula, typed inputs, sign, canonical value, exact unit, and answer-to-evidence mapping. The release check recomputes the metric instead of trusting the agent's observation.</p>
+          </div>
+          <div class="card">
+            <h3>Narrative</h3>
+            <p>Check filing and scope membership, stable replay, extractive answer text, claim-level evidence, and contiguous supporting text. This proves support within cited evidence, not filing-wide semantic completeness.</p>
+          </div>
+        </div>
+        <div class="callout good"><strong>Release invariant.</strong> A model proposal can emerge only as a verified answer, a policy-safe refusal, or an explicit typed failure. A second LLM is never a release gate.</div>
+      </section>
+
+      <section id="outcomes" class="panel" data-status="IMPLEMENTED">
+        <span class="status implemented">IMPLEMENTED</span>
+        <h2>Exactly one terminal outcome</h2>
+        <!-- BEGIN GENERATED: terminal-outcomes -->
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Outcome</th><th>Use</th><th>Releaseable?</th></tr></thead>
+            <tbody>
+              <tr><td><code>RELEASED</code></td><td>A final answer passed every deterministic release check.</td><td>Yes</td></tr>
+              <tr><td><code>SAFE_REFUSAL</code></td><td>The refusal is allowed and safe to expose. Necessity is scored offline.</td><td>Yes</td></tr>
+              <tr><td><code>MODEL_FAILURE</code></td><td>Unusable or unsupported model output, a non-repairable proposal, or exhausted repair.</td><td>No</td></tr>
+              <tr><td><code>INFRASTRUCTURE_FAILURE</code></td><td>Context overflow, timeout, OOM, backend, or model-adapter failure.</td><td>No</td></tr>
+              <tr><td><code>INTEGRITY_FAILURE</code></td><td>Artifact/hash/task binding, overwrite, deterministic replay, or tool-observation mismatch.</td><td>No; hard gate</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <!-- END GENERATED: terminal-outcomes -->
+        <p><code>TOOL_CALL_APPROVED</code>, <code>REPAIR_REQUIRED</code>, and verifier <code>FAILED</code> remain local verifier trace states. They are not legal terminal outcomes. <code>FailureV2</code> records a registered class, code, stage, retryability, and sanitized detail without raw exceptions or environment data.</p>
+      </section>
+
+      <section id="identity" data-status="IMPLEMENTED">
+        <span class="status implemented">IMPLEMENTED</span>
+        <h2>Complete model-request and run identity</h2>
+        <div class="panel">
+          <h3>Canonical form</h3>
+          <p>Every hash-bearing object uses <code>auditops.canonical_json.v1</code>: compact sorted-key UTF-8 JSON with NaN, infinity, and non-string mapping keys rejected. AuditOps does not claim RFC 8785/JCS compliance.</p>
+          <h3>Per-call request envelope</h3>
+          <p>The envelope excludes the generated request ID and binds its version, stage, repair attempt, ordered messages, full response schema, maximum output tokens, normalized sampling, seed, prompt version, and portable semantic model configuration. Every attempt records <code>request_sha256</code> and <code>response_schema_sha256</code>.</p>
+          <h3>Run envelope</h3>
+          <p>After context construction, the runtime binds runtime, prompt, and canonicalization versions; task/input hash; corpus and benchmark; runtime mode and prompt condition; context hash; stage-schema bundle hash; and semantic-model hash. <code>run_id</code> is <code>run-</code> plus the first 24 hexadecimal characters of <code>run_envelope_sha256</code>.</p>
+          <p>The portable semantic model hash excludes <code>model_path</code>. <code>deployment_model_config_sha256</code> binds the complete config, including that local path, while the exact snapshot digest remains provenance. Moving identical pinned weights does not change semantic run identity.</p>
+        </div>
+      </section>
+
+      <section id="batch" class="panel" data-status="IMPLEMENTED">
+        <span class="status implemented">IMPLEMENTED</span>
+        <h2>Immutable batch, checkpoint, and replay behavior</h2>
+        <ul>
+          <li>Every expected case produces one immutable result or one typed failure; no case is silently dropped.</li>
+          <li>Resume is allowed only when benchmark, task membership, model, prompt, runtime, schema bundle, and context bindings match.</li>
+          <li>Existing results are never silently overwritten.</li>
+          <li>Verifier replay recomputes the registered operation from model-visible cases and evidence, not from gold.</li>
+          <li>Credential and target/gold scans are hard gates for retained source, prompts, traces, and reports.</li>
+        </ul>
+        <p>Sampling is locked to <code>temperature=0</code>, <code>top_p=1</code>, and seed <code>20260821</code>. Planning is capped at 192 tokens, quantitative synthesis and repair at 256, and narrative synthesis and repair at 768. Each attempt records its response-schema hash, constraint backend, finish reason, token counts, output bytes, cap-hit status, and sanitized parse category. The runtime fails closed when structured decoding is unavailable and never retains real filing completions.</p>
+        <p>Few-shot requests use exactly four approved examples from the current task family. Their rendered message block is capped at 3,200 tokens under both pinned tokenizers and is bound to a human-review packet; unapproved examples cannot run.</p>
+      </section>
+
+      <section id="vlm" data-status="IMPLEMENTED">
+        <span class="status implemented">IMPLEMENTED</span>
+        <h2>VLM runtime stays separate</h2>
+        <div class="panel">
+          <p>The text runtime rejects <code>vlm_diagnostic</code>. Image-PDF diagnostics use <code>VlmDiagnosticTaskV1</code>, <code>VlmDiagnosticResultV1</code>, and the isolated VLM runtime. Page/extraction results are evaluated separately and never merged into the US or UK XHTML text benchmark score.</p>
+        </div>
+      </section>
+
+      <section id="future" data-status="PROPOSED">
+        <span class="status proposed">PROPOSED</span>
+        <h2>Possible extension</h2>
+        <div class="panel">
+          <p>A future cross-language replay requirement may warrant a standards-conforming canonicalization scheme. It requires explicit compatibility vectors and a new version; it is not implied by v2.2.</p>
+        </div>
+      </section>
+
+      <section id="deferred" data-status="DEFERRED">
+        <span class="status deferred">DEFERRED</span>
+        <h2>Outside this runtime</h2>
+        <div class="panel">
+          <p>Human escalation, genuine PCAOB/ISA procedures, audit opinions, professional judgment, fraud and going-concern determinations, fine-tuning, live APIs, vector memory, autonomous swarms, and external actions are deferred. Advisory model uncertainty does not create an <code>ESCALATED</code> outcome.</p>
+        </div>
+      </section>
+
+      <section id="sources" class="panel" data-status="IMPLEMENTED">
+        <span class="status implemented">IMPLEMENTED</span>
+        <h2>Normative implementation sources</h2>
+        <ul>
+          <li><a href="../auditops/agent_runtime.py"><code>agent_runtime.py</code></a> — bounded state transitions and terminal case records.</li>
+          <li><a href="../auditops/agent_operations.py"><code>agent_operations.py</code></a> — authoritative task-operation registry.</li>
+          <li><a href="../auditops/agent_contracts.py"><code>agent_contracts.py</code></a> — Python contract validation.</li>
+          <li><a href="../auditops/agent_context.py"><code>agent_context.py</code></a> — deterministic context construction.</li>
+          <li><a href="../auditops/agent_prompts.py"><code>agent_prompts.py</code></a> — versioned prompt and safe-repair payloads.</li>
+          <li><a href="../auditops/agent_verifier.py"><code>agent_verifier.py</code></a> — deterministic verifier and repair policy.</li>
+          <li><a href="../auditops/canonical_json.py"><code>canonical_json.py</code></a> — versioned AuditOps canonical JSON.</li>
+          <li><a href="../auditops/specs/agent_run_record.v2.2.schema.json"><code>agent_run_record.v2.2</code></a> and <a href="../auditops/specs/agent_case_result.v2.2.schema.json"><code>agent_case_result.v2.2</code></a> — terminal record schemas.</li>
+        </ul>
+        <p>See the <a href="agent-tool-schema.html">Tool and Contract Schema</a> for the complete v2.2 schema index and action truth table.</p>
+      </section>
+    </main>
+  </div>
+
+  <footer>
+    AuditOps v2.2 text-agent reference. The reviewed files in the local Downloads folder were non-normative review input; this correctly named repository document supersedes them.
+  </footer>
+</body>
+</html>

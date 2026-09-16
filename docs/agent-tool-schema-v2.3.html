@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="AuditOps v2.3 operation and public-schema boundary.">
+  <title>AuditOps v2.3 — Tool and Schema Boundary</title>
+  <style>
+    body { max-width:960px; margin:0 auto; padding:40px 24px 72px; color:#17202a; font:16px/1.55 system-ui,sans-serif; }
+    h1,h2 { line-height:1.2; } h2 { margin-top:2rem; border-bottom:1px solid #d8dee4; padding-bottom:.35rem; }
+    code { background:#f6f8fa; padding:.1rem .3rem; border-radius:4px; } table { border-collapse:collapse; width:100%; }
+    th,td { border:1px solid #d8dee4; padding:.55rem; text-align:left; vertical-align:top; } th { background:#f6f8fa; }
+    .status { display:inline-block; color:white; background:#075985; border-radius:999px; padding:.15rem .55rem; font-size:.78rem; font-weight:700; }
+  </style>
+</head>
+<body>
+  <span class="status">IMPLEMENTED</span>
+  <h1>AuditOps v2.3 tool and schema boundary</h1>
+  <p>One authoritative registry binds each text task to one deterministic operation and one terminal schema.</p>
+
+  <section data-status="IMPLEMENTED">
+  <h2>Operation registry</h2>
+  <table>
+    <thead><tr><th>Task</th><th>Operation</th><th>Terminal schema</th></tr></thead>
+    <tbody>
+      <tr><td><code>quant_metric</code></td><td><code>evaluate_metric_spec</code></td><td><a href="../auditops/specs/quantitative_answer_or_refusal.v2.3.schema.json">quantitative_answer_or_refusal.v2.3</a></td></tr>
+      <tr><td><code>narrative_citation</code></td><td><code>load_frozen_evidence</code></td><td><a href="../auditops/specs/narrative_selection_or_refusal.v2.3.schema.json">narrative_selection_or_refusal.v2.3</a></td></tr>
+    </tbody>
+  </table>
+  </section>
+
+  <section data-status="IMPLEMENTED">
+  <h2>Model-authored data</h2>
+  <p>Planning may contain only the exact registered tool call. A narrative terminal answer contains one to three <code>{evidence_id, exact_quote}</code> objects, subject to the task subtype policy. A narrative refusal contains <code>NO_DIRECT_EVIDENCE</code>. The model does not author released prose, claims, citations, uncertainty routing, or evaluator negative causes.</p>
+  </section>
+
+  <section data-status="IMPLEMENTED">
+  <h2>Deterministic data</h2>
+  <p>The runtime constructs answer text, claims, and citations from verified extracts. Tool observations state <code>retrieval_status=SCOPE_LOADED</code> and <code>answerability_assessed=false</code>. Loading the scope never asserts support.</p>
+  </section>
+
+  <section data-status="IMPLEMENTED">
+  <h2>Schema catalog</h2>
+  <table>
+    <thead><tr><th>Interface</th><th>Schema</th></tr></thead>
+    <tbody>
+      <tr><td>Task</td><td><a href="../auditops/specs/agent_task_input.v2.3.schema.json">AgentTaskInputV2.3</a></td></tr>
+      <tr><td>Context</td><td><a href="../auditops/specs/context_pack.v2.3.schema.json">ContextPackV2.3</a></td></tr>
+      <tr><td>Tool observation</td><td><a href="../auditops/specs/tool_observation.v2.3.schema.json">ToolObservationV2.3</a></td></tr>
+      <tr><td>Terminal selection</td><td><a href="../auditops/specs/narrative_selection_response.v2.3.schema.json">NarrativeSelectionResponseV2.3</a></td></tr>
+      <tr><td>Run record</td><td><a href="../auditops/specs/agent_run_record.v2.3.schema.json">AgentRunRecordV2.3</a></td></tr>
+      <tr><td>Case result</td><td><a href="../auditops/specs/agent_case_result.v2.3.schema.json">AgentCaseResultV2.3</a></td></tr>
+      <tr><td>Failure</td><td><a href="../auditops/specs/failure.v2.3.schema.json">FailureV2.3</a></td></tr>
+    </tbody>
+  </table>
+  </section>
+
+  <section data-status="IMPLEMENTED">
+  <p>Runtime semantics and identity rules are in <a href="agent-runtime-protocol-v2.3.html">the v2.3 runtime protocol</a>.</p>
+  </section>
+</body>
+</html>

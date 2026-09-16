@@ -1,0 +1,160 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "context_pack.v2.1",
+  "title": "AuditOps ContextPackV2.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "context_pack_version", "instructions", "task", "few_shot_examples",
+    "evidence_items", "security_flags", "selection_provenance", "token_count",
+    "max_input_tokens", "context_sha256"
+  ],
+  "properties": {
+    "context_pack_version": {"const": "v2.1"},
+    "instructions": {"type": "string", "minLength": 1},
+    "task": {"$ref": "agent_task_input.v2.1.schema.json"},
+    "few_shot_examples": {
+      "type": "array",
+      "oneOf": [{"maxItems": 0}, {"minItems": 4, "maxItems": 4}],
+      "items": {"$ref": "#/$defs/fewShotExample"}
+    },
+    "evidence_items": {
+      "type": "array", "maxItems": 5,
+      "items": {"$ref": "#/$defs/evidenceItem"}
+    },
+    "security_flags": {
+      "type": "array", "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "selection_provenance": {"$ref": "#/$defs/selectionProvenance"},
+    "token_count": {"type": "integer", "minimum": 0, "maximum": 14336},
+    "max_input_tokens": {"type": "integer", "minimum": 1, "maximum": 14336},
+    "context_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"evidence_items": {"minItems": 1}}},
+      "then": {
+        "properties": {
+          "selection_provenance": {
+            "properties": {"ordered_evidence_ids": {"minItems": 1}}
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "selection_provenance": {
+            "properties": {"ordered_evidence_ids": {"maxItems": 0}}
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "selectionProvenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["selection_method", "empty_reason", "ordered_evidence_ids"],
+      "properties": {
+        "selection_method": {"enum": ["TYPED_FACT_MATERIALIZATION", "FROZEN_BM25"]},
+        "empty_reason": {"enum": [null, "NO_VALID_FACTS", "NO_MATCHING_EVIDENCE"]},
+        "ordered_evidence_ids": {
+          "type": "array", "maxItems": 5, "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "fewShotExample": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "few_shot_example_version", "example_id", "template_id", "task_family",
+        "task", "evidence_items", "plan_response", "tool_observation",
+        "assistant_response", "source_task_sha256"
+      ],
+      "properties": {
+        "few_shot_example_version": {"const": "v2.1"},
+        "example_id": {"type": "string", "minLength": 1},
+        "template_id": {"type": "string", "minLength": 1},
+        "task_family": {"type": "string", "pattern": "^(?:quant_metric|narrative_citation)(?::[^:]+)*$"},
+        "task": {"$ref": "agent_task_input.v2.1.schema.json"},
+        "evidence_items": {"type": "array", "maxItems": 5, "items": {"$ref": "#/$defs/evidenceItem"}},
+        "plan_response": {
+          "type": "object", "additionalProperties": false,
+          "required": ["task_id", "action", "tool_name", "tool_arguments"],
+          "properties": {
+            "task_id": {"type": "string", "minLength": 1},
+            "action": {"const": "CALL_TOOL"},
+            "tool_name": {"enum": ["evaluate_metric_spec", "load_frozen_evidence"]},
+            "tool_arguments": {
+              "oneOf": [
+                {"$ref": "tool_arguments.v2.1.schema.json#/$defs/metric"},
+                {"$ref": "tool_arguments.v2.1.schema.json#/$defs/frozenEvidence"}
+              ]
+            }
+          }
+        },
+        "tool_observation": {"$ref": "tool_observation.v2.1.schema.json"},
+        "assistant_response": {"$ref": "agent_proposal.v2.1.schema.json"},
+        "source_task_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "dimensionValue": {
+      "oneOf": [
+        {"type": "string", "minLength": 1},
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["kind", "member"],
+          "properties": {
+            "kind": {"type": "string", "minLength": 1},
+            "member": {"type": "string", "minLength": 1}
+          }
+        }
+      ]
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "bbox": {"type": "array", "items": {"type": "number"}, "minItems": 4, "maxItems": 4},
+        "char_end": {"type": "integer", "minimum": 0},
+        "char_start": {"type": "integer", "minimum": 0},
+        "concept": {"type": ["string", "null"], "minLength": 1},
+        "concept_norm": {"type": ["string", "null"], "minLength": 1},
+        "context_id": {"type": ["string", "null"], "minLength": 1},
+        "derived": {"type": "boolean"},
+        "dimensions": {"type": "object", "additionalProperties": {"$ref": "#/$defs/dimensionValue"}},
+        "entity_id": {"type": ["string", "null"], "minLength": 1},
+        "heading": {"type": ["string", "null"], "minLength": 1},
+        "heading_path": {"type": ["string", "null"], "minLength": 1},
+        "input_name": {"type": ["string", "null"], "minLength": 1},
+        "item": {"type": ["string", "null"], "minLength": 1},
+        "page": {"type": "integer", "minimum": 0},
+        "scenario": {"type": ["string", "null"], "minLength": 1},
+        "source_anchor": {"type": ["string", "null"], "minLength": 1},
+        "source_file": {"type": ["string", "null"], "minLength": 1},
+        "subheading": {"type": ["string", "null"], "minLength": 1},
+        "taxonomy": {"type": ["string", "null"], "minLength": 1},
+        "transformation": {"type": ["string", "null"], "minLength": 1},
+        "unit_id": {"type": ["string", "null"], "minLength": 1}
+      }
+    },
+    "evidenceItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_id", "filing_id", "content"],
+      "properties": {
+        "evidence_id": {"type": "string", "minLength": 1},
+        "filing_id": {"type": "string", "minLength": 1},
+        "content": {"type": "string", "minLength": 1},
+        "rank": {"type": "integer", "minimum": 1},
+        "period_key": {"type": ["string", "null"], "minLength": 1},
+        "unit": {"type": ["string", "null"], "minLength": 1},
+        "value": {"type": ["string", "number", "null"]},
+        "source_system": {"type": ["string", "null"], "minLength": 1},
+        "metadata": {"$ref": "#/$defs/metadata"}
+      }
+    }
+  }
+}

@@ -13,6 +13,7 @@ LOG_FILE="$AUDITOPS_LOG_ROOT/${SLURM_JOB_NAME:-auditops-dev-check}.${SLURM_JOB_I
 exec > >(tee -a "$LOG_FILE") 2>&1
 
 source "$AUDITOPS_REPO_ROOT/scripts/activate_env.sh"
+export PYTHONDONTWRITEBYTECODE=1
 
 echo "HOST=$(hostname)"
 echo "REPO=$AUDITOPS_REPO_ROOT"
@@ -21,5 +22,5 @@ echo "LOG=$LOG_FILE"
 
 nvidia-smi -L || true
 python -c "import auditops; print(auditops.__file__)"
-auditops --help >/dev/null
-python -m pytest -q
+python -m auditops.cli --help >/dev/null
+python -m pytest -q -p no:cacheprovider

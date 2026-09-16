@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "model_config.v1",
+  "title": "AuditOps ModelConfigV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "model_config_version",
+    "model_id",
+    "model_path",
+    "revision",
+    "quantization",
+    "backend",
+    "context_window_tokens",
+    "max_input_tokens",
+    "max_plan_tokens",
+    "max_answer_tokens",
+    "max_repair_tokens",
+    "temperature",
+    "top_p",
+    "seed",
+    "thinking_enabled",
+    "chat_template_sha256"
+  ],
+  "properties": {
+    "model_config_version": {"const": "v1"},
+    "model_id": {"type": "string", "minLength": 1},
+    "model_path": {"type": ["string", "null"], "minLength": 1},
+    "revision": {"type": "string", "minLength": 1},
+    "quantization": {"type": ["string", "null"], "minLength": 1},
+    "backend": {"enum": ["vllm_offline", "mock"]},
+    "context_window_tokens": {"type": "integer", "minimum": 1},
+    "max_input_tokens": {"type": "integer", "minimum": 1, "maximum": 14336},
+    "max_plan_tokens": {"type": "integer", "minimum": 1, "maximum": 512},
+    "max_answer_tokens": {"type": "integer", "minimum": 1, "maximum": 1024},
+    "max_repair_tokens": {"type": "integer", "minimum": 1, "maximum": 768},
+    "temperature": {"const": 0},
+    "top_p": {"const": 1},
+    "seed": {"const": 20260821},
+    "thinking_enabled": {"const": false},
+    "chat_template_sha256": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-fA-F]{64}$"
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"backend": {"const": "vllm_offline"}}},
+      "then": {"properties": {"model_path": {"type": "string", "minLength": 1}}}
+    }
+  ]
+}

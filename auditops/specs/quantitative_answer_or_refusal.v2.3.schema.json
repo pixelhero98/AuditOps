@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "quantitative_answer_or_refusal.v2.3",
+  "title": "AuditOps Quantitative Answer or Refusal V2.3",
+  "oneOf": [
+    {
+      "$ref": "agent_terminal_response.v2.3.schema.json#/$defs/quantAnswer"
+    },
+    {
+      "$ref": "agent_terminal_response.v2.3.schema.json#/$defs/refusal"
+    }
+  ]
+}

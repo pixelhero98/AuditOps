@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "auditops"
 version = "0.1.0"
-description = "Audit-queryable SEC iXBRL ingestion, canonicalization, validation, and deterministic labeling."
+description = "Evidence-grounded US and UK filing verification with deterministic tools and bounded open-model agents."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -17,9 +17,22 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "pytest>=8.3",
+  "ruff>=0.9",
+  "jsonschema>=4.23",
+  "build>=1.2",
 ]
 retrieval = [
   "haystack-ai>=2.26,<3",
+]
+models = [
+  "huggingface-hub>=1.0,<2",
+]
+inference = [
+  "vllm==0.26.0; sys_platform == 'linux'",
+]
+pdf = [
+  "pymupdf>=1.25",
+  "Pillow>=11",
 ]
 
 [project.scripts]
@@ -33,3 +46,10 @@ include = ["auditops*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]

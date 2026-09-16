@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "quantitative_answer_or_refusal.v2",
+  "title": "AuditOps Quantitative Answer or Refusal V2",
+  "oneOf": [
+    {"$ref": "agent_proposal.v2.schema.json#/$defs/quantitativeAnswer"},
+    {
+      "allOf": [
+        {"$ref": "agent_proposal.v2.schema.json#/$defs/refusal"},
+        {
+          "properties": {
+            "refusal_code": {
+              "enum": [
+                "AMBIGUOUS_CONTEXT", "DIVISION_BY_ZERO",
+                "INCOMPATIBLE_UNITS", "MISSING_INPUT",
+                "PERIOD_NOT_SUPPORTED", "PROMPT_INJECTION_DETECTED",
+                "UNSUPPORTED_REQUEST", "ZERO_DENOMINATOR"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

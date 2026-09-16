@@ -14,13 +14,24 @@ from auditops.uk_corpus import build_uk_manifest, download_uk_filings
 
 def _write_uk_constituents_csv(path: Path, rows) -> None:
     with path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=["ticker", "company_name", "lei", "nsm_keyword", "issuer_country"])
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=[
+                "ticker",
+                "company_name",
+                "lei",
+                "nsm_keyword",
+                "issuer_country",
+            ],
+        )
         writer.writeheader()
         for row in rows:
             writer.writerow(row)
 
 
-def test_build_uk_manifest_resolves_ftse_reports_and_prefers_tagged_annual(tmp_path, monkeypatch):
+def test_build_uk_manifest_resolves_ftse_reports_and_prefers_tagged_annual(
+    tmp_path, monkeypatch
+):
     constituents_path = tmp_path / "ftse100.csv"
     _write_uk_constituents_csv(
         constituents_path,
@@ -145,28 +156,41 @@ def test_build_uk_manifest_resolves_ftse_reports_and_prefers_tagged_annual(tmp_p
     assert summary["half_yearly_resolved_count"] == 1
 
     bunzl_annual = next(
-        row for row in filing_rows if row["ticker"] == "BNZL" and row["report_type"] == "annual_financial_report"
+        row
+        for row in filing_rows
+        if row["ticker"] == "BNZL" and row["report_type"] == "annual_financial_report"
     )
     assert bunzl_annual["disclosure_id"] == "NI-ANNUAL-TAGGED"
     assert bunzl_annual["tag_esef"] == "Tagged"
     assert bunzl_annual["resolution_kind"] == "lei_exact"
 
     bunzl_half = next(
-        row for row in filing_rows if row["ticker"] == "BNZL" and row["report_type"] == "half_yearly_financial_report"
+        row
+        for row in filing_rows
+        if row["ticker"] == "BNZL"
+        and row["report_type"] == "half_yearly_financial_report"
     )
     assert bunzl_half["status"] == "resolved"
     assert bunzl_half["disclosure_id"] == "NI-HALF-PDF"
 
     rel_half = next(
-        row for row in filing_rows if row["ticker"] == "REL" and row["report_type"] == "half_yearly_financial_report"
+        row
+        for row in filing_rows
+        if row["ticker"] == "REL"
+        and row["report_type"] == "half_yearly_financial_report"
     )
     assert rel_half["status"] == "missing_latest_report"
 
     assert issuer_rows[0]["source_system"] == "FCA_NSM"
-    assert issuer_rows[0]["forms_expected"] == ["annual_financial_report", "half_yearly_financial_report"]
+    assert issuer_rows[0]["forms_expected"] == [
+        "annual_financial_report",
+        "half_yearly_financial_report",
+    ]
 
 
-def test_download_uk_filings_archives_details_and_sets_local_path_only_for_zip(tmp_path, monkeypatch):
+def test_download_uk_filings_archives_details_and_sets_local_path_only_for_zip(
+    tmp_path, monkeypatch
+):
     layout = ensure_corpus_layout(tmp_path / "uk_corpus")
     filing_rows = [
         {
@@ -230,7 +254,10 @@ def test_download_uk_filings_archives_details_and_sets_local_path_only_for_zip(t
     monkeypatch.setattr(
         uk_corpus,
         "_fetch_nsm_details",
-        lambda session, disclosure_id: {"_id": disclosure_id, "_source": {"disclosure_id": disclosure_id}},
+        lambda session, disclosure_id: {
+            "_id": disclosure_id,
+            "_source": {"disclosure_id": disclosure_id},
+        },
     )
 
     def fake_download(session, asset_path, output_path):
@@ -291,7 +318,9 @@ def test_nsm_search_uses_post_with_expected_payload(monkeypatch):
             return DummyResponse()
 
     monkeypatch.setenv("AUDITOPS_FCA_MIN_INTERVAL_SECONDS", "0")
-    hits = uk_corpus._nsm_search(DummySession(), "RELX PLC Annual Financial Report", size=25)
+    hits = uk_corpus._nsm_search(
+        DummySession(), "RELX PLC Annual Financial Report", size=25
+    )
 
     assert hits == [{"_source": {"company": "RELX PLC;"}}]
     assert len(calls) == 1
@@ -304,8 +333,14 @@ def test_nsm_search_uses_post_with_expected_payload(monkeypatch):
 def test_candidate_matches_issuer_accepts_core_company_name_variants():
     admiral_issuer = {"company_name": "Admiral Group", "lei": None}
     admiral_source = {"company": "ADMIRAL GROUP PLC;", "lei": "213800FGVM7Z9EJB2685"}
-    assert uk_corpus._candidate_matches_issuer(admiral_source, admiral_issuer) == "company_core"
+    assert (
+        uk_corpus._candidate_matches_issuer(admiral_source, admiral_issuer)
+        == "company_core"
+    )
 
     threei_issuer = {"company_name": "3i", "lei": None}
     threei_source = {"company": "3I GROUP PLC", "lei": "35GDVHRBMFE7NWATNM84"}
-    assert uk_corpus._candidate_matches_issuer(threei_source, threei_issuer) == "company_core"
+    assert (
+        uk_corpus._candidate_matches_issuer(threei_source, threei_issuer)
+        == "company_core"
+    )

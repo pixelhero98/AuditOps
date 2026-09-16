@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "vlm_diagnostic_result.v1",
+  "title": "AuditOps VlmDiagnosticResultV1",
+  "oneOf": [
+    {"$ref": "#/$defs/success"},
+    {"$ref": "#/$defs/failure"}
+  ],
+  "$defs": {
+    "bbox": {
+      "type": "array",
+      "prefixItems": [
+        {"type": "number", "minimum": 0, "maximum": 1},
+        {"type": "number", "minimum": 0, "maximum": 1},
+        {"type": "number", "minimum": 0, "maximum": 1},
+        {"type": "number", "minimum": 0, "maximum": 1}
+      ],
+      "items": false,
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "fact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fact_label", "value", "unit", "period_context", "page", "bbox",
+        "evidence_text"
+      ],
+      "properties": {
+        "fact_label": {"type": "string", "minLength": 1},
+        "value": {"type": ["string", "number", "null"]},
+        "unit": {"type": ["string", "null"]},
+        "period_context": {"type": "string"},
+        "page": {"type": "integer", "minimum": 1},
+        "bbox": {"$ref": "#/$defs/bbox"},
+        "evidence_text": {"type": "string", "minLength": 1}
+      }
+    },
+    "success": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["task_id", "facts"],
+      "properties": {
+        "task_id": {"type": "string", "minLength": 1},
+        "facts": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/fact"}
+        }
+      }
+    },
+    "failure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["task_id", "failure"],
+      "properties": {
+        "task_id": {"type": "string", "minLength": 1},
+        "failure": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["code", "message"],
+          "properties": {
+            "code": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{1,63}$"},
+            "message": {
+              "const": "The diagnostic case did not produce a releasable extraction."
+            }
+          }
+        }
+      }
+    }
+  }
+}

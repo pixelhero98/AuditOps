@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from difflib import SequenceMatcher
 import json
 import re
+from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence
 
@@ -20,12 +20,11 @@ from .retrieval import (
     _normalize_query_text,
     _query_tokens,
     _retrieve_documents_for_example,
-    evaluate_bm25_retrieval,
 )
-
 
 NARRATIVE_TASK_SPEC_VERSION = "v1"
 NARRATIVE_TASK_SPEC_SCHEMA_ID = "narrative_task_spec.v1"
+NARRATIVE_EXTRACTION_POLICY_VERSION = "source_paragraph_v3"
 NARRATIVE_TASK_TYPE = "narrative_citation"
 NARRATIVE_ANSWER_VERSION = "v1"
 NARRATIVE_ANSWER_SCHEMA_ID = "narrative_structured_answer.v1"
@@ -129,17 +128,26 @@ def _truncate_text(text: str, *, max_chars: int = _ANSWER_MAX_CHARS) -> str:
     cutoff = text.rfind(" ", 0, max_chars)
     if cutoff <= 0:
         cutoff = max_chars
-    return text[:cutoff].rstrip(" ,;:") + "..."
+    return text[:cutoff].rstrip()
 
 
 def _extractive_answer(row: Mapping[str, Any]) -> Optional[str]:
-    lines = _meaningful_content_lines(row.get("text_masked") or "")
+    source_text = str(row.get("text_masked") or "")
+    lines = _meaningful_content_lines(source_text)
     if not lines:
         return None
-    answer = " ".join(lines[:2]).strip()
-    if not answer:
-        return None
-    return _truncate_text(answer)
+    # ``_meaningful_content_lines`` is useful for filtering navigation and
+    # boilerplate, but its heading normalizer may join adjacent uppercase
+    # tokens.  Map the chosen normalized line back to its original paragraph
+    # so the answer preserves the filing's words and punctuation exactly,
+    # modulo whitespace collapse.
+    selected = lines[0]
+    for paragraph in source_text.split("\n\n"):
+        if normalize_heading_text(paragraph.strip()) != selected:
+            continue
+        answer = re.sub(r"\s+", " ", paragraph).strip()
+        return _truncate_text(answer) if answer else None
+    return None
 
 
 def _narrative_label(row: Mapping[str, Any]) -> Optional[str]:
@@ -163,7 +171,9 @@ def _narrative_label(row: Mapping[str, Any]) -> Optional[str]:
     return "footnote_note"
 
 
-def _is_excluded_narrative_candidate(row: Mapping[str, Any], extractive_answer: str) -> bool:
+def _is_excluded_narrative_candidate(
+    row: Mapping[str, Any], extractive_answer: str
+) -> bool:
     combined_text = " ".join(
         part
         for part in [
@@ -202,7 +212,9 @@ def _scope_key_for_parts(
         for part in (item or "", heading or "", subheading or "")
         if part
     ]
-    return f"note:{filing_id}:{'|'.join(parts)}" if parts else f"note:{filing_id}:unknown"
+    return (
+        f"note:{filing_id}:{'|'.join(parts)}" if parts else f"note:{filing_id}:unknown"
+    )
 
 
 def _scope_key_for_task_spec(task_spec: Mapping[str, Any]) -> Optional[str]:
@@ -254,11 +266,16 @@ def _base_narrative_task_spec(
     negative_type: Optional[str] = None,
     donor_task_id: Optional[str] = None,
 ) -> Dict[str, Any]:
+    template_variant = int(_stable_digest("narrative-template", task_id)[:8], 16) % 2
+    status = answerability.casefold()
+    template_family = negative_type or label
     return {
         "narrative_task_spec_version": NARRATIVE_TASK_SPEC_VERSION,
         "narrative_task_schema_id": NARRATIVE_TASK_SPEC_SCHEMA_ID,
         "task_id": task_id,
         "task_type": NARRATIVE_TASK_TYPE,
+        "template_id": (f"narrative:{status}:{template_family}:{template_variant}:v1"),
+        "task_family": f"narrative_citation:{label}:{status}",
         "filing_id": filing_id,
         "ticker": ticker,
         "form_type": form_type,
@@ -314,31 +331,49 @@ def validate_narrative_task_spec(task_spec: Mapping[str, Any]) -> None:
     }
     missing = sorted(required_fields - set(task_spec))
     if missing:
-        raise ValueError(f"Narrative TaskSpec is missing required fields: {', '.join(missing)}")
+        raise ValueError(
+            f"Narrative TaskSpec is missing required fields: {', '.join(missing)}"
+        )
     if task_spec["narrative_task_spec_version"] != NARRATIVE_TASK_SPEC_VERSION:
-        raise ValueError(f"Unsupported narrative task spec version: {task_spec['narrative_task_spec_version']}")
+        raise ValueError(
+            f"Unsupported narrative task spec version: {task_spec['narrative_task_spec_version']}"
+        )
     if task_spec["narrative_task_schema_id"] != NARRATIVE_TASK_SPEC_SCHEMA_ID:
-        raise ValueError(f"Unsupported narrative task schema id: {task_spec['narrative_task_schema_id']}")
+        raise ValueError(
+            f"Unsupported narrative task schema id: {task_spec['narrative_task_schema_id']}"
+        )
     if task_spec["task_type"] != NARRATIVE_TASK_TYPE:
         raise ValueError(f"Unsupported narrative task type: {task_spec['task_type']}")
     if task_spec["scope_type"] not in _NARRATIVE_SCOPE_OPTIONS:
         raise ValueError(f"Unsupported narrative scope type: {task_spec['scope_type']}")
     if task_spec["answerability"] not in _ANSWERABILITY_OPTIONS:
-        raise ValueError(f"Unsupported narrative answerability: {task_spec['answerability']}")
+        raise ValueError(
+            f"Unsupported narrative answerability: {task_spec['answerability']}"
+        )
     if task_spec["answerability"] == "ANSWERABLE":
         if not task_spec["expected_chunk_ids"]:
-            raise ValueError("Answerable narrative TaskSpecs must include expected_chunk_ids")
+            raise ValueError(
+                "Answerable narrative TaskSpecs must include expected_chunk_ids"
+            )
         if not task_spec["extractive_answer"]:
-            raise ValueError("Answerable narrative TaskSpecs must include a non-empty extractive_answer")
+            raise ValueError(
+                "Answerable narrative TaskSpecs must include a non-empty extractive_answer"
+            )
         if task_spec["refusal_code"] is not None:
             raise ValueError("Answerable narrative TaskSpecs cannot set refusal_code")
     else:
         if task_spec["expected_chunk_ids"]:
-            raise ValueError("Unanswerable narrative TaskSpecs must not include expected_chunk_ids")
+            raise ValueError(
+                "Unanswerable narrative TaskSpecs must not include expected_chunk_ids"
+            )
         if task_spec["extractive_answer"] is not None:
-            raise ValueError("Unanswerable narrative TaskSpecs must not include extractive_answer")
+            raise ValueError(
+                "Unanswerable narrative TaskSpecs must not include extractive_answer"
+            )
         if task_spec["refusal_code"] is None:
-            raise ValueError("Unanswerable narrative TaskSpecs must include refusal_code")
+            raise ValueError(
+                "Unanswerable narrative TaskSpecs must include refusal_code"
+            )
 
 
 def _update_filing_token_sets(
@@ -358,7 +393,10 @@ def _select_answerable_candidates_for_filing(
     selection_limit: int,
 ) -> List[tuple[str, Dict[str, Any]]]:
     ranked = sorted(candidates, key=lambda item: (-item[0][0], -item[0][1], item[1]))
-    return [(f"{filing_id}:{order_key}", task_spec) for _, order_key, task_spec in ranked[:selection_limit]]
+    return [
+        (f"{filing_id}:{order_key}", task_spec)
+        for _, order_key, task_spec in ranked[:selection_limit]
+    ]
 
 
 def _build_answerable_narrative_tasks(
@@ -408,7 +446,13 @@ def _build_answerable_narrative_tasks(
         if _is_excluded_narrative_candidate(row, extractive_answer):
             continue
         task_spec = _base_narrative_task_spec(
-            task_id=_stable_digest("narrative-task", row["filing_id"], row["chunk_evidence_id"], NARRATIVE_TASK_SPEC_VERSION),
+            task_id=_stable_digest(
+                "narrative-task",
+                row["filing_id"],
+                row["chunk_evidence_id"],
+                NARRATIVE_TASK_SPEC_VERSION,
+                NARRATIVE_EXTRACTION_POLICY_VERSION,
+            ),
             filing_id=row["filing_id"],
             ticker=row["ticker"],
             form_type=row["form_type"],
@@ -463,7 +507,9 @@ def _build_answerable_narrative_tasks(
         filing_id: filing_token_sets.get(str(filing_id), set())
         for filing_id in {task_spec["filing_id"] for task_spec in selected}
     }
-    donor_task_specs = [task_spec for _, task_spec in sorted(donor_candidates, key=lambda item: item[0])]
+    donor_task_specs = [
+        task_spec for _, task_spec in sorted(donor_candidates, key=lambda item: item[0])
+    ]
     return selected, filtered_token_sets, donor_task_specs
 
 
@@ -471,27 +517,44 @@ def _task_sort_key(task_spec: Mapping[str, Any]) -> tuple[str, str]:
     return str(task_spec["filing_id"]), str(task_spec["task_id"])
 
 
-def _distinctive_query_tokens(task_spec: Mapping[str, Any], target_filing_tokens: set[str]) -> List[str]:
-    return [token for token in _query_tokens(task_spec.get("retrieval_query") or "") if token not in target_filing_tokens]
+def _distinctive_query_tokens(
+    task_spec: Mapping[str, Any], target_filing_tokens: set[str]
+) -> List[str]:
+    return [
+        token
+        for token in _query_tokens(task_spec.get("retrieval_query") or "")
+        if token not in target_filing_tokens
+    ]
 
 
 def _scope_title(task_spec: Mapping[str, Any]) -> str:
-    for value in (task_spec.get("subheading"), task_spec.get("heading_path"), task_spec.get("heading"), task_spec.get("item")):
+    for value in (
+        task_spec.get("subheading"),
+        task_spec.get("heading_path"),
+        task_spec.get("heading"),
+        task_spec.get("item"),
+    ):
         normalized = normalize_heading_text(str(value or "").strip())
         if normalized:
             return normalized
     return "this note"
 
 
-def _routing_focus_terms(task_spec: Mapping[str, Any], *, max_terms: int = 6) -> List[str]:
+def _routing_focus_terms(
+    task_spec: Mapping[str, Any], *, max_terms: int = 6
+) -> List[str]:
     scope_tokens = set(_query_tokens(_scope_title(task_spec)))
     candidate_tokens = [
         token
-        for token in _query_tokens(str(task_spec.get("retrieval_query") or task_spec.get("question") or ""))
+        for token in _query_tokens(
+            str(task_spec.get("retrieval_query") or task_spec.get("question") or "")
+        )
         if token not in _ROUTING_FOCUS_STOPWORDS and token not in scope_tokens
     ]
     if not candidate_tokens:
-        candidate_tokens = [token for token in scope_tokens if token not in _ROUTING_FOCUS_STOPWORDS]
+        candidate_tokens = [
+            token for token in scope_tokens if token not in _ROUTING_FOCUS_STOPWORDS
+        ]
     return candidate_tokens[:max_terms]
 
 
@@ -499,7 +562,12 @@ def _variant_question_body(task_spec: Mapping[str, Any]) -> str:
     question = str(task_spec.get("question") or "").strip()
     if not question:
         return "this disclosure"
-    body = re.sub(r"^for this period,\s*does the .*? note discuss\s*", "", question, flags=re.IGNORECASE)
+    body = re.sub(
+        r"^for this period,\s*does the .*? note discuss\s*",
+        "",
+        question,
+        flags=re.IGNORECASE,
+    )
     if body != question:
         body = body.rstrip(" ?")
         return body or "this disclosure"
@@ -509,7 +577,9 @@ def _variant_question_body(task_spec: Mapping[str, Any]) -> str:
     return body or "this disclosure"
 
 
-def _build_narrative_variant_question(task_spec: Mapping[str, Any], variant_index: int) -> str:
+def _build_narrative_variant_question(
+    task_spec: Mapping[str, Any], variant_index: int
+) -> str:
     scope_title = _scope_title(task_spec)
     focus_phrase = " ".join(_routing_focus_terms(task_spec)) or scope_title
     refusal_body = _variant_question_body(task_spec)
@@ -541,13 +611,20 @@ def _unsupported_attribute_phrase(
 ) -> Optional[str]:
     source_scope_tokens = set(_query_tokens(_scope_title(source_task)))
     donor_scope = _scope_title(donor_task)
-    donor_scope_tokens = [token for token in _query_tokens(donor_scope) if token not in source_tokens and token not in source_scope_tokens]
+    donor_scope_tokens = [
+        token
+        for token in _query_tokens(donor_scope)
+        if token not in source_tokens and token not in source_scope_tokens
+    ]
     donor_focus_tokens = [
         token
         for token in _routing_focus_terms(donor_task, max_terms=6)
         if token not in source_tokens and token not in source_scope_tokens
     ]
-    distinctive_tokens = donor_scope_tokens[:3] + [token for token in donor_focus_tokens if token not in donor_scope_tokens][:3]
+    distinctive_tokens = (
+        donor_scope_tokens[:3]
+        + [token for token in donor_focus_tokens if token not in donor_scope_tokens][:3]
+    )
     if len(distinctive_tokens) < _MIN_UNSUPPORTED_ATTRIBUTE_TOKENS:
         distinctive_tokens = _distinctive_query_tokens(donor_task, source_tokens)[:4]
     if len(distinctive_tokens) < _MIN_UNSUPPORTED_ATTRIBUTE_TOKENS:
@@ -614,7 +691,9 @@ def build_narrative_routing_variants(
             question = _build_narrative_variant_question(task_spec, variant_index)
             variants.append(
                 {
-                    "variant_id": _stable_digest("narrative-variant", task_spec["task_id"], variant_index),
+                    "variant_id": _stable_digest(
+                        "narrative-variant", task_spec["task_id"], variant_index
+                    ),
                     "source_task_id": task_spec["task_id"],
                     "variant_index": variant_index,
                     "filing_id": task_spec["filing_id"],
@@ -624,7 +703,9 @@ def build_narrative_routing_variants(
                     "question": question,
                     "scope_type": task_spec.get("scope_type"),
                     "scope_key": _scope_key_for_task_spec(task_spec),
-                    "expected_chunk_ids": list(task_spec.get("expected_chunk_ids") or []),
+                    "expected_chunk_ids": list(
+                        task_spec.get("expected_chunk_ids") or []
+                    ),
                     "expected_answer_text": task_spec.get("extractive_answer"),
                     "expected_refusal_code": task_spec.get("refusal_code"),
                 }
@@ -716,7 +797,9 @@ def _build_unanswerable_narrative_tasks(
             _normalize_question_key(str(task_spec["question"]))
         )
 
-    candidate_pools: Dict[str, List[Dict[str, Any]]] = {negative_type: [] for negative_type in _UNANSWERABLE_NEGATIVE_TYPE_ORDER}
+    candidate_pools: Dict[str, List[Dict[str, Any]]] = {
+        negative_type: [] for negative_type in _UNANSWERABLE_NEGATIVE_TYPE_ORDER
+    }
     seen_candidate_keys: set[tuple[str, str]] = set()
 
     for source_task in ordered_tasks:
@@ -738,7 +821,9 @@ def _build_unanswerable_narrative_tasks(
             donor_question = str(donor_task["question"]).rstrip(" ?")
             donor_retrieval_query = str(donor_task["retrieval_query"]).strip()
             question = f"In the {source_scope_title} note, {donor_question}?"
-            retrieval_query = _normalize_query_text(f"{source_scope_title} {donor_retrieval_query}")
+            retrieval_query = _normalize_query_text(
+                f"{source_scope_title} {donor_retrieval_query}"
+            )
             if _append_unanswerable_candidate(
                 candidate_pools,
                 seen_candidate_keys,
@@ -754,15 +839,20 @@ def _build_unanswerable_narrative_tasks(
         same_issuer_donors = [
             donor_task
             for donor_task in by_ticker.get(str(source_task["ticker"]), [])
-            if donor_task["filing_id"] != source_task["filing_id"] and donor_task["period_key"] != source_task["period_key"]
+            if donor_task["filing_id"] != source_task["filing_id"]
+            and donor_task["period_key"] != source_task["period_key"]
         ]
         for donor_task in same_issuer_donors:
-            period_phrase = _same_issuer_wrong_period_phrase(source_task, donor_task, source_tokens)
+            period_phrase = _same_issuer_wrong_period_phrase(
+                source_task, donor_task, source_tokens
+            )
             if not period_phrase:
                 continue
             source_scope_title = _scope_title(source_task)
             question = f"For this period, does the {source_scope_title} note discuss {period_phrase}?"
-            retrieval_query = _normalize_query_text(f"{source_scope_title} {period_phrase}")
+            retrieval_query = _normalize_query_text(
+                f"{source_scope_title} {period_phrase}"
+            )
             if _append_unanswerable_candidate(
                 candidate_pools,
                 seen_candidate_keys,
@@ -785,12 +875,16 @@ def _build_unanswerable_narrative_tasks(
             key=_task_sort_key,
         )
         for donor_task in attribute_donors:
-            attribute_phrase = _unsupported_attribute_phrase(source_task, donor_task, source_tokens)
+            attribute_phrase = _unsupported_attribute_phrase(
+                source_task, donor_task, source_tokens
+            )
             if not attribute_phrase:
                 continue
             source_scope_title = _scope_title(source_task)
             question = f"Does the {source_scope_title} note discuss {attribute_phrase}?"
-            retrieval_query = _normalize_query_text(f"{source_scope_title} {attribute_phrase}")
+            retrieval_query = _normalize_query_text(
+                f"{source_scope_title} {attribute_phrase}"
+            )
             if _append_unanswerable_candidate(
                 candidate_pools,
                 seen_candidate_keys,
@@ -837,12 +931,16 @@ def _build_unanswerable_narrative_tasks(
             key=_task_sort_key,
         )
         for donor_task in cross_filing_donors:
-            transfer_phrase = _cross_filing_transfer_phrase(source_task, donor_task, source_tokens)
+            transfer_phrase = _cross_filing_transfer_phrase(
+                source_task, donor_task, source_tokens
+            )
             if not transfer_phrase:
                 continue
             source_scope_title = _scope_title(source_task)
             question = f"Does the {source_scope_title} note discuss {transfer_phrase}?"
-            retrieval_query = _normalize_query_text(f"{source_scope_title} {transfer_phrase}")
+            retrieval_query = _normalize_query_text(
+                f"{source_scope_title} {transfer_phrase}"
+            )
             if _append_unanswerable_candidate(
                 candidate_pools,
                 seen_candidate_keys,
@@ -856,7 +954,9 @@ def _build_unanswerable_narrative_tasks(
                 break
 
     selected: List[Dict[str, Any]] = []
-    next_index_by_type = {negative_type: 0 for negative_type in _UNANSWERABLE_NEGATIVE_TYPE_ORDER}
+    next_index_by_type = {
+        negative_type: 0 for negative_type in _UNANSWERABLE_NEGATIVE_TYPE_ORDER
+    }
     while len(selected) < limit:
         added_in_round = False
         for negative_type in _UNANSWERABLE_NEGATIVE_TYPE_ORDER:
@@ -886,15 +986,21 @@ def build_narrative_benchmark(
     answerable_limit = limit
     if include_unanswerable:
         answerable_limit = max(1, limit // 2)
-    answerable_task_specs, filing_token_sets, donor_task_specs = _build_answerable_narrative_tasks(
-        _iter_candidate_rows(db_path, filing_ids=filing_ids),
-        limit=answerable_limit,
-        per_filing_limit=per_filing_limit,
+    answerable_task_specs, filing_token_sets, donor_task_specs = (
+        _build_answerable_narrative_tasks(
+            _iter_candidate_rows(db_path, filing_ids=filing_ids),
+            limit=answerable_limit,
+            per_filing_limit=per_filing_limit,
+        )
     )
     if not include_unanswerable:
         return answerable_task_specs[:limit]
 
-    target_unanswerable_limit = unanswerable_limit if unanswerable_limit is not None else max(1, limit - len(answerable_task_specs))
+    target_unanswerable_limit = (
+        unanswerable_limit
+        if unanswerable_limit is not None
+        else max(1, limit - len(answerable_task_specs))
+    )
     unanswerable_task_specs = _build_unanswerable_narrative_tasks(
         answerable_task_specs,
         filing_token_sets,
@@ -902,18 +1008,28 @@ def build_narrative_benchmark(
         donor_task_specs=donor_task_specs,
     )
     combined = answerable_task_specs + unanswerable_task_specs
-    combined.sort(key=lambda task_spec: (task_spec["answerability"], task_spec["filing_id"], task_spec["task_id"]))
+    combined.sort(
+        key=lambda task_spec: (
+            task_spec["answerability"],
+            task_spec["filing_id"],
+            task_spec["task_id"],
+        )
+    )
     return combined[:limit]
 
 
-def write_narrative_task_specs(path: str | Path, task_specs: Sequence[Mapping[str, Any]]) -> int:
+def write_narrative_task_specs(
+    path: str | Path, task_specs: Sequence[Mapping[str, Any]]
+) -> int:
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     count = 0
     with output_path.open("w", encoding="utf-8") as handle:
         for task_spec in task_specs:
             validate_narrative_task_spec(task_spec)
-            handle.write(json.dumps(dict(task_spec), ensure_ascii=False, sort_keys=True))
+            handle.write(
+                json.dumps(dict(task_spec), ensure_ascii=False, sort_keys=True)
+            )
             handle.write("\n")
             count += 1
     return count
@@ -945,9 +1061,13 @@ def validate_narrative_answer(answer: Mapping[str, Any]) -> None:
     }
     missing = sorted(required_fields - set(answer))
     if missing:
-        raise ValueError(f"Narrative answer is missing required fields: {', '.join(missing)}")
+        raise ValueError(
+            f"Narrative answer is missing required fields: {', '.join(missing)}"
+        )
     if answer["narrative_answer_version"] != NARRATIVE_ANSWER_VERSION:
-        raise ValueError(f"Unsupported narrative answer version: {answer['narrative_answer_version']}")
+        raise ValueError(
+            f"Unsupported narrative answer version: {answer['narrative_answer_version']}"
+        )
     if answer["status"] not in {"OK", "REFUSAL"}:
         raise ValueError(f"Unsupported narrative answer status: {answer['status']}")
     if not isinstance(answer["chunk_evidence_ids"], list):
@@ -968,7 +1088,9 @@ def _normalize_question_key(question: str) -> str:
     return " ".join(question.lower().split())
 
 
-def _dedupe_narrative_task_specs(task_specs: Sequence[Mapping[str, Any]]) -> List[Dict[str, Any]]:
+def _dedupe_narrative_task_specs(
+    task_specs: Sequence[Mapping[str, Any]],
+) -> List[Dict[str, Any]]:
     deduped: List[Dict[str, Any]] = []
     seen = set()
     for task_spec in task_specs:
@@ -988,17 +1110,30 @@ def _routing_score(question: str, task_spec: Mapping[str, Any]) -> float:
     task_question_tokens = set(_query_tokens(str(task_spec.get("question") or "")))
     retrieval_tokens = set(_query_tokens(str(task_spec.get("retrieval_query") or "")))
     scope_tokens = set(_query_tokens(_scope_title(task_spec)))
-    heading_tokens = set(_query_tokens(str(task_spec.get("heading_path") or task_spec.get("heading") or "")))
+    heading_tokens = set(
+        _query_tokens(
+            str(task_spec.get("heading_path") or task_spec.get("heading") or "")
+        )
+    )
     score = 0.0
     if task_question_tokens:
-        score += 2.5 * (len(question_tokens & task_question_tokens) / len(task_question_tokens))
+        score += 2.5 * (
+            len(question_tokens & task_question_tokens) / len(task_question_tokens)
+        )
     if retrieval_tokens:
         score += 2.0 * (len(question_tokens & retrieval_tokens) / len(retrieval_tokens))
     if scope_tokens:
         score += 1.5 * (len(question_tokens & scope_tokens) / len(scope_tokens))
     if heading_tokens:
         score += 1.0 * (len(question_tokens & heading_tokens) / len(heading_tokens))
-    score += 0.5 * SequenceMatcher(None, normalized_question, _normalize_question_key(str(task_spec.get("question") or ""))).ratio()
+    score += (
+        0.5
+        * SequenceMatcher(
+            None,
+            normalized_question,
+            _normalize_question_key(str(task_spec.get("question") or "")),
+        ).ratio()
+    )
     scope_title = _scope_title(task_spec).lower()
     if scope_title and scope_title in normalized_question:
         score += 0.5
@@ -1032,7 +1167,11 @@ def route_narrative_question(
             raise ValueError("Question did not match any Narrative TaskSpec")
         scored_matches = sorted(
             (
-                (_routing_score(question, task_spec), _task_sort_key(task_spec), task_spec)
+                (
+                    _routing_score(question, task_spec),
+                    _task_sort_key(task_spec),
+                    task_spec,
+                )
                 for task_spec in filing_candidates
             ),
             key=lambda item: (-item[0], item[1]),
@@ -1040,14 +1179,21 @@ def route_narrative_question(
         best_score, _, best_task = scored_matches[0]
         if best_score < _ROUTING_MIN_SCORE:
             raise ValueError("Question did not match any Narrative TaskSpec")
-        if len(scored_matches) > 1 and (best_score - scored_matches[1][0]) < _ROUTING_AMBIGUITY_MARGIN:
+        if (
+            len(scored_matches) > 1
+            and (best_score - scored_matches[1][0]) < _ROUTING_AMBIGUITY_MARGIN
+        ):
             raise ValueError("Question matched multiple Narrative TaskSpecs")
         return best_task
     raise ValueError("Question matched multiple Narrative TaskSpecs")
 
 
-def _build_chunk_rows_by_filing(db_path: str, filing_ids: Sequence[str]) -> Dict[str, List[Mapping[str, Any]]]:
-    grouped_rows: Dict[str, List[Mapping[str, Any]]] = {filing_id: [] for filing_id in filing_ids}
+def _build_chunk_rows_by_filing(
+    db_path: str, filing_ids: Sequence[str]
+) -> Dict[str, List[Mapping[str, Any]]]:
+    grouped_rows: Dict[str, List[Mapping[str, Any]]] = {
+        filing_id: [] for filing_id in filing_ids
+    }
     for row in _fetch_chunk_rows(db_path, filing_ids=filing_ids):
         grouped_rows[row["filing_id"]].append(row)
     return grouped_rows
@@ -1089,7 +1235,9 @@ def _get_scope_retriever(
     return retriever_cache[cache_key]
 
 
-def _unsupported_narrative_answer(task_id: str, filing_id: str, refusal_code: str) -> Dict[str, Any]:
+def _unsupported_narrative_answer(
+    task_id: str, filing_id: str, refusal_code: str
+) -> Dict[str, Any]:
     answer = {
         "narrative_answer_version": NARRATIVE_ANSWER_VERSION,
         "task_id": task_id,
@@ -1143,16 +1291,26 @@ def answer_narrative(
     try:
         task_spec = route_narrative_question(question, filing_id, active_task_specs)
     except ValueError:
-        return _unsupported_narrative_answer("unsupported", filing_id, NARRATIVE_ROUTING_REFUSAL_CODE)
+        return _unsupported_narrative_answer(
+            "unsupported", filing_id, NARRATIVE_ROUTING_REFUSAL_CODE
+        )
 
     if task_spec["answerability"] == "UNANSWERABLE":
-        return _unsupported_narrative_answer(task_spec["task_id"], filing_id, task_spec["refusal_code"])
+        return _unsupported_narrative_answer(
+            task_spec["task_id"], filing_id, task_spec["refusal_code"]
+        )
 
-    active_rows_by_filing = rows_by_filing or _build_chunk_rows_by_filing(db_path, [filing_id])
+    active_rows_by_filing = rows_by_filing or _build_chunk_rows_by_filing(
+        db_path, [filing_id]
+    )
     active_retriever_cache = retriever_cache if retriever_cache is not None else {}
-    retriever = _get_scope_retriever(active_rows_by_filing, active_retriever_cache, task_spec)
+    retriever = _get_scope_retriever(
+        active_rows_by_filing, active_retriever_cache, task_spec
+    )
     if retriever is None:
-        return _unsupported_narrative_answer(task_spec["task_id"], filing_id, NARRATIVE_CITATION_MISS_CODE)
+        return _unsupported_narrative_answer(
+            task_spec["task_id"], filing_id, NARRATIVE_CITATION_MISS_CODE
+        )
 
     documents = _retrieve_for_task_spec(
         retriever,
@@ -1162,9 +1320,18 @@ def answer_narrative(
         candidate_k=max(top_k, candidate_k or NARRATIVE_RETRIEVAL_CANDIDATE_K),
     )
     expected_chunk_ids = set(task_spec["expected_chunk_ids"])
-    matched_rank = next((index + 1 for index, document in enumerate(documents) if document.id in expected_chunk_ids), None)
+    matched_rank = next(
+        (
+            index + 1
+            for index, document in enumerate(documents)
+            if document.id in expected_chunk_ids
+        ),
+        None,
+    )
     if matched_rank is None:
-        return _unsupported_narrative_answer(task_spec["task_id"], filing_id, NARRATIVE_CITATION_MISS_CODE)
+        return _unsupported_narrative_answer(
+            task_spec["task_id"], filing_id, NARRATIVE_CITATION_MISS_CODE
+        )
 
     answer = {
         "narrative_answer_version": NARRATIVE_ANSWER_VERSION,
@@ -1192,7 +1359,11 @@ def evaluate_narrative_citations(
     for task_spec in validated_task_specs:
         validate_narrative_task_spec(task_spec)
 
-    answerable_task_specs = [task_spec for task_spec in validated_task_specs if task_spec["answerability"] == "ANSWERABLE"]
+    answerable_task_specs = [
+        task_spec
+        for task_spec in validated_task_specs
+        if task_spec["answerability"] == "ANSWERABLE"
+    ]
     rows_by_filing = _build_chunk_rows_by_filing(
         db_path,
         sorted({task_spec["filing_id"] for task_spec in answerable_task_specs}),
@@ -1222,7 +1393,14 @@ def evaluate_narrative_citations(
             )
             retrieved_chunk_ids = [document.id for document in documents]
             expected_chunk_ids = set(task_spec["expected_chunk_ids"])
-            matched_rank = next((index + 1 for index, chunk_id in enumerate(retrieved_chunk_ids) if chunk_id in expected_chunk_ids), None)
+            matched_rank = next(
+                (
+                    index + 1
+                    for index, chunk_id in enumerate(retrieved_chunk_ids)
+                    if chunk_id in expected_chunk_ids
+                ),
+                None,
+            )
             result = {
                 "retrieved_chunk_ids": retrieved_chunk_ids,
                 "matched_rank": matched_rank,
@@ -1231,7 +1409,9 @@ def evaluate_narrative_citations(
             }
         citation_hits += int(result["hit"])
         citation_top1 += int(result["top1_hit"])
-        citation_mrr += 0.0 if result["matched_rank"] is None else 1.0 / result["matched_rank"]
+        citation_mrr += (
+            0.0 if result["matched_rank"] is None else 1.0 / result["matched_rank"]
+        )
         detailed_results.append(
             {
                 "task_id": task_spec["task_id"],
@@ -1255,7 +1435,9 @@ def evaluate_narrative_citations(
         if task_spec["answerability"] == "UNANSWERABLE":
             negative_type = task_spec.get("negative_type")
             if negative_type:
-                negative_type_counts[negative_type] = negative_type_counts.get(negative_type, 0) + 1
+                negative_type_counts[negative_type] = (
+                    negative_type_counts.get(negative_type, 0) + 1
+                )
             detailed_results.append(
                 {
                     "task_id": task_spec["task_id"],
@@ -1278,12 +1460,18 @@ def evaluate_narrative_citations(
         "summary": {
             "task_count": len(validated_task_specs),
             "answerable_task_count": len(answerable_task_specs),
-            "unanswerable_task_count": sum(1 for task_spec in validated_task_specs if task_spec["answerability"] == "UNANSWERABLE"),
+            "unanswerable_task_count": sum(
+                1
+                for task_spec in validated_task_specs
+                if task_spec["answerability"] == "UNANSWERABLE"
+            ),
             "retrieval_method": method,
             "top_k": top_k,
             "candidate_k": candidate_k if method == "bm25_rerank" else top_k,
-            "citation_precision_at_1": citation_top1 / max(1, len(answerable_task_specs)),
-            "citation_coverage_at_k": citation_hits / max(1, len(answerable_task_specs)),
+            "citation_precision_at_1": citation_top1
+            / max(1, len(answerable_task_specs)),
+            "citation_coverage_at_k": citation_hits
+            / max(1, len(answerable_task_specs)),
             "citation_mrr_at_k": citation_mrr / max(1, len(answerable_task_specs)),
             "answerability_accuracy": None,
             "refusal_correctness": None,
@@ -1334,13 +1522,19 @@ def evaluate_narrative_answers(
             rows_by_filing=rows_by_filing,
             retriever_cache=retriever_cache,
         )
-        expected_status = "OK" if task_spec["answerability"] == "ANSWERABLE" else "REFUSAL"
+        expected_status = (
+            "OK" if task_spec["answerability"] == "ANSWERABLE" else "REFUSAL"
+        )
         status_match = predicted["status"] == expected_status
         counters["status_match"] += int(status_match)
         if task_spec["answerability"] == "ANSWERABLE":
             counters["answerable_total"] += 1
-            citation_exact = predicted["chunk_evidence_ids"] == list(task_spec["expected_chunk_ids"])
-            answer_text_exact = predicted["answer_text"] == task_spec["extractive_answer"]
+            citation_exact = predicted["chunk_evidence_ids"] == list(
+                task_spec["expected_chunk_ids"]
+            )
+            answer_text_exact = (
+                predicted["answer_text"] == task_spec["extractive_answer"]
+            )
             counters["citation_exact"] += int(status_match and citation_exact)
             counters["answer_text_exact"] += int(status_match and answer_text_exact)
             detailed_results.append(
@@ -1364,8 +1558,12 @@ def evaluate_narrative_answers(
             counters["unanswerable_total"] += 1
             negative_type = task_spec.get("negative_type")
             if negative_type:
-                negative_type_counts[negative_type] = negative_type_counts.get(negative_type, 0) + 1
-            refusal_correct = status_match and predicted["refusal_code"] == task_spec["refusal_code"]
+                negative_type_counts[negative_type] = (
+                    negative_type_counts.get(negative_type, 0) + 1
+                )
+            refusal_correct = (
+                status_match and predicted["refusal_code"] == task_spec["refusal_code"]
+            )
             counters["refusal_correct"] += int(refusal_correct)
             detailed_results.append(
                 {
@@ -1392,10 +1590,14 @@ def evaluate_narrative_answers(
             "retrieval_method": method,
             "top_k": top_k,
             "candidate_k": candidate_k if method == "bm25_rerank" else top_k,
-            "answerability_accuracy": counters["status_match"] / max(1, counters["task_count"]),
-            "citation_exactness": counters["citation_exact"] / max(1, counters["answerable_total"]),
-            "answer_text_exactness": counters["answer_text_exact"] / max(1, counters["answerable_total"]),
-            "refusal_correctness": counters["refusal_correct"] / max(1, counters["unanswerable_total"]),
+            "answerability_accuracy": counters["status_match"]
+            / max(1, counters["task_count"]),
+            "citation_exactness": counters["citation_exact"]
+            / max(1, counters["answerable_total"]),
+            "answer_text_exactness": counters["answer_text_exact"]
+            / max(1, counters["answerable_total"]),
+            "refusal_correctness": counters["refusal_correct"]
+            / max(1, counters["unanswerable_total"]),
             "negative_type_counts": negative_type_counts,
         },
         "results": detailed_results,
@@ -1417,7 +1619,9 @@ def evaluate_narrative_routing(
         validate_narrative_task_spec(task_spec)
         task_specs_by_id[str(task_spec["task_id"])] = task_spec
 
-    variants = build_narrative_routing_variants(validated_task_specs, variants_per_task=variants_per_task)
+    variants = build_narrative_routing_variants(
+        validated_task_specs, variants_per_task=variants_per_task
+    )
     rows_by_filing = _build_chunk_rows_by_filing(
         db_path,
         sorted({task_spec["filing_id"] for task_spec in validated_task_specs}),
@@ -1453,7 +1657,9 @@ def evaluate_narrative_routing(
         route_correct = predicted["task_id"] == source_task["task_id"]
         counters["route_correct"] += int(route_correct)
 
-        expected_status = "OK" if source_task["answerability"] == "ANSWERABLE" else "REFUSAL"
+        expected_status = (
+            "OK" if source_task["answerability"] == "ANSWERABLE" else "REFUSAL"
+        )
         status_match = predicted["status"] == expected_status
         counters["status_match"] += int(status_match)
 
@@ -1475,10 +1681,18 @@ def evaluate_narrative_routing(
 
         if source_task["answerability"] == "ANSWERABLE":
             counters["answerable_total"] += 1
-            citation_exact = predicted["chunk_evidence_ids"] == list(source_task["expected_chunk_ids"])
-            answer_text_exact = predicted["answer_text"] == source_task["extractive_answer"]
-            counters["citation_exact"] += int(route_correct and status_match and citation_exact)
-            counters["answer_text_exact"] += int(route_correct and status_match and answer_text_exact)
+            citation_exact = predicted["chunk_evidence_ids"] == list(
+                source_task["expected_chunk_ids"]
+            )
+            answer_text_exact = (
+                predicted["answer_text"] == source_task["extractive_answer"]
+            )
+            counters["citation_exact"] += int(
+                route_correct and status_match and citation_exact
+            )
+            counters["answer_text_exact"] += int(
+                route_correct and status_match and answer_text_exact
+            )
             result.update(
                 {
                     "expected_chunk_ids": list(source_task["expected_chunk_ids"]),
@@ -1491,9 +1705,18 @@ def evaluate_narrative_routing(
             counters["unanswerable_total"] += 1
             negative_type = source_task.get("negative_type")
             if negative_type:
-                negative_type_counts[negative_type] = negative_type_counts.get(negative_type, 0) + 1
-            refusal_correct = route_correct and status_match and predicted["refusal_code"] == source_task["refusal_code"]
-            safe_refusal = predicted["status"] == "REFUSAL" and predicted["refusal_code"] in _SAFE_NARRATIVE_REFUSAL_CODES
+                negative_type_counts[negative_type] = (
+                    negative_type_counts.get(negative_type, 0) + 1
+                )
+            refusal_correct = (
+                route_correct
+                and status_match
+                and predicted["refusal_code"] == source_task["refusal_code"]
+            )
+            safe_refusal = (
+                predicted["status"] == "REFUSAL"
+                and predicted["refusal_code"] in _SAFE_NARRATIVE_REFUSAL_CODES
+            )
             counters["refusal_correct"] += int(refusal_correct)
             counters["safe_refusal"] += int(safe_refusal)
             result.update(
@@ -1514,12 +1737,18 @@ def evaluate_narrative_routing(
             "retrieval_method": method,
             "top_k": top_k,
             "candidate_k": candidate_k if method == "bm25_rerank" else top_k,
-            "routing_accuracy": counters["route_correct"] / max(1, counters["variant_count"]),
-            "answerability_accuracy": counters["status_match"] / max(1, counters["variant_count"]),
-            "citation_exactness": counters["citation_exact"] / max(1, counters["answerable_total"]),
-            "answer_text_exactness": counters["answer_text_exact"] / max(1, counters["answerable_total"]),
-            "refusal_correctness": counters["refusal_correct"] / max(1, counters["unanswerable_total"]),
-            "safe_refusal_accuracy": counters["safe_refusal"] / max(1, counters["unanswerable_total"]),
+            "routing_accuracy": counters["route_correct"]
+            / max(1, counters["variant_count"]),
+            "answerability_accuracy": counters["status_match"]
+            / max(1, counters["variant_count"]),
+            "citation_exactness": counters["citation_exact"]
+            / max(1, counters["answerable_total"]),
+            "answer_text_exactness": counters["answer_text_exact"]
+            / max(1, counters["answerable_total"]),
+            "refusal_correctness": counters["refusal_correct"]
+            / max(1, counters["unanswerable_total"]),
+            "safe_refusal_accuracy": counters["safe_refusal"]
+            / max(1, counters["unanswerable_total"]),
             "negative_type_counts": negative_type_counts,
         },
         "results": detailed_results,

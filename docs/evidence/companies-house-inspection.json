@@ -1,0 +1,813 @@
+{
+  "assurance": "HISTORICAL_RECORDED_INSPECTION; NOT MODEL_ACCURACY",
+  "concept_counting": "Distinct expanded QNames among inline nonFraction, nonNumeric and fraction elements with name; prefix aliases resolve to namespace URI. No text-word counts.",
+  "filings": [
+    {
+      "company_number": "SC284675",
+      "distinct_expanded_qnames": 30,
+      "distinct_lexical_qnames": 30,
+      "distinct_local_names": 30,
+      "document_metadata_url": "https://document-api.company-information.service.gov.uk/document/Bwv8Rcm529g8cmrUvEun1Ru-ivOVsWz3A-uHXOGL1aY",
+      "filing_date": "2023-05-04",
+      "historical_regex_count_diagnostic": {
+        "distinct_lexical_qnames": 30,
+        "fact_count": 45,
+        "missed_occurrences": {}
+      },
+      "inline_fact_count": 45,
+      "inspected_fact_count": 10,
+      "numeric_quality_recorded": "clean",
+      "numeric_status_recorded": "computable",
+      "pair_id": "P001",
+      "pdf_sha256": "5fcbc4caf10b3e8297c75c32b8b538ac2edf1d46c875db78f6dc552af1c60206",
+      "pdf_text_layer_recorded": "none",
+      "period_end": "2022-05-31",
+      "quantitative_evidence_recorded": {
+        "creditors_abs_liability_value": "303,631",
+        "creditors_concept": "uk-core:Creditors",
+        "creditors_evidence": "Creditors: amounts falling due within one year ( 303,631 ) ( 314,670 )",
+        "creditors_ixbrl_value_used": "303,631",
+        "creditors_pdf_page": "page 2",
+        "current_assets_concept": "uk-core:CurrentAssets",
+        "current_assets_evidence": "Current Assets 263,844 266,457",
+        "current_assets_pdf_page": "page 2",
+        "current_assets_value": "263,844"
+      },
+      "report_type": "accounts with accounts type micro entity",
+      "same_filing_confirmed_recorded": "yes",
+      "schema_refs": [
+        "https://xbrl.frc.org.uk/FRS-102/2019-01-01/FRS-102-2019-01-01.xsd"
+      ],
+      "xhtml_sha256": "69bcf7a9e52a1c19cb37344ec4f69880bdeb3e72a821c504ecb9bfeb25f19900"
+    },
+    {
+      "company_number": "11388975",
+      "distinct_expanded_qnames": 45,
+      "distinct_lexical_qnames": 45,
+      "distinct_local_names": 45,
+      "document_metadata_url": "https://document-api.company-information.service.gov.uk/document/eOYwmkZ2rw34xmlhh3TgzVPTB4dWPD66e9GuH-KWZCU",
+      "filing_date": "2023-03-01",
+      "historical_regex_count_diagnostic": {
+        "distinct_lexical_qnames": 45,
+        "fact_count": 82,
+        "missed_occurrences": {}
+      },
+      "inline_fact_count": 82,
+      "inspected_fact_count": 12,
+      "numeric_quality_recorded": "blocked",
+      "numeric_status_recorded": "missing_input",
+      "pair_id": "P002",
+      "pdf_sha256": "ded7640aa3fe7ee837de1cf141c23c79435b55139d67e78120e5d20299ac6027",
+      "pdf_text_layer_recorded": "none",
+      "period_end": "2022-05-31",
+      "quantitative_evidence_recorded": {
+        "creditors_abs_liability_value": "",
+        "creditors_concept": "",
+        "creditors_evidence": "",
+        "creditors_ixbrl_value_used": "",
+        "creditors_pdf_page": "",
+        "current_assets_concept": "core:CurrentAssets",
+        "current_assets_evidence": "10,321 21,636",
+        "current_assets_pdf_page": "page 4",
+        "current_assets_value": "10,321"
+      },
+      "report_type": "accounts with accounts type unaudited abridged",
+      "same_filing_confirmed_recorded": "yes",
+      "schema_refs": [
+        "https://xbrl.frc.org.uk/FRS-102/2021-01-01/FRS-102-2021-01-01.xsd"
+      ],
+      "xhtml_sha256": "429b59679bb7b870744cd268ead5b6180003ec0fad88255fbca022d28313a487"
+    },
+    {
+      "company_number": "11319927",
+      "distinct_expanded_qnames": 49,
+      "distinct_lexical_qnames": 49,
+      "distinct_local_names": 49,
+      "document_metadata_url": "https://document-api.company-information.service.gov.uk/document/o4AmtrAvCuMOayHH4ykDznU0FKZkeqix4LCu97Dpxck",
+      "filing_date": "2023-04-06",
+      "historical_regex_count_diagnostic": {
+        "distinct_lexical_qnames": 48,
+        "fact_count": 103,
+        "missed_occurrences": {
+          "business:BalanceSheetDate": 1,
+          "business:EndDateForPeriodCoveredByReport": 1
+        }
+      },
+      "inline_fact_count": 105,
+      "inspected_fact_count": 11,
+      "numeric_quality_recorded": "blocked",
+      "numeric_status_recorded": "missing_input",
+      "pair_id": "P003",
+      "pdf_sha256": "d5276435171fb90bfd744ebcbb8911246f6ed8970d8039ec8861fb75b08f3beb",
+      "pdf_text_layer_recorded": "none",
+      "period_end": "2022-04-30",
+      "quantitative_evidence_recorded": {
+        "creditors_abs_liability_value": "",
+        "creditors_concept": "",
+        "creditors_evidence": "",
+        "creditors_ixbrl_value_used": "",
+        "creditors_pdf_page": "",
+        "current_assets_concept": "core:CurrentAssets",
+        "current_assets_evidence": "18,544",
+        "current_assets_pdf_page": "page 1",
+        "current_assets_value": "18,544"
+      },
+      "report_type": "accounts with accounts type total exemption full",
+      "same_filing_confirmed_recorded": "yes",
+      "schema_refs": [
+        "https://xbrl.frc.org.uk/FRS-102/2021-01-01/FRS-102-2021-01-01.xsd"
+      ],
+      "xhtml_sha256": "cbe3a3b75aaea30c5627b0f7f1ab3d3fce76d65c53b1f4a9a1da2a1f0a1b7435"
+    },
+    {
+      "company_number": "11470044",
+      "distinct_expanded_qnames": 53,
+      "distinct_lexical_qnames": 53,
+      "distinct_local_names": 53,
+      "document_metadata_url": "https://document-api.company-information.service.gov.uk/document/B6ATzX5oAIUtFBSA9a18Li_o4IsfquRrzc6V1VSDjiM",
+      "filing_date": "2025-10-24",
+      "historical_regex_count_diagnostic": {
+        "distinct_lexical_qnames": 53,
+        "fact_count": 131,
+        "missed_occurrences": {}
+      },
+      "inline_fact_count": 131,
+      "inspected_fact_count": 12,
+      "numeric_quality_recorded": "clean",
+      "numeric_status_recorded": "computable",
+      "pair_id": "P004",
+      "pdf_sha256": "6d6b26f2791a7198176a23dd56695fec55ee5107824cf7bbfc1869c8cdc9c252",
+      "pdf_text_layer_recorded": "none",
+      "period_end": "2022-03-31",
+      "quantitative_evidence_recorded": {
+        "creditors_abs_liability_value": "2,696,888",
+        "creditors_concept": "core:Creditors",
+        "creditors_evidence": "Creditors: amounts falling due within one year: 6 ( 2,696,888 ) ( 2,045,394 )",
+        "creditors_ixbrl_value_used": "2,696,888",
+        "creditors_pdf_page": "page 1",
+        "current_assets_concept": "core:CurrentAssets",
+        "current_assets_evidence": "Total current assets: 1,020,825 1,335,318",
+        "current_assets_pdf_page": "page 1",
+        "current_assets_value": "1,020,825"
+      },
+      "report_type": "accounts with accounts type total exemption full",
+      "same_filing_confirmed_recorded": "yes",
+      "schema_refs": [
+        "https://xbrl.frc.org.uk/FRS-102/2023-01-01/FRS-102-2023-01-01.xsd"
+      ],
+      "xhtml_sha256": "f35b8928175c931fb3b541cfeb19c16546258dda245152da3b27a8cfba66e10c"
+    },
+    {
+      "company_number": "SC648390",
+      "distinct_expanded_qnames": 59,
+      "distinct_lexical_qnames": 59,
+      "distinct_local_names": 59,
+      "document_metadata_url": "https://document-api.company-information.service.gov.uk/document/hHslokjmFj5iREi_oKl5NPl6E9Bgu9KrYnQg5Q07_RI",
+      "filing_date": "2023-09-06",
+      "historical_regex_count_diagnostic": {
+        "distinct_lexical_qnames": 59,
+        "fact_count": 93,
+        "missed_occurrences": {}
+      },
+      "inline_fact_count": 93,
+      "inspected_fact_count": 10,
+      "numeric_quality_recorded": "blocked",
+      "numeric_status_recorded": "missing_input",
+      "pair_id": "P005",
+      "pdf_sha256": "135776266ed1933f1242c50539615c5a3e33a9cf7cefdd39bbaf3d7d8fe4f6c5",
+      "pdf_text_layer_recorded": "none",
+      "period_end": "2022-05-28",
+      "quantitative_evidence_recorded": {
+        "creditors_abs_liability_value": "",
+        "creditors_concept": "",
+        "creditors_evidence": "",
+        "creditors_ixbrl_value_used": "",
+        "creditors_pdf_page": "",
+        "current_assets_concept": "ns5:CurrentAssets",
+        "current_assets_evidence": "12,676 10,931",
+        "current_assets_pdf_page": "page 1",
+        "current_assets_value": "12,676"
+      },
+      "report_type": "accounts with accounts type total exemption full",
+      "same_filing_confirmed_recorded": "yes",
+      "schema_refs": [
+        "https://xbrl.frc.org.uk/FRS-102/2022-01-01/FRS-102-2022-01-01.xsd"
+      ],
+      "xhtml_sha256": "c2294996cfe62fc0cf1a88ccc626dc8e74ee8231c5ffc51cb66ddaf8a1bbbbfb"
+    },
+    {
+      "company_number": "12008243",
+      "distinct_expanded_qnames": 58,
+      "distinct_lexical_qnames": 58,
+      "distinct_local_names": 58,
+      "document_metadata_url": "https://document-api.company-information.service.gov.uk/document/bnBp8SHlsAdmwZmmGDQwEchl0OCo8Nep9GicUc0ysIY",
+      "filing_date": "2026-02-20",
+      "historical_regex_count_diagnostic": {
+        "distinct_lexical_qnames": 58,
+        "fact_count": 88,
+        "missed_occurrences": {}
+      },
+      "inline_fact_count": 88,
+      "inspected_fact_count": 10,
+      "numeric_quality_recorded": "blocked",
+      "numeric_status_recorded": "missing_input",
+      "pair_id": "P006",
+      "pdf_sha256": "3ed778b8456aa766696b40d001d8d4b2e0bf8d058c4d3a6a5470de82946ef40c",
+      "pdf_text_layer_recorded": "none",
+      "period_end": "2025-05-31",
+      "quantitative_evidence_recorded": {
+        "creditors_abs_liability_value": "",
+        "creditors_concept": "",
+        "creditors_evidence": "",
+        "creditors_ixbrl_value_used": "",
+        "creditors_pdf_page": "",
+        "current_assets_concept": "ns5:CurrentAssets",
+        "current_assets_evidence": "13,380 8,299",
+        "current_assets_pdf_page": "page 1",
+        "current_assets_value": "13,380"
+      },
+      "report_type": "accounts with accounts type total exemption full",
+      "same_filing_confirmed_recorded": "yes",
+      "schema_refs": [
+        "https://xbrl.frc.org.uk/FRS-102/2025-01-01/FRS-102-2025-01-01.xsd"
+      ],
+      "xhtml_sha256": "7b2ee20ba74c6464dbaa14b4d256fc0a958ea5154d1475df620bebc47adca068"
+    },
+    {
+      "company_number": "11018157",
+      "distinct_expanded_qnames": 41,
+      "distinct_lexical_qnames": 41,
+      "distinct_local_names": 41,
+      "document_metadata_url": "https://document-api.company-information.service.gov.uk/document/SbW9NsM7GACLmol6wN2nzBZ0OgMSWPbBLWmDUeMcq50",
+      "filing_date": "2025-12-16",
+      "historical_regex_count_diagnostic": {
+        "distinct_lexical_qnames": 41,
+        "fact_count": 49,
+        "missed_occurrences": {}
+      },
+      "inline_fact_count": 49,
+      "inspected_fact_count": 6,
+      "numeric_quality_recorded": "blocked",
+      "numeric_status_recorded": "missing_input",
+      "pair_id": "P007",
+      "pdf_sha256": "79a4fcea7b9a58e3308406d27b6f1f96dcfa642c3b1932507a9c3124311fa948",
+      "pdf_text_layer_recorded": "none",
+      "period_end": "2025-10-31",
+      "quantitative_evidence_recorded": {
+        "creditors_abs_liability_value": "",
+        "creditors_concept": "",
+        "creditors_evidence": "",
+        "creditors_ixbrl_value_used": "",
+        "creditors_pdf_page": "",
+        "current_assets_concept": "ns5:CurrentAssets",
+        "current_assets_evidence": "CURRENT ASSETS 100 100",
+        "current_assets_pdf_page": "page 1",
+        "current_assets_value": "100"
+      },
+      "report_type": "accounts with accounts type micro entity",
+      "same_filing_confirmed_recorded": "yes",
+      "schema_refs": [
+        "https://xbrl.frc.org.uk/FRS-102/2025-01-01/FRS-102-2025-01-01.xsd"
+      ],
+      "xhtml_sha256": "18801d6de44918ce5e789e117d79e06242edb09f25737d23ced7e55ff3fe3b54"
+    },
+    {
+      "company_number": "NI050108",
+      "distinct_expanded_qnames": 38,
+      "distinct_lexical_qnames": 38,
+      "distinct_local_names": 38,
+      "document_metadata_url": "https://document-api.company-information.service.gov.uk/document/xSnAkr16Ja1cJP5k8al2lRGt9AcUUFCzKLiJxhilE7Y",
+      "filing_date": "2016-02-18",
+      "historical_regex_count_diagnostic": {
+        "distinct_lexical_qnames": 38,
+        "fact_count": 53,
+        "missed_occurrences": {}
+      },
+      "inline_fact_count": 53,
+      "inspected_fact_count": 20,
+      "numeric_quality_recorded": "clean",
+      "numeric_status_recorded": "computable",
+      "pair_id": "P008",
+      "pdf_sha256": "1b7733efca24e01a33160734f9e8aee624e3914f5a5b6e292fa7031e20db1a81",
+      "pdf_text_layer_recorded": "none",
+      "period_end": "2015-09-30",
+      "quantitative_evidence_recorded": {
+        "creditors_abs_liability_value": "6,143",
+        "creditors_concept": "uk-gaap-pt:CreditorsDueWithinOneYear",
+        "creditors_evidence": "Creditors: amounts falling due within one year ( 6,143 ) ( 17,746 )",
+        "creditors_ixbrl_value_used": "6,143",
+        "creditors_pdf_page": "page 2",
+        "current_assets_concept": "uk-gaap-pt:CurrentAssets",
+        "current_assets_evidence": "13,210 67,904",
+        "current_assets_pdf_page": "page 2",
+        "current_assets_value": "13,210"
+      },
+      "report_type": "accounts with accounts type total exemption small",
+      "same_filing_confirmed_recorded": "yes",
+      "schema_refs": [
+        "http://www.xbrl.org/uk/gaap/core/2009-09-01/uk-gaap-full-2009-09-01.xsd"
+      ],
+      "xhtml_sha256": "1711485b434e34c58baee25db9a3ef243ec1eb232112e1471b084deb77bea807"
+    },
+    {
+      "company_number": "SC532828",
+      "distinct_expanded_qnames": 35,
+      "distinct_lexical_qnames": 35,
+      "distinct_local_names": 35,
+      "document_metadata_url": "https://document-api.company-information.service.gov.uk/document/s1RcwwPICxgf_L6_eUS8SoNnbQ0CJ6MU6xyPyp7BuGM",
+      "filing_date": "2023-04-30",
+      "historical_regex_count_diagnostic": {
+        "distinct_lexical_qnames": 34,
+        "fact_count": 49,
+        "missed_occurrences": {
+          "business:BalanceSheetDate": 1,
+          "business:EndDateForPeriodCoveredByReport": 1
+        }
+      },
+      "inline_fact_count": 51,
+      "inspected_fact_count": 19,
+      "numeric_quality_recorded": "signed-creditor edge",
+      "numeric_status_recorded": "computable",
+      "pair_id": "P009",
+      "pdf_sha256": "0011d98b8ead1c46a358046e9b1c3a5f9111e0cdc1e9a8c4d1df1360992a4a1f",
+      "pdf_text_layer_recorded": "none",
+      "period_end": "2022-04-30",
+      "quantitative_evidence_recorded": {
+        "creditors_abs_liability_value": "748",
+        "creditors_concept": "core:Creditors",
+        "creditors_evidence": "748",
+        "creditors_ixbrl_value_used": "-748",
+        "creditors_pdf_page": "page 1",
+        "current_assets_concept": "core:CurrentAssets",
+        "current_assets_evidence": "9,506",
+        "current_assets_pdf_page": "page 1",
+        "current_assets_value": "9,506"
+      },
+      "report_type": "accounts with accounts type micro entity",
+      "same_filing_confirmed_recorded": "yes",
+      "schema_refs": [
+        "https://xbrl.frc.org.uk/FRS-102/2021-01-01/FRS-102-2021-01-01.xsd"
+      ],
+      "xhtml_sha256": "be4a86ac7ff021bd973b8b4b83e60f14dda0ae519be0699888c0d0160047ed26"
+    },
+    {
+      "company_number": "SC083211",
+      "distinct_expanded_qnames": 28,
+      "distinct_lexical_qnames": 28,
+      "distinct_local_names": 28,
+      "document_metadata_url": "https://document-api.company-information.service.gov.uk/document/VwfSVoubu_vjfrLynNSUTsaStxaxRo1qRgXSH5YKtyA",
+      "filing_date": "2019-09-18",
+      "historical_regex_count_diagnostic": {
+        "distinct_lexical_qnames": 28,
+        "fact_count": 42,
+        "missed_occurrences": {}
+      },
+      "inline_fact_count": 42,
+      "inspected_fact_count": 20,
+      "numeric_quality_recorded": "blocked",
+      "numeric_status_recorded": "non_numeric_input",
+      "pair_id": "P010",
+      "pdf_sha256": "67de5635b7878e51fad1afbcb186daf21dede7352285ed50d799588dfb6eeff3",
+      "pdf_text_layer_recorded": "none",
+      "period_end": "2019-08-31",
+      "quantitative_evidence_recorded": {
+        "creditors_abs_liability_value": "17,628",
+        "creditors_concept": "uk-core:Creditors",
+        "creditors_evidence": "Creditors: amounts falling due within one year ( 17,628 ) ( 17,628 )",
+        "creditors_ixbrl_value_used": "17,628",
+        "creditors_pdf_page": "page 1",
+        "current_assets_concept": "uk-core:CurrentAssets",
+        "current_assets_evidence": "Current Assets - -",
+        "current_assets_pdf_page": "page 1",
+        "current_assets_value": ""
+      },
+      "report_type": "accounts with accounts type micro entity",
+      "same_filing_confirmed_recorded": "yes",
+      "schema_refs": [
+        "https://xbrl.frc.org.uk/FRS-102/2014-09-01/FRS-102-2014-09-01.xsd"
+      ],
+      "xhtml_sha256": "3dee27ef2ad66c7afaffc0773a36d6ff94a3b566145a8cee8ac75ea746302492"
+    },
+    {
+      "company_number": "SC088201",
+      "distinct_expanded_qnames": 51,
+      "distinct_lexical_qnames": 51,
+      "distinct_local_names": 51,
+      "document_metadata_url": "https://document-api.company-information.service.gov.uk/document/0Dy5f9WlEYcHO18QwiiudU7_TN7MJREJmg2NgwwFev4",
+      "filing_date": "2016-08-05",
+      "historical_regex_count_diagnostic": {
+        "distinct_lexical_qnames": 51,
+        "fact_count": 77,
+        "missed_occurrences": {}
+      },
+      "inline_fact_count": 77,
+      "inspected_fact_count": 12,
+      "numeric_quality_recorded": "clean",
+      "numeric_status_recorded": "computable",
+      "pair_id": "P011",
+      "pdf_sha256": "c9fb5d8f129b84865725c1224d221fafafb6f1f18df833e06a264ce819495bdb",
+      "pdf_text_layer_recorded": "none",
+      "period_end": "2015-12-31",
+      "quantitative_evidence_recorded": {
+        "creditors_abs_liability_value": "425,334",
+        "creditors_concept": "uk-gaap:CreditorsDueWithinOneYear",
+        "creditors_evidence": "Creditors: Amounts falling due within one year ( 425,334 ) ( 1,052,455 )",
+        "creditors_ixbrl_value_used": "425,334",
+        "creditors_pdf_page": "page 1",
+        "current_assets_concept": "uk-gaap:CurrentAssets",
+        "current_assets_evidence": "1,195,084 1,772,603",
+        "current_assets_pdf_page": "page 1",
+        "current_assets_value": "1,195,084"
+      },
+      "report_type": "accounts with accounts type total exemption small",
+      "same_filing_confirmed_recorded": "yes",
+      "schema_refs": [
+        "http://www.xbrl.org/uk/gaap/core/2009-09-01/uk-gaap-full-2009-09-01.xsd"
+      ],
+      "xhtml_sha256": "c2581586aabc1576f16815bbae93f78b32a5ea7f4b15035b7b6de9e25a2f967d"
+    },
+    {
+      "company_number": "06221901",
+      "distinct_expanded_qnames": 60,
+      "distinct_lexical_qnames": 60,
+      "distinct_local_names": 60,
+      "document_metadata_url": "https://document-api.company-information.service.gov.uk/document/-3Pa4rgfp1y0MRjw-RO2kU0RoT93cVrAvgF5p2g3f3I",
+      "filing_date": "2026-01-24",
+      "historical_regex_count_diagnostic": {
+        "distinct_lexical_qnames": 60,
+        "fact_count": 90,
+        "missed_occurrences": {}
+      },
+      "inline_fact_count": 90,
+      "inspected_fact_count": 20,
+      "numeric_quality_recorded": "clean",
+      "numeric_status_recorded": "computable",
+      "pair_id": "P012",
+      "pdf_sha256": "e958696437e9eb7ae3b3b0315d2b6ff0a265348dea9a37bc83ffcadf4a1d3b11",
+      "pdf_text_layer_recorded": "none",
+      "period_end": "2025-04-30",
+      "quantitative_evidence_recorded": {
+        "creditors_abs_liability_value": "5,223",
+        "creditors_concept": "ns5:Creditors",
+        "creditors_evidence": "Amounts falling due within one year 6 5,223 5,986",
+        "creditors_ixbrl_value_used": "5,223",
+        "creditors_pdf_page": "page 1",
+        "current_assets_concept": "ns5:CurrentAssets",
+        "current_assets_evidence": "7,070 6,508",
+        "current_assets_pdf_page": "page 1",
+        "current_assets_value": "7,070"
+      },
+      "report_type": "accounts with accounts type total exemption full",
+      "same_filing_confirmed_recorded": "yes",
+      "schema_refs": [
+        "https://xbrl.frc.org.uk/FRS-102/2023-01-01/FRS-102-2023-01-01.xsd"
+      ],
+      "xhtml_sha256": "e41efe93cb7152e6c980cc02a6f7a130f403aa3075b6fd998489c0d3fbed48fb"
+    },
+    {
+      "company_number": "SC579695",
+      "distinct_expanded_qnames": 50,
+      "distinct_lexical_qnames": 50,
+      "distinct_local_names": 50,
+      "document_metadata_url": "https://document-api.company-information.service.gov.uk/document/FR6lYWOa3LPS1xd3Gzw5uclBk0STb05z-0oBYDfVi9I",
+      "filing_date": "2023-12-08",
+      "historical_regex_count_diagnostic": {
+        "distinct_lexical_qnames": 50,
+        "fact_count": 94,
+        "missed_occurrences": {}
+      },
+      "inline_fact_count": 94,
+      "inspected_fact_count": 11,
+      "numeric_quality_recorded": "blocked",
+      "numeric_status_recorded": "missing_input",
+      "pair_id": "P013",
+      "pdf_sha256": "4c7450aaae394d60c335658a8f50235c7f5160d709947fdc1c8cae18c7a58eba",
+      "pdf_text_layer_recorded": "none",
+      "period_end": "2023-10-31",
+      "quantitative_evidence_recorded": {
+        "creditors_abs_liability_value": "",
+        "creditors_concept": "",
+        "creditors_evidence": "",
+        "creditors_ixbrl_value_used": "",
+        "creditors_pdf_page": "",
+        "current_assets_concept": "frs-core:CurrentAssets",
+        "current_assets_evidence": "14 3,986",
+        "current_assets_pdf_page": "page 1",
+        "current_assets_value": "14"
+      },
+      "report_type": "accounts with accounts type total exemption full",
+      "same_filing_confirmed_recorded": "yes",
+      "schema_refs": [
+        "https://xbrl.frc.org.uk/FRS-102/2023-01-01/FRS-102-2023-01-01.xsd"
+      ],
+      "xhtml_sha256": "f293654224d70f19f3c6c5408a891c9b2a338b33162022399360e40d117578b3"
+    },
+    {
+      "company_number": "11951060",
+      "distinct_expanded_qnames": 60,
+      "distinct_lexical_qnames": 60,
+      "distinct_local_names": 60,
+      "document_metadata_url": "https://document-api.company-information.service.gov.uk/document/xzOxfH8RgcmFXrU4N5ersw20AGDJrIrHjgCgKZPLhUQ",
+      "filing_date": "2025-11-18",
+      "historical_regex_count_diagnostic": {
+        "distinct_lexical_qnames": 60,
+        "fact_count": 93,
+        "missed_occurrences": {}
+      },
+      "inline_fact_count": 93,
+      "inspected_fact_count": 20,
+      "numeric_quality_recorded": "blocked",
+      "numeric_status_recorded": "missing_input",
+      "pair_id": "P014",
+      "pdf_sha256": "b4c0e316122d5f7bb6349881e6ed118bae009fc55dc5751205aceca0c2fc9640",
+      "pdf_text_layer_recorded": "none",
+      "period_end": "2025-03-31",
+      "quantitative_evidence_recorded": {
+        "creditors_abs_liability_value": "102,088",
+        "creditors_concept": "ns5:Creditors",
+        "creditors_evidence": "Amounts falling due within one year 5 102,088 152,631",
+        "creditors_ixbrl_value_used": "102,088",
+        "creditors_pdf_page": "page 1",
+        "current_assets_concept": "",
+        "current_assets_evidence": "",
+        "current_assets_pdf_page": "",
+        "current_assets_value": ""
+      },
+      "report_type": "accounts with accounts type total exemption full",
+      "same_filing_confirmed_recorded": "yes",
+      "schema_refs": [
+        "https://xbrl.frc.org.uk/FRS-102/2023-01-01/FRS-102-2023-01-01.xsd"
+      ],
+      "xhtml_sha256": "fa89ba407fadafc4336252da1126f3b33b063ea046e04719acf08099c2d4bea7"
+    },
+    {
+      "company_number": "11799956",
+      "distinct_expanded_qnames": 43,
+      "distinct_lexical_qnames": 43,
+      "distinct_local_names": 43,
+      "document_metadata_url": "https://document-api.company-information.service.gov.uk/document/OHb3TUq2GmQf-u-Dl_oZVgfrvDHCdVOWlS_iUV7Rw84",
+      "filing_date": "2025-09-17",
+      "historical_regex_count_diagnostic": {
+        "distinct_lexical_qnames": 43,
+        "fact_count": 63,
+        "missed_occurrences": {}
+      },
+      "inline_fact_count": 63,
+      "inspected_fact_count": 11,
+      "numeric_quality_recorded": "clean",
+      "numeric_status_recorded": "computable",
+      "pair_id": "P015",
+      "pdf_sha256": "cd4b9683255c45d9616dc351399d3066519166b364a52f832b334bc95e53fcce",
+      "pdf_text_layer_recorded": "none",
+      "period_end": "2024-01-31",
+      "quantitative_evidence_recorded": {
+        "creditors_abs_liability_value": "19,430",
+        "creditors_concept": "frs-core:Creditors",
+        "creditors_evidence": "Creditors: Amounts Falling Due Within One Year 5 ( 19,430 ) ( 17,939 )",
+        "creditors_ixbrl_value_used": "19,430",
+        "creditors_pdf_page": "page 1",
+        "current_assets_concept": "frs-core:CurrentAssets",
+        "current_assets_evidence": "19,701 18,269",
+        "current_assets_pdf_page": "page 1",
+        "current_assets_value": "19,701"
+      },
+      "report_type": "accounts with accounts type total exemption full",
+      "same_filing_confirmed_recorded": "yes",
+      "schema_refs": [
+        "https://xbrl.frc.org.uk/FRS-102/2025-01-01/FRS-102-2025-01-01.xsd"
+      ],
+      "xhtml_sha256": "94f82920f3a3f8b2ac3eac3b4e1f31f30d8a108f31e4d93047ea854ff207f477"
+    },
+    {
+      "company_number": "10671929",
+      "distinct_expanded_qnames": 80,
+      "distinct_lexical_qnames": 80,
+      "distinct_local_names": 80,
+      "document_metadata_url": "https://document-api.company-information.service.gov.uk/document/Bq330czLWyHL2hhrlQzoiRF9GBI-NnoZ0APLVvu8-68",
+      "filing_date": "2025-07-10",
+      "historical_regex_count_diagnostic": {
+        "distinct_lexical_qnames": 80,
+        "fact_count": 187,
+        "missed_occurrences": {}
+      },
+      "inline_fact_count": 187,
+      "inspected_fact_count": 12,
+      "numeric_quality_recorded": "blocked",
+      "numeric_status_recorded": "missing_input",
+      "pair_id": "P016",
+      "pdf_sha256": "19b53312f3796e61cfc40c3be50a9dd0c4c6470c69f0423290ce629b5f32df24",
+      "pdf_text_layer_recorded": "none",
+      "period_end": "2024-12-31",
+      "quantitative_evidence_recorded": {
+        "creditors_abs_liability_value": "",
+        "creditors_concept": "",
+        "creditors_evidence": "",
+        "creditors_ixbrl_value_used": "",
+        "creditors_pdf_page": "",
+        "current_assets_concept": "d:CurrentAssets",
+        "current_assets_evidence": "2,893,751 1,856,950",
+        "current_assets_pdf_page": "page 2",
+        "current_assets_value": "2,893,751"
+      },
+      "report_type": "accounts with accounts type total exemption full",
+      "same_filing_confirmed_recorded": "yes",
+      "schema_refs": [
+        "https://xbrl.frc.org.uk/FRS-102/2023-01-01/FRS-102-2023-01-01.xsd"
+      ],
+      "xhtml_sha256": "161ceb79499272fe0943d5894cf8acb2781a01bea47ef1bc48a709fb342931ee"
+    },
+    {
+      "company_number": "12458955",
+      "distinct_expanded_qnames": 26,
+      "distinct_lexical_qnames": 26,
+      "distinct_local_names": 26,
+      "document_metadata_url": "https://document-api.company-information.service.gov.uk/document/XUOWY-6_-FWehCdRfAHoH_FiIBCyXpRlxNHT_FVw7Kw",
+      "filing_date": "2025-11-29",
+      "historical_regex_count_diagnostic": {
+        "distinct_lexical_qnames": 26,
+        "fact_count": 35,
+        "missed_occurrences": {}
+      },
+      "inline_fact_count": 35,
+      "inspected_fact_count": 15,
+      "numeric_quality_recorded": "blocked",
+      "numeric_status_recorded": "missing_input",
+      "pair_id": "P017",
+      "pdf_sha256": "277b6960e8289bd2ddda42c43e1baeeeb02c30e1c38cc953119badf2bdc2cd6b",
+      "pdf_text_layer_recorded": "none",
+      "period_end": "2025-02-28",
+      "quantitative_evidence_recorded": {
+        "creditors_abs_liability_value": "",
+        "creditors_concept": "",
+        "creditors_evidence": "",
+        "creditors_ixbrl_value_used": "",
+        "creditors_pdf_page": "",
+        "current_assets_concept": "uk-core:CurrentAssets",
+        "current_assets_evidence": "Current Assets 16,729 857",
+        "current_assets_pdf_page": "page 2",
+        "current_assets_value": "16,729"
+      },
+      "report_type": "accounts with accounts type micro entity",
+      "same_filing_confirmed_recorded": "yes",
+      "schema_refs": [
+        "https://xbrl.frc.org.uk/FRS-102/2023-01-01/FRS-102-2023-01-01.xsd"
+      ],
+      "xhtml_sha256": "b8afe04ca4cfbc76777ce9bdd9abfc89fa677212fadd9e5d9982bb6f9ea843ca"
+    },
+    {
+      "company_number": "07682728",
+      "distinct_expanded_qnames": 49,
+      "distinct_lexical_qnames": 49,
+      "distinct_local_names": 49,
+      "document_metadata_url": "https://document-api.company-information.service.gov.uk/document/NaJpDUg5UjEy3E-K3ntDNWUVTIDBxr1nHb_ivDr8UII",
+      "filing_date": "2024-02-02",
+      "historical_regex_count_diagnostic": {
+        "distinct_lexical_qnames": 49,
+        "fact_count": 68,
+        "missed_occurrences": {}
+      },
+      "inline_fact_count": 68,
+      "inspected_fact_count": 11,
+      "numeric_quality_recorded": "blocked",
+      "numeric_status_recorded": "missing_input",
+      "pair_id": "P018",
+      "pdf_sha256": "e707f55f8eb2a1b4ddc4c9f23b0befe897c0362182c87ce3992889cef01b96d3",
+      "pdf_text_layer_recorded": "none",
+      "period_end": "2023-03-31",
+      "quantitative_evidence_recorded": {
+        "creditors_abs_liability_value": "",
+        "creditors_concept": "",
+        "creditors_evidence": "",
+        "creditors_ixbrl_value_used": "",
+        "creditors_pdf_page": "",
+        "current_assets_concept": "ns6:CurrentAssets",
+        "current_assets_evidence": "CURRENT ASSETS 6,502 73,157",
+        "current_assets_pdf_page": "page 1",
+        "current_assets_value": "6,502"
+      },
+      "report_type": "accounts with accounts type micro entity",
+      "same_filing_confirmed_recorded": "yes",
+      "schema_refs": [
+        "https://xbrl.frc.org.uk/FRS-102/2021-01-01/FRS-102-2021-01-01.xsd"
+      ],
+      "xhtml_sha256": "18479b55e01a88433faf7edf85cadcd752255860ae075608b8a05847fadba425"
+    },
+    {
+      "company_number": "11359891",
+      "distinct_expanded_qnames": 29,
+      "distinct_lexical_qnames": 29,
+      "distinct_local_names": 29,
+      "document_metadata_url": "https://document-api.company-information.service.gov.uk/document/xE-8grtMn3Yz-Jup_roN1BKxk1G5MuQfMTwTfh_GLAg",
+      "filing_date": "2024-07-05",
+      "historical_regex_count_diagnostic": {
+        "distinct_lexical_qnames": 29,
+        "fact_count": 43,
+        "missed_occurrences": {}
+      },
+      "inline_fact_count": 43,
+      "inspected_fact_count": 10,
+      "numeric_quality_recorded": "clean",
+      "numeric_status_recorded": "computable",
+      "pair_id": "P019",
+      "pdf_sha256": "8d957012255b9c8ae49404cf9eeac83dab252df4b897a88316364195702ac780",
+      "pdf_text_layer_recorded": "none",
+      "period_end": "2023-05-31",
+      "quantitative_evidence_recorded": {
+        "creditors_abs_liability_value": "3,400",
+        "creditors_concept": "uk-core:Creditors",
+        "creditors_evidence": "Creditors: amounts falling due within one year ( 3,400 ) ( 15,400 )",
+        "creditors_ixbrl_value_used": "3,400",
+        "creditors_pdf_page": "page 2",
+        "current_assets_concept": "uk-core:CurrentAssets",
+        "current_assets_evidence": "Current Assets 3,271 32,621",
+        "current_assets_pdf_page": "page 2",
+        "current_assets_value": "3,271"
+      },
+      "report_type": "accounts with accounts type micro entity",
+      "same_filing_confirmed_recorded": "yes",
+      "schema_refs": [
+        "https://xbrl.frc.org.uk/FRS-102/2023-01-01/FRS-102-2023-01-01.xsd"
+      ],
+      "xhtml_sha256": "a24d96f57869980c0665ef3835065bf142937416a13d1b396e9df5956792cd48"
+    },
+    {
+      "company_number": "04762263",
+      "distinct_expanded_qnames": 42,
+      "distinct_lexical_qnames": 42,
+      "distinct_local_names": 42,
+      "document_metadata_url": "https://document-api.company-information.service.gov.uk/document/ykkRdt-Q1XIqCYKMgNlAo4XeEjLwmFsvTaqmefTjkbk",
+      "filing_date": "2025-06-10",
+      "historical_regex_count_diagnostic": {
+        "distinct_lexical_qnames": 42,
+        "fact_count": 52,
+        "missed_occurrences": {}
+      },
+      "inline_fact_count": 52,
+      "inspected_fact_count": 14,
+      "numeric_quality_recorded": "clean",
+      "numeric_status_recorded": "computable",
+      "pair_id": "P020",
+      "pdf_sha256": "b3ed3da672641a9774a7d2c8b51afc66be4eebdf145119606a1f76dc2c0d5e10",
+      "pdf_text_layer_recorded": "none",
+      "period_end": "2025-03-31",
+      "quantitative_evidence_recorded": {
+        "creditors_abs_liability_value": "10,418",
+        "creditors_concept": "ns5:Creditors",
+        "creditors_evidence": "Amounts falling due within one year ( 10,418 ) ( 14,572 )",
+        "creditors_ixbrl_value_used": "10,418",
+        "creditors_pdf_page": "page 1",
+        "current_assets_concept": "ns5:CurrentAssets",
+        "current_assets_evidence": "CURRENT ASSETS 24,333 22,723",
+        "current_assets_pdf_page": "page 1",
+        "current_assets_value": "24,333"
+      },
+      "report_type": "accounts with accounts type micro entity",
+      "same_filing_confirmed_recorded": "yes",
+      "schema_refs": [
+        "https://xbrl.frc.org.uk/FRS-102/2023-01-01/FRS-102-2023-01-01.xsd"
+      ],
+      "xhtml_sha256": "3002682b126644e66c2e0061a277bbe79350c8b8abed71cab45b5c2a085cd4eb"
+    }
+  ],
+  "source_tables": [
+    {
+      "role": "pair_manifest",
+      "sha256": "f709669e78050e2ac2e7248203ba72a617e7e92b6b31463514fa2148b008c85e"
+    },
+    {
+      "role": "fact_audit",
+      "sha256": "63fc6037a65e8d7585deaa9538372c097341e85f9ddb1aee90591cd579614299"
+    },
+    {
+      "role": "task_results",
+      "sha256": "95f154cb4ca1024f0eed9bd6bfd048542a3d00a4688d8dd9d68156c7b4365529"
+    }
+  ],
+  "summary": {
+    "inspected_fact_count": 266,
+    "match_status_recorded": {
+      "exact": 266
+    },
+    "numeric_quality_recorded": {
+      "blocked": 11,
+      "clean": 8,
+      "signed-creditor edge": 1
+    },
+    "numeric_status_recorded": {
+      "computable": 9,
+      "missing_input": 10,
+      "non_numeric_input": 1
+    },
+    "pair_count": 20,
+    "processing_mode_recorded": {
+      "OCR-needed": 266
+    },
+    "report_types": {
+      "accounts with accounts type micro entity": 8,
+      "accounts with accounts type total exemption full": 9,
+      "accounts with accounts type total exemption small": 2,
+      "accounts with accounts type unaudited abridged": 1
+    }
+  },
+  "version": "auditops-ch-inspection-summary.v1"
+}

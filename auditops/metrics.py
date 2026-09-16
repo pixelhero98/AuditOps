@@ -5,10 +5,9 @@ import json
 from dataclasses import dataclass
 from decimal import Decimal
 from importlib import resources
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from .pipeline import _stable_digest, connect_db, parse_date
-
 
 GENERATOR_VERSION = "v0"
 
@@ -57,32 +56,46 @@ class Refusal(Exception):
 
 
 class Catalog:
-    def __init__(self, conn, filing_id: Optional[str] = None, ticker: Optional[str] = None):
+    def __init__(
+        self, conn, filing_id: Optional[str] = None, ticker: Optional[str] = None
+    ):
         self.conn = conn
         filing_scope_ids: Optional[List[str]] = None
         if filing_id is not None and ticker is None:
-            filing_row = conn.execute("SELECT * FROM filings WHERE filing_id=?", (filing_id,)).fetchone()
+            filing_row = conn.execute(
+                "SELECT * FROM filings WHERE filing_id=?", (filing_id,)
+            ).fetchone()
             if filing_row is None:
                 raise KeyError(f"Unknown filing_id: {filing_id}")
             ticker = filing_row["ticker"]
             if ticker:
                 filing_scope_ids = [
                     row["filing_id"]
-                    for row in conn.execute("SELECT filing_id FROM filings WHERE ticker=? ORDER BY filing_id", (ticker,)).fetchall()
+                    for row in conn.execute(
+                        "SELECT filing_id FROM filings WHERE ticker=? ORDER BY filing_id",
+                        (ticker,),
+                    ).fetchall()
                 ]
             else:
                 filing_scope_ids = [filing_id]
         elif ticker is not None:
             filing_scope_ids = [
                 row["filing_id"]
-                for row in conn.execute("SELECT filing_id FROM filings WHERE ticker=? ORDER BY filing_id", (ticker,)).fetchall()
+                for row in conn.execute(
+                    "SELECT filing_id FROM filings WHERE ticker=? ORDER BY filing_id",
+                    (ticker,),
+                ).fetchall()
             ]
 
         filing_query = "SELECT * FROM filings"
         filing_params: Tuple[Any, ...] = ()
-        fact_query = "SELECT * FROM facts_canon ORDER BY filing_id, period_key, concept_norm"
+        fact_query = (
+            "SELECT * FROM facts_canon ORDER BY filing_id, period_key, concept_norm"
+        )
         fact_params: Tuple[Any, ...] = ()
-        cal_query = "SELECT * FROM cal_edges ORDER BY filing_id, role, parent_concept_norm, ord"
+        cal_query = (
+            "SELECT * FROM cal_edges ORDER BY filing_id, role, parent_concept_norm, ord"
+        )
         cal_params: Tuple[Any, ...] = ()
 
         if filing_scope_ids is not None:
@@ -98,8 +111,12 @@ class Catalog:
             row["filing_id"]: dict(row)
             for row in conn.execute(filing_query, filing_params).fetchall()
         }
-        self.facts = [dict(row) for row in conn.execute(fact_query, fact_params).fetchall()]
-        self.cal_edges = [dict(row) for row in conn.execute(cal_query, cal_params).fetchall()]
+        self.facts = [
+            dict(row) for row in conn.execute(fact_query, fact_params).fetchall()
+        ]
+        self.cal_edges = [
+            dict(row) for row in conn.execute(cal_query, cal_params).fetchall()
+        ]
 
         for fact in self.facts:
             if fact["value_num_exact"] is not None:
@@ -114,9 +131,13 @@ class Catalog:
         for fact in self.facts:
             self.facts_by_ticker.setdefault(fact["ticker"], []).append(fact)
 
-        self.cal_edges_by_filing_parent: Dict[Tuple[str, str], List[Dict[str, Any]]] = {}
+        self.cal_edges_by_filing_parent: Dict[
+            Tuple[str, str], List[Dict[str, Any]]
+        ] = {}
         for edge in self.cal_edges:
-            self.cal_edges_by_filing_parent.setdefault((edge["filing_id"], edge["parent_concept_norm"]), []).append(edge)
+            self.cal_edges_by_filing_parent.setdefault(
+                (edge["filing_id"], edge["parent_concept_norm"]), []
+            ).append(edge)
 
     def periods_for_filing(self, filing_id: str) -> List[PeriodDescriptor]:
         seen = set()
@@ -161,12 +182,19 @@ class Catalog:
             and bool(fact["is_ytd"]) == bool(period.is_ytd)
         )
 
-    def _choose_match(self, matches: List[Dict[str, Any]], preferred_filing_id: str) -> Dict[str, Any]:
+    def _choose_match(
+        self, matches: List[Dict[str, Any]], preferred_filing_id: str
+    ) -> Dict[str, Any]:
         if not matches:
-            raise Refusal("MISSING_INPUT", "No canonical fact matched the requested input.")
+            raise Refusal(
+                "MISSING_INPUT", "No canonical fact matched the requested input."
+            )
 
         def score(row: Dict[str, Any]) -> Tuple[int, int]:
-            return (0 if row["filing_id"] == preferred_filing_id else 1, 0 if row["source_anchor"] else 1)
+            return (
+                0 if row["filing_id"] == preferred_filing_id else 1,
+                0 if row["source_anchor"] else 1,
+            )
 
         scored = {}
         for row in matches:
@@ -176,7 +204,10 @@ class Catalog:
         if len(top_rows) > 1:
             values = {(row["value_num_exact"], row["value_text"]) for row in top_rows}
             if len(values) > 1:
-                raise Refusal("AMBIGUOUS_CONTEXT", "Multiple canonical facts compete for the same input across filings.")
+                raise Refusal(
+                    "AMBIGUOUS_CONTEXT",
+                    "Multiple canonical facts compete for the same input across filings.",
+                )
             top_rows.sort(key=lambda row: (row["filing_id"], row["fact_evidence_id"]))
         return top_rows[0]
 
@@ -199,7 +230,10 @@ class Catalog:
             ]
             if matches:
                 return self._choose_match(matches, preferred_filing_id), alias
-        raise Refusal("MISSING_INPUT", f"No canonical fact found for aliases: {', '.join(aliases)}")
+        raise Refusal(
+            "MISSING_INPUT",
+            f"No canonical fact found for aliases: {', '.join(aliases)}",
+        )
 
     def find_alias_match_near_asof(
         self,
@@ -218,7 +252,9 @@ class Catalog:
                     continue
                 if unit_family is not None and fact["unit_canon"] != unit_family:
                     continue
-                fact_end = parse_date(fact["period_end"]) if fact["period_end"] else None
+                fact_end = (
+                    parse_date(fact["period_end"]) if fact["period_end"] else None
+                )
                 if fact_end is None:
                     continue
                 day_delta = abs((fact_end - target_date).days)
@@ -239,11 +275,22 @@ class Catalog:
             top_rows = [fact for delta, fact in matches if delta == top_delta]
             values = {(row["value_num_exact"], row["value_text"]) for row in top_rows}
             if len(values) > 1:
-                raise Refusal("AMBIGUOUS_CONTEXT", "Multiple near-date ASOF facts compete for the same input.")
-            top_rows.sort(key=lambda row: (0 if row["filing_id"] == preferred_filing_id else 1, row["fact_evidence_id"]))
+                raise Refusal(
+                    "AMBIGUOUS_CONTEXT",
+                    "Multiple near-date ASOF facts compete for the same input.",
+                )
+            top_rows.sort(
+                key=lambda row: (
+                    0 if row["filing_id"] == preferred_filing_id else 1,
+                    row["fact_evidence_id"],
+                )
+            )
             return top_rows[0], alias
 
-        raise Refusal("MISSING_INPUT", f"No canonical ASOF fact found near {target_date.isoformat()} for aliases: {', '.join(aliases)}")
+        raise Refusal(
+            "MISSING_INPUT",
+            f"No canonical ASOF fact found near {target_date.isoformat()} for aliases: {', '.join(aliases)}",
+        )
 
     def derive_quarter_value(
         self,
@@ -266,7 +313,9 @@ class Catalog:
             is_ytd=False,
         )
         try:
-            fact, alias = self.find_alias_match(ticker, direct_period, aliases, unit_family, preferred_filing_id)
+            fact, alias = self.find_alias_match(
+                ticker, direct_period, aliases, unit_family, preferred_filing_id
+            )
             return (
                 ResolvedInput(
                     name="derived-quarter",
@@ -305,7 +354,9 @@ class Catalog:
                 fiscal_quarter=1,
                 is_ytd=True,
             )
-            fact, alias = self.find_alias_match(ticker, ytd_period, aliases, unit_family, preferred_filing_id)
+            fact, alias = self.find_alias_match(
+                ticker, ytd_period, aliases, unit_family, preferred_filing_id
+            )
             return (
                 ResolvedInput(
                     name="derived-quarter",
@@ -343,11 +394,25 @@ class Catalog:
             fiscal_quarter=fiscal_quarter,
             is_ytd=True,
         )
-        prev_selector = self.derive_quarter_value(ticker, aliases, fiscal_year, fiscal_quarter - 1, unit_family, preferred_filing_id)
-        current_fact, alias = self.find_alias_match(ticker, current_ytd, aliases, unit_family, preferred_filing_id)
+        prev_selector = self.derive_quarter_value(
+            ticker,
+            aliases,
+            fiscal_year,
+            fiscal_quarter - 1,
+            unit_family,
+            preferred_filing_id,
+        )
+        current_fact, alias = self.find_alias_match(
+            ticker, current_ytd, aliases, unit_family, preferred_filing_id
+        )
         previous_input, _ = prev_selector
-        if current_fact["value_num_exact"] is None or previous_input.numeric_value is None:
-            raise Refusal("MISSING_INPUT", "Derived quarter requires numeric YTD inputs.")
+        if (
+            current_fact["value_num_exact"] is None
+            or previous_input.numeric_value is None
+        ):
+            raise Refusal(
+                "MISSING_INPUT", "Derived quarter requires numeric YTD inputs."
+            )
         value = current_fact["value_num_exact"] - previous_input.numeric_value
         return (
             ResolvedInput(
@@ -359,7 +424,10 @@ class Catalog:
                 unit_canon=current_fact["unit_canon"],
                 numeric_value=value,
                 text_value=str(value),
-                fact_evidence_ids=[current_fact["fact_evidence_id"], *previous_input.fact_evidence_ids],
+                fact_evidence_ids=[
+                    current_fact["fact_evidence_id"],
+                    *previous_input.fact_evidence_ids,
+                ],
                 trace=[
                     {
                         "kind": "derived_quarter",
@@ -375,10 +443,19 @@ class Catalog:
             alias,
         )
 
-    def calc_edge_source(self, filing_id: str, target_aliases: Sequence[str], component_concepts: Sequence[str]) -> str:
+    def calc_edge_source(
+        self,
+        filing_id: str,
+        target_aliases: Sequence[str],
+        component_concepts: Sequence[str],
+    ) -> str:
         for alias in target_aliases:
             edges = self.cal_edges_by_filing_parent.get((filing_id, alias), [])
-            children = {edge["child_concept_norm"] for edge in edges if float(edge["weight"]) > 0}
+            children = {
+                edge["child_concept_norm"]
+                for edge in edges
+                if float(edge["weight"]) > 0
+            }
             if children and set(component_concepts).issubset(children):
                 return "calculation_linkbase"
         return "explicit_override"
@@ -401,14 +478,20 @@ def _shift_year_safe(value, years: int):
 
 def _period_end_asof(period: PeriodDescriptor, year_delta: int = 0) -> PeriodDescriptor:
     if not period.period_end:
-        raise Refusal("PERIOD_NOT_SUPPORTED", "Period-end ASOF selector requires an end date.")
+        raise Refusal(
+            "PERIOD_NOT_SUPPORTED", "Period-end ASOF selector requires an end date."
+        )
 
     end = parse_date(period.period_end)
     if end is None:
-        raise Refusal("PERIOD_NOT_SUPPORTED", "Period-end ASOF selector requires an ISO end date.")
+        raise Refusal(
+            "PERIOD_NOT_SUPPORTED", "Period-end ASOF selector requires an ISO end date."
+        )
 
     target_end = _shift_year_safe(end, year_delta)
-    fiscal_year = period.fiscal_year + year_delta if period.fiscal_year is not None else None
+    fiscal_year = (
+        period.fiscal_year + year_delta if period.fiscal_year is not None else None
+    )
     return PeriodDescriptor(
         filing_id=period.filing_id,
         ticker=period.ticker,
@@ -432,10 +515,18 @@ def _resolve_asof_input(
     year_delta: int,
 ) -> ResolvedInput:
     target_period = _period_end_asof(base_period, year_delta=year_delta)
-    target_date = parse_date(target_period.period_end) if target_period.period_end else None
+    target_date = (
+        parse_date(target_period.period_end) if target_period.period_end else None
+    )
     fallback_used = False
     try:
-        fact, alias = catalog.find_alias_match(base_period.ticker, target_period, aliases, unit_family, base_period.filing_id)
+        fact, alias = catalog.find_alias_match(
+            base_period.ticker,
+            target_period,
+            aliases,
+            unit_family,
+            base_period.filing_id,
+        )
     except Refusal as refusal:
         if refusal.code != "MISSING_INPUT" or target_date is None:
             raise
@@ -491,12 +582,13 @@ def _shift_period(period: PeriodDescriptor, selector: str) -> PeriodDescriptor:
         return period
     if selector == "prior_year_same_period":
         if period.fiscal_year is None:
-            raise Refusal("PERIOD_NOT_SUPPORTED", "Prior-year comparison requires a fiscal year.")
+            raise Refusal(
+                "PERIOD_NOT_SUPPORTED", "Prior-year comparison requires a fiscal year."
+            )
         if period.period_type == "ASOF":
             return _period_end_asof(period, year_delta=-1)
         if period.period_type in {"Q", "YTD"} and period.fiscal_quarter is not None:
             prefix = "YTD_Q" if period.period_type == "YTD" else "Q"
-            joiner = "" if period.period_type == "YTD" else ""
             key = f"{prefix}{period.fiscal_quarter}_{period.fiscal_year - 1}"
             return PeriodDescriptor(
                 filing_id=period.filing_id,
@@ -521,10 +613,16 @@ def _shift_period(period: PeriodDescriptor, selector: str) -> PeriodDescriptor:
                 fiscal_quarter=4,
                 is_ytd=False,
             )
-        raise Refusal("PERIOD_NOT_SUPPORTED", "Prior-year selector is not implemented for this period type.")
+        raise Refusal(
+            "PERIOD_NOT_SUPPORTED",
+            "Prior-year selector is not implemented for this period type.",
+        )
     if selector == "previous_quarter":
         if period.fiscal_year is None or period.fiscal_quarter is None:
-            raise Refusal("PERIOD_NOT_SUPPORTED", "Previous-quarter comparison requires fiscal year and fiscal quarter.")
+            raise Refusal(
+                "PERIOD_NOT_SUPPORTED",
+                "Previous-quarter comparison requires fiscal year and fiscal quarter.",
+            )
         fiscal_year = period.fiscal_year
         fiscal_quarter = period.fiscal_quarter - 1
         if fiscal_quarter == 0:
@@ -544,7 +642,9 @@ def _shift_period(period: PeriodDescriptor, selector: str) -> PeriodDescriptor:
     raise Refusal("PERIOD_NOT_SUPPORTED", f"Unsupported period selector: {selector}")
 
 
-def resolve_input(catalog: Catalog, base_period: PeriodDescriptor, spec_input: Dict[str, Any]) -> ResolvedInput:
+def resolve_input(
+    catalog: Catalog, base_period: PeriodDescriptor, spec_input: Dict[str, Any]
+) -> ResolvedInput:
     name = spec_input["name"]
     aliases = spec_input["aliases"]
     unit_family = spec_input.get("unit_family")
@@ -552,7 +652,13 @@ def resolve_input(catalog: Catalog, base_period: PeriodDescriptor, spec_input: D
 
     if selector in {"current", "prior_year_same_period"}:
         target_period = _shift_period(base_period, selector)
-        fact, alias = catalog.find_alias_match(base_period.ticker, target_period, aliases, unit_family, base_period.filing_id)
+        fact, alias = catalog.find_alias_match(
+            base_period.ticker,
+            target_period,
+            aliases,
+            unit_family,
+            base_period.filing_id,
+        )
         return ResolvedInput(
             name=name,
             concept_norm=fact["concept_norm"],
@@ -576,14 +682,21 @@ def resolve_input(catalog: Catalog, base_period: PeriodDescriptor, spec_input: D
         )
 
     if selector == "current_period_end_asof":
-        return _resolve_asof_input(catalog, base_period, name, aliases, unit_family, selector, year_delta=0)
+        return _resolve_asof_input(
+            catalog, base_period, name, aliases, unit_family, selector, year_delta=0
+        )
 
     if selector == "prior_year_period_end_asof":
-        return _resolve_asof_input(catalog, base_period, name, aliases, unit_family, selector, year_delta=-1)
+        return _resolve_asof_input(
+            catalog, base_period, name, aliases, unit_family, selector, year_delta=-1
+        )
 
     if selector == "current_quarter":
         if base_period.fiscal_year is None or base_period.fiscal_quarter is None:
-            raise Refusal("PERIOD_NOT_SUPPORTED", "Current-quarter selector requires fiscal year and quarter.")
+            raise Refusal(
+                "PERIOD_NOT_SUPPORTED",
+                "Current-quarter selector requires fiscal year and quarter.",
+            )
         resolved, alias = catalog.derive_quarter_value(
             base_period.ticker,
             aliases,
@@ -593,7 +706,9 @@ def resolve_input(catalog: Catalog, base_period: PeriodDescriptor, spec_input: D
             base_period.filing_id,
         )
         resolved.name = name
-        resolved.trace.insert(0, {"kind": "selector", "selector": selector, "alias": alias})
+        resolved.trace.insert(
+            0, {"kind": "selector", "selector": selector, "alias": alias}
+        )
         return resolved
 
     if selector == "previous_quarter":
@@ -607,13 +722,17 @@ def resolve_input(catalog: Catalog, base_period: PeriodDescriptor, spec_input: D
             base_period.filing_id,
         )
         resolved.name = name
-        resolved.trace.insert(0, {"kind": "selector", "selector": selector, "alias": alias})
+        resolved.trace.insert(
+            0, {"kind": "selector", "selector": selector, "alias": alias}
+        )
         return resolved
 
     raise Refusal("PERIOD_NOT_SUPPORTED", f"Unsupported input selector: {selector}")
 
 
-def _expect_numeric(resolved_inputs: Dict[str, ResolvedInput], name: str) -> ResolvedInput:
+def _expect_numeric(
+    resolved_inputs: Dict[str, ResolvedInput], name: str
+) -> ResolvedInput:
     resolved = resolved_inputs[name]
     if resolved.numeric_value is None:
         raise Refusal("MISSING_INPUT", f"Input {name} is not numeric.")
@@ -638,7 +757,9 @@ def evaluate_formula(
         )
 
     if op == "abs":
-        inner = evaluate_formula(formula["value"], resolved_inputs, catalog, base_period)
+        inner = evaluate_formula(
+            formula["value"], resolved_inputs, catalog, base_period
+        )
         return EvalValue(
             value=abs(inner.value),
             unit_canon=inner.unit_canon,
@@ -648,62 +769,111 @@ def evaluate_formula(
 
     if op in {"add", "subtract"}:
         left = evaluate_formula(formula["left"], resolved_inputs, catalog, base_period)
-        right = evaluate_formula(formula["right"], resolved_inputs, catalog, base_period)
+        right = evaluate_formula(
+            formula["right"], resolved_inputs, catalog, base_period
+        )
         if left.unit_canon != right.unit_canon:
-            raise Refusal("INCOMPATIBLE_UNITS", "Addition/subtraction inputs must share the same unit family.")
+            raise Refusal(
+                "INCOMPATIBLE_UNITS",
+                "Addition/subtraction inputs must share the same unit family.",
+            )
         value = left.value + right.value if op == "add" else left.value - right.value
         return EvalValue(
             value=value,
             unit_canon=left.unit_canon,
             evidence_ids=left.evidence_ids + right.evidence_ids,
-            derivation_steps=left.derivation_steps + right.derivation_steps + [{"kind": op}],
+            derivation_steps=left.derivation_steps
+            + right.derivation_steps
+            + [{"kind": op}],
         )
 
     if op == "sum":
-        args = [evaluate_formula(arg, resolved_inputs, catalog, base_period) for arg in formula["args"]]
+        args = [
+            evaluate_formula(arg, resolved_inputs, catalog, base_period)
+            for arg in formula["args"]
+        ]
         units = {arg.unit_canon for arg in args}
         if len(units) > 1:
-            raise Refusal("INCOMPATIBLE_UNITS", "Summation inputs must share the same unit family.")
+            raise Refusal(
+                "INCOMPATIBLE_UNITS",
+                "Summation inputs must share the same unit family.",
+            )
         total = sum((arg.value for arg in args), start=Decimal("0"))
         evidence_ids = [evidence_id for arg in args for evidence_id in arg.evidence_ids]
-        steps = [step for arg in args for step in arg.derivation_steps] + [{"kind": "sum"}]
+        steps = [step for arg in args for step in arg.derivation_steps] + [
+            {"kind": "sum"}
+        ]
         return EvalValue(total, next(iter(units)), evidence_ids, steps)
 
     if op == "average":
-        args = [evaluate_formula(arg, resolved_inputs, catalog, base_period) for arg in formula["args"]]
+        args = [
+            evaluate_formula(arg, resolved_inputs, catalog, base_period)
+            for arg in formula["args"]
+        ]
         if not args:
-            raise Refusal("PERIOD_NOT_SUPPORTED", "Average requires at least one input.")
+            raise Refusal(
+                "PERIOD_NOT_SUPPORTED", "Average requires at least one input."
+            )
         units = {arg.unit_canon for arg in args}
         if len(units) > 1:
-            raise Refusal("INCOMPATIBLE_UNITS", "Average inputs must share the same unit family.")
+            raise Refusal(
+                "INCOMPATIBLE_UNITS", "Average inputs must share the same unit family."
+            )
         total = sum((arg.value for arg in args), start=Decimal("0"))
         evidence_ids = [evidence_id for arg in args for evidence_id in arg.evidence_ids]
-        steps = [step for arg in args for step in arg.derivation_steps] + [{"kind": "average", "count": len(args)}]
-        return EvalValue(total / Decimal(len(args)), next(iter(units)), evidence_ids, steps)
+        steps = [step for arg in args for step in arg.derivation_steps] + [
+            {"kind": "average", "count": len(args)}
+        ]
+        return EvalValue(
+            total / Decimal(len(args)), next(iter(units)), evidence_ids, steps
+        )
 
     if op == "divide":
         left = evaluate_formula(formula["left"], resolved_inputs, catalog, base_period)
-        right = evaluate_formula(formula["right"], resolved_inputs, catalog, base_period)
+        right = evaluate_formula(
+            formula["right"], resolved_inputs, catalog, base_period
+        )
         if right.value == 0:
-            raise Refusal("ZERO_DENOMINATOR", "Division by zero while evaluating metric.")
+            raise Refusal(
+                "ZERO_DENOMINATOR", "Division by zero while evaluating metric."
+            )
         return EvalValue(
             value=left.value / right.value,
             unit_canon=formula.get("output_unit", "pure"),
             evidence_ids=left.evidence_ids + right.evidence_ids,
-            derivation_steps=left.derivation_steps + right.derivation_steps + [{"kind": "divide"}],
+            derivation_steps=left.derivation_steps
+            + right.derivation_steps
+            + [{"kind": "divide"}],
         )
 
     if op == "rollup_sum":
         component_names = formula["components"]
-        component_results = [evaluate_formula({"op": "input", "name": name}, resolved_inputs, catalog, base_period) for name in component_names]
+        component_results = [
+            evaluate_formula(
+                {"op": "input", "name": name}, resolved_inputs, catalog, base_period
+            )
+            for name in component_names
+        ]
         units = {result.unit_canon for result in component_results}
         if len(units) > 1:
-            raise Refusal("INCOMPATIBLE_UNITS", "Rollup inputs must share the same unit family.")
-        component_concepts = [resolved_inputs[name].concept_norm for name in component_names]
-        source = catalog.calc_edge_source(base_period.filing_id, formula.get("target_aliases", []), component_concepts)
+            raise Refusal(
+                "INCOMPATIBLE_UNITS", "Rollup inputs must share the same unit family."
+            )
+        component_concepts = [
+            resolved_inputs[name].concept_norm for name in component_names
+        ]
+        source = catalog.calc_edge_source(
+            base_period.filing_id, formula.get("target_aliases", []), component_concepts
+        )
         total = sum((result.value for result in component_results), start=Decimal("0"))
-        evidence_ids = [evidence_id for result in component_results for evidence_id in result.evidence_ids]
-        steps = [step for result in component_results for step in result.derivation_steps] + [
+        evidence_ids = [
+            evidence_id
+            for result in component_results
+            for evidence_id in result.evidence_ids
+        ]
+        steps = [
+            step for result in component_results for step in result.derivation_steps
+        ] + [
             {
                 "kind": "rollup_sum",
                 "source": source,
@@ -722,7 +892,9 @@ def _build_answer_object(
     resolved_inputs: Dict[str, ResolvedInput],
     evaluation: EvalValue,
 ) -> Dict[str, Any]:
-    answer_id = _stable_digest(spec["id"], base_period.filing_id, base_period.period_key, GENERATOR_VERSION)
+    answer_id = _stable_digest(
+        spec["id"], base_period.filing_id, base_period.period_key, GENERATOR_VERSION
+    )
     return {
         "answer_id": answer_id,
         "metric_spec_id": spec["id"],
@@ -746,6 +918,10 @@ def _build_answer_object(
                 "concept_norm": resolved.concept_norm,
                 "period_key": resolved.period_key,
                 "unit_canon": resolved.unit_canon,
+                "numeric_value": str(resolved.numeric_value)
+                if resolved.numeric_value is not None
+                else None,
+                "text_value": resolved.text_value,
                 "fact_evidence_ids": resolved.fact_evidence_ids,
                 "derived": resolved.derived,
             }
@@ -757,8 +933,16 @@ def _build_answer_object(
     }
 
 
-def _build_refusal_object(spec: Dict[str, Any], base_period: PeriodDescriptor, code: str, message: str) -> Dict[str, Any]:
-    answer_id = _stable_digest(spec["id"], base_period.filing_id, base_period.period_key, code, GENERATOR_VERSION)
+def _build_refusal_object(
+    spec: Dict[str, Any], base_period: PeriodDescriptor, code: str, message: str
+) -> Dict[str, Any]:
+    answer_id = _stable_digest(
+        spec["id"],
+        base_period.filing_id,
+        base_period.period_key,
+        code,
+        GENERATOR_VERSION,
+    )
     return {
         "answer_id": answer_id,
         "metric_spec_id": spec["id"],
@@ -782,7 +966,9 @@ def _build_refusal_object(spec: Dict[str, Any], base_period: PeriodDescriptor, c
     }
 
 
-def evaluate_metric_spec(catalog: Catalog, spec: Dict[str, Any], period: PeriodDescriptor) -> Dict[str, Any]:
+def evaluate_metric_spec(
+    catalog: Catalog, spec: Dict[str, Any], period: PeriodDescriptor
+) -> Dict[str, Any]:
     if period.period_type not in spec["applicable_period_types"]:
         return _build_refusal_object(
             spec,
@@ -802,14 +988,18 @@ def evaluate_metric_spec(catalog: Catalog, spec: Dict[str, Any], period: PeriodD
         return _build_refusal_object(spec, period, refusal.code, refusal.message)
 
 
-def get_period_descriptor(catalog: Catalog, filing_id: str, period_key: str) -> PeriodDescriptor:
+def get_period_descriptor(
+    catalog: Catalog, filing_id: str, period_key: str
+) -> PeriodDescriptor:
     for period in catalog.periods_for_filing(filing_id):
         if period.period_key == period_key:
             return period
     raise KeyError(f"No period {period_key!r} found for filing {filing_id!r}")
 
 
-def answer_metric_spec(conn, filing_id: str, metric_spec_id: str, period_key: str) -> Dict[str, Any]:
+def answer_metric_spec(
+    conn, filing_id: str, metric_spec_id: str, period_key: str
+) -> Dict[str, Any]:
     catalog = Catalog(conn, filing_id=filing_id)
     specs = load_metric_specs_by_id()
     try:
@@ -821,7 +1011,9 @@ def answer_metric_spec(conn, filing_id: str, metric_spec_id: str, period_key: st
     return evaluate_metric_spec(catalog, spec, period)
 
 
-def generate_answer_objects(conn, filing_id: Optional[str] = None) -> List[Dict[str, Any]]:
+def generate_answer_objects(
+    conn, filing_id: Optional[str] = None
+) -> List[Dict[str, Any]]:
     catalog = Catalog(conn, filing_id=filing_id) if filing_id else Catalog(conn)
     specs = load_metric_specs()
     filing_ids = [filing_id] if filing_id else sorted(catalog.filings)
@@ -838,7 +1030,9 @@ def generate_answer_objects(conn, filing_id: Optional[str] = None) -> List[Dict[
     return answers
 
 
-def write_answer_objects(conn, output_path: str, filing_id: Optional[str] = None) -> int:
+def write_answer_objects(
+    conn, output_path: str, filing_id: Optional[str] = None
+) -> int:
     answers = generate_answer_objects(conn, filing_id=filing_id)
     with open(output_path, "w", encoding="utf-8") as handle:
         for answer in answers:
@@ -847,7 +1041,9 @@ def write_answer_objects(conn, output_path: str, filing_id: Optional[str] = None
     return len(answers)
 
 
-def generate_answer_objects_from_db(db_path: str, output_path: str, filing_id: Optional[str] = None) -> int:
+def generate_answer_objects_from_db(
+    db_path: str, output_path: str, filing_id: Optional[str] = None
+) -> int:
     conn = connect_db(db_path)
     try:
         return write_answer_objects(conn, output_path, filing_id=filing_id)

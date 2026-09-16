@@ -27,13 +27,13 @@ echo "CONSTITUENTS_CSV=$CONSTITUENTS_CSV"
 echo "SNAPSHOT_DATE=$SNAPSHOT_DATE"
 echo "LOG=$LOG_FILE"
 
-auditops build-manifest \
+python -m auditops.cli build-manifest \
   --constituents "$CONSTITUENTS_CSV" \
   --corpus-root "$CORPUS_ROOT" \
   --snapshot-date "$SNAPSHOT_DATE" \
   --constituent-source "$CONSTITUENT_SOURCE"
 
-auditops download-filings --corpus-root "$CORPUS_ROOT"
-auditops ingest-corpus --corpus-root "$CORPUS_ROOT"
-auditops generate-corpus-datasets --corpus-root "$CORPUS_ROOT"
-auditops eval-corpus --corpus-root "$CORPUS_ROOT"
+python -m auditops.cli download-filings --corpus-root "$CORPUS_ROOT"
+python -m auditops.cli ingest-corpus --corpus-root "$CORPUS_ROOT"
+python -m auditops.cli generate-corpus-datasets --corpus-root "$CORPUS_ROOT"
+python -m auditops.cli eval-corpus --corpus-root "$CORPUS_ROOT"

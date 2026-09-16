@@ -6,9 +6,7 @@ from typing import Any, Dict, Mapping, Optional, Sequence
 from .metrics import answer_metric_spec
 from .tasks import (
     EXECUTOR_OP,
-    OUTPUT_FIELDS,
     STRUCTURED_ANSWER_SCHEMA_ID,
-    TASK_PLAN_SCHEMA_ID,
     TASK_SPEC_VERSION,
     TASK_TYPE,
     build_task_plan_target,
@@ -33,13 +31,20 @@ def validate_task_plan(task_plan: Mapping[str, Any]) -> None:
     if missing:
         raise ValueError(f"TaskPlan is missing required fields: {', '.join(missing)}")
     if task_plan["task_plan_version"] != TASK_SPEC_VERSION:
-        raise ValueError(f"Unsupported TaskPlan version: {task_plan['task_plan_version']}")
+        raise ValueError(
+            f"Unsupported TaskPlan version: {task_plan['task_plan_version']}"
+        )
     if task_plan["task_type"] != TASK_TYPE:
         raise ValueError(f"Unsupported TaskPlan type: {task_plan['task_type']}")
     if task_plan["executor_op"] != EXECUTOR_OP:
         raise ValueError(f"Unsupported executor op: {task_plan['executor_op']}")
-    if task_plan["required_output_schema"].get("schema_id") != STRUCTURED_ANSWER_SCHEMA_ID:
-        raise ValueError("TaskPlan required_output_schema must reference structured_answer.v1")
+    if (
+        task_plan["required_output_schema"].get("schema_id")
+        != STRUCTURED_ANSWER_SCHEMA_ID
+    ):
+        raise ValueError(
+            "TaskPlan required_output_schema must reference structured_answer.v1"
+        )
 
 
 def validate_structured_answer(answer: Mapping[str, Any]) -> None:
@@ -57,9 +62,13 @@ def validate_structured_answer(answer: Mapping[str, Any]) -> None:
     }
     missing = sorted(required_fields - set(answer))
     if missing:
-        raise ValueError(f"Structured answer is missing required fields: {', '.join(missing)}")
+        raise ValueError(
+            f"Structured answer is missing required fields: {', '.join(missing)}"
+        )
     if answer["structured_answer_version"] != TASK_SPEC_VERSION:
-        raise ValueError(f"Unsupported structured answer version: {answer['structured_answer_version']}")
+        raise ValueError(
+            f"Unsupported structured answer version: {answer['structured_answer_version']}"
+        )
     if answer["status"] not in {"OK", "REFUSAL"}:
         raise ValueError(f"Unsupported structured answer status: {answer['status']}")
     if not isinstance(answer["evidence_ids"], list):
@@ -80,7 +89,9 @@ def build_task_plan(task_spec: Mapping[str, Any]) -> Dict[str, Any]:
     return build_task_plan_target(task_spec)
 
 
-def _to_structured_answer(task_plan: Mapping[str, Any], metric_answer: Mapping[str, Any]) -> Dict[str, Any]:
+def _to_structured_answer(
+    task_plan: Mapping[str, Any], metric_answer: Mapping[str, Any]
+) -> Dict[str, Any]:
     result = metric_answer.get("result") or {}
     structured_answer = {
         "structured_answer_version": TASK_SPEC_VERSION,
@@ -109,7 +120,9 @@ def execute_task_plan(conn, task_plan: Mapping[str, Any]) -> Dict[str, Any]:
     return _to_structured_answer(task_plan, metric_answer)
 
 
-def _match_metric(question_lower: str, task_specs: Sequence[Mapping[str, Any]]) -> Sequence[Mapping[str, Any]]:
+def _match_metric(
+    question_lower: str, task_specs: Sequence[Mapping[str, Any]]
+) -> Sequence[Mapping[str, Any]]:
     exact_id_matches = []
     metric_matches = []
     for task_spec in task_specs:
@@ -136,15 +149,23 @@ def _match_metric(question_lower: str, task_specs: Sequence[Mapping[str, Any]]) 
         return max(widths)
 
     max_width = max(_metric_match_width(task_spec) for task_spec in metric_matches)
-    return [task_spec for task_spec in metric_matches if _metric_match_width(task_spec) == max_width]
+    return [
+        task_spec
+        for task_spec in metric_matches
+        if _metric_match_width(task_spec) == max_width
+    ]
 
 
-def _match_period(question_lower: str, task_specs: Sequence[Mapping[str, Any]]) -> Sequence[Mapping[str, Any]]:
+def _match_period(
+    question_lower: str, task_specs: Sequence[Mapping[str, Any]]
+) -> Sequence[Mapping[str, Any]]:
     period_matches = []
     match_widths = []
     for task_spec in task_specs:
         period_key = task_spec["period"]["period_key"].lower()
-        if re.search(rf"(?<![a-z0-9_]){re.escape(period_key)}(?![a-z0-9_])", question_lower):
+        if re.search(
+            rf"(?<![a-z0-9_]){re.escape(period_key)}(?![a-z0-9_])", question_lower
+        ):
             period_matches.append(task_spec)
             match_widths.append(len(period_key))
             continue
@@ -154,11 +175,21 @@ def _match_period(question_lower: str, task_specs: Sequence[Mapping[str, Any]]) 
     if not period_matches:
         return period_matches
     max_width = max(match_widths)
-    return [task_spec for task_spec in period_matches if len(task_spec["period"]["period_key"]) == max_width]
+    return [
+        task_spec
+        for task_spec in period_matches
+        if len(task_spec["period"]["period_key"]) == max_width
+    ]
 
 
-def route_question(question: str, filing_id: str, task_specs: Sequence[Mapping[str, Any]]) -> Mapping[str, Any]:
-    filing_candidates = [task_spec for task_spec in dedupe_task_specs(task_specs) if task_spec["filing_id"] == filing_id]
+def route_question(
+    question: str, filing_id: str, task_specs: Sequence[Mapping[str, Any]]
+) -> Mapping[str, Any]:
+    filing_candidates = [
+        task_spec
+        for task_spec in dedupe_task_specs(task_specs)
+        if task_spec["filing_id"] == filing_id
+    ]
     if not filing_candidates:
         raise ValueError(f"No TaskSpecs available for filing {filing_id}")
 
@@ -197,8 +228,15 @@ def _unsupported_task_answer(task_id: str, filing_id: str) -> Dict[str, Any]:
     }
 
 
-def answer_quant(conn, question: str, filing_id: str, task_specs: Optional[Sequence[Mapping[str, Any]]] = None) -> Dict[str, Any]:
-    active_task_specs = dedupe_task_specs(task_specs or build_task_specs(conn, filing_id=filing_id))
+def answer_quant(
+    conn,
+    question: str,
+    filing_id: str,
+    task_specs: Optional[Sequence[Mapping[str, Any]]] = None,
+) -> Dict[str, Any]:
+    active_task_specs = dedupe_task_specs(
+        task_specs or build_task_specs(conn, filing_id=filing_id)
+    )
     try:
         task_spec = route_question(question, filing_id, active_task_specs)
     except ValueError:

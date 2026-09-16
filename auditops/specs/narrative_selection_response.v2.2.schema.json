@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "narrative_selection_response.v2.2",
+  "title": "AuditOps NarrativeSelectionResponseV2.2",
+  "oneOf": [
+    {
+      "$ref": "agent_terminal_response.v2.2.schema.json#/$defs/narrativeSelection"
+    },
+    {
+      "$ref": "agent_terminal_response.v2.2.schema.json#/$defs/refusal"
+    }
+  ]
+}

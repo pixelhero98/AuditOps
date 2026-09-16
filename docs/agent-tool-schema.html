@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="AuditOps v2.2 safety-hybrid tools, exact-quote narrative selection, contracts, verifier states, and terminal outcomes.">
+  <title>AuditOps v2.2 — Tool and Contract Schema</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172033;
+      --muted: #5d687c;
+      --paper: #f4f7fb;
+      --panel: #ffffff;
+      --line: #d8e1ed;
+      --navy: #17365d;
+      --blue: #2364aa;
+      --teal: #087e8b;
+      --green: #16794d;
+      --amber: #8a5a00;
+      --red: #a63838;
+      --code: #10233f;
+      --code-ink: #edf6ff;
+      --shadow: 0 12px 34px rgba(23, 54, 93, .09);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font: 15px/1.58 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    a { color: var(--blue); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+    code, pre { font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace; }
+    code { font-size: .92em; }
+    .hero {
+      background: linear-gradient(125deg, #102d50 0%, #174f78 58%, #087e8b 100%);
+      color: white;
+      padding: 44px max(24px, calc((100vw - 1180px) / 2));
+    }
+    .eyebrow { margin: 0 0 8px; font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; opacity: .84; }
+    h1 { max-width: 900px; margin: 0; font-size: clamp(34px, 5vw, 56px); line-height: 1.04; letter-spacing: -.035em; }
+    .lede { max-width: 880px; margin: 17px 0 0; font-size: 18px; opacity: .92; }
+    .hero-meta { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 21px; }
+    .pill { border: 1px solid rgba(255,255,255,.34); border-radius: 999px; padding: 6px 11px; font-size: 12px; font-weight: 750; background: rgba(255,255,255,.08); }
+    .shell { display: grid; grid-template-columns: 248px minmax(0, 1fr); gap: 28px; max-width: 1240px; margin: 0 auto; padding: 28px 24px 70px; }
+    aside { position: sticky; top: 18px; align-self: start; max-height: calc(100vh - 36px); overflow: auto; }
+    .toc, .panel, .card { background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow); }
+    .toc { border-radius: 16px; padding: 18px; }
+    .toc strong { display: block; color: var(--navy); margin-bottom: 9px; }
+    .toc a { display: block; padding: 5px 0; color: var(--muted); text-decoration: none; }
+    .toc a:hover { color: var(--blue); }
+    main { min-width: 0; }
+    section { scroll-margin-top: 20px; margin-bottom: 30px; }
+    h2 { margin: 0 0 14px; color: var(--navy); font-size: 27px; line-height: 1.2; letter-spacing: -.02em; }
+    h3 { margin: 23px 0 9px; color: var(--navy); font-size: 19px; }
+    p { margin: 8px 0 14px; }
+    ul { margin: 8px 0 16px; padding-left: 22px; }
+    li { margin: 4px 0; }
+    .panel { border-radius: 18px; padding: 24px; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .card { border-radius: 15px; padding: 18px; }
+    .card h3 { margin-top: 0; }
+    .status { display: inline-block; margin: 0 0 9px; border-radius: 999px; padding: 3px 9px; font-size: 11px; font-weight: 850; letter-spacing: .08em; }
+    .implemented { color: #0f613c; background: #def3e8; }
+    .proposed { color: #784d00; background: #ffefc1; }
+    .deferred { color: #40536c; background: #e8edf4; }
+    .callout { border-left: 5px solid var(--blue); background: #edf5ff; padding: 14px 16px; border-radius: 8px; margin: 16px 0; }
+    .callout.good { border-color: var(--green); background: #edf9f3; }
+    .callout.warn { border-color: var(--amber); background: #fff8e7; }
+    .callout.security { border-color: var(--red); background: #fff2f2; }
+    table { width: 100%; border-collapse: collapse; margin: 12px 0 20px; font-size: 13.5px; }
+    .table-scroll { max-width: 100%; overflow-x: auto; }
+    th, td { padding: 10px 11px; border: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { background: #eaf0f7; color: var(--navy); font-size: 12px; letter-spacing: .025em; }
+    tbody tr:nth-child(even) { background: #fafcff; }
+    pre { margin: 13px 0 20px; padding: 17px; overflow: auto; border-radius: 13px; background: var(--code); color: var(--code-ink); font-size: 12.5px; line-height: 1.52; }
+    .small { color: var(--muted); font-size: 12.5px; }
+    .mono-list { columns: 2; column-gap: 28px; }
+    .mono-list li { break-inside: avoid; }
+    footer { max-width: 1240px; margin: 0 auto 30px; padding: 0 24px; color: var(--muted); font-size: 12px; }
+    @media (max-width: 900px) {
+      .shell { grid-template-columns: 1fr; }
+      aside { position: static; max-height: none; }
+      .grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 620px) { .mono-list { columns: 1; } }
+    @media print {
+      body { background: white; font-size: 10pt; }
+      .hero { background: white; color: black; padding: 0 0 18px; }
+      .shell { display: block; max-width: none; padding: 0; }
+      aside { display: none; }
+      .panel, .card { box-shadow: none; break-inside: avoid; }
+      pre { white-space: pre-wrap; }
+      a { color: inherit; }
+    }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <p class="eyebrow">AuditOps v2.2 • filing-verification contracts</p>
+    <h1>Tool and Contract Schema</h1>
+    <p class="lede">A compact reference for the two text-agent tasks, their deterministic operations, action invariants, verifier states, terminal outcomes, and hash-bound audit records.</p>
+    <div class="hero-meta">
+      <span class="pill">Contracts: v2.2</span>
+      <span class="pill">V1 artifacts remain immutable</span>
+      <span class="pill">Text agent only</span>
+      <span class="pill">Offline and stateless</span>
+    </div>
+  </header>
+
+  <div class="shell">
+    <aside>
+      <nav class="toc" aria-label="Contents">
+        <strong>Contents</strong>
+        <a href="#status">1. Version and authority</a>
+        <a href="#operations">2. Operation registry</a>
+        <a href="#task">3. AgentTaskInputV2</a>
+        <a href="#context">4. Evidence and context</a>
+        <a href="#proposal">5. AgentProposalV2</a>
+        <a href="#observations">6. Tool observations</a>
+        <a href="#verification">7. Verification and outcomes</a>
+        <a href="#identity">8. Identity and hashing</a>
+        <a href="#vlm">9. Separate VLM contracts</a>
+        <a href="#future">10. Proposed extension</a>
+        <a href="#deferred">11. Deferred work</a>
+        <a href="#sources">12. Normative sources</a>
+        <a href="agent-runtime-protocol.html">Runtime protocol →</a>
+      </nav>
+    </aside>
+
+    <main>
+      <section id="status" class="panel" data-status="IMPLEMENTED">
+        <span class="status implemented">IMPLEMENTED</span>
+        <h2>Version and authority</h2>
+        <p>AuditOps v2.2 is an additive text-agent revision. Existing v2.1 contracts and artifacts remain unchanged. New tasks, prompts, benchmarks, runs, and reports receive v2.2 identities.</p>
+        <p>The committed JSON Schemas, Python validators, operation registry, and deterministic verifier are normative. This page explains those interfaces; it does not replace them.</p>
+        <div class="callout security"><strong>Scope boundary.</strong> A released result verifies a calculation or an extractive statement against frozen public-filing evidence. It is not an audit opinion, a statutory audit, professional judgment, fraud or going-concern work, or assurance that the source filing is truthful or complete.</div>
+      </section>
+
+      <section id="operations" class="panel" data-status="IMPLEMENTED">
+        <span class="status implemented">IMPLEMENTED</span>
+        <h2>One authoritative operation registry</h2>
+        <p>Each text task binds to exactly one operation, argument schema, observation schema, terminal output schema, and refusal policy. Every runtime consumer reads this registry; task-specific routing is not duplicated.</p>
+        <!-- BEGIN GENERATED: operation-registry -->
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr><th>Task type</th><th>Runtime ID</th><th>Operation</th><th>Argument schema and required fields</th><th>Observation schema</th><th>Terminal output schema</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>quant_metric</code></td>
+                <td><code>auditops.agent_runtime.v2.2</code></td>
+                <td><code>evaluate_metric_spec</code></td>
+                <td><code>tool_arguments.v2.2#/$defs/metric</code><br><span class="small"><code>filing_id</code>, <code>metric_spec_id</code>, <code>period_key</code></span></td>
+                <td><code>tool_observation.v2.2#/$defs/metric</code></td>
+                <td><code>quantitative_answer_or_refusal.v2.2</code></td>
+              </tr>
+              <tr>
+                <td><code>narrative_citation</code></td>
+                <td><code>auditops.agent_runtime.v2.2</code></td>
+                <td><code>load_frozen_evidence</code></td>
+                <td><code>tool_arguments.v2.2#/$defs/frozenEvidence</code><br><span class="small"><code>filing_id</code>, <code>evidence_scope_sha256</code></span></td>
+                <td><code>tool_observation.v2.2#/$defs/frozenEvidence</code></td>
+                <td><code>narrative_selection_or_refusal.v2.2</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <!-- END GENERATED: operation-registry -->
+        <p>A task with no tool, multiple tools, the wrong tool, an unknown output schema, or a mismatched output schema is rejected before model inference. The model cannot register an operation or alter its arguments.</p>
+      </section>
+
+      <section id="task" data-status="IMPLEMENTED">
+        <span class="status implemented">IMPLEMENTED</span>
+        <h2>AgentTaskInputV2.2</h2>
+        <div class="panel">
+          <p>The model-visible task contains only sanitized task, jurisdiction, framework, standards, entity, filing, period, operation, and closed evidence-scope data. Unknown properties and evaluation-only names such as <code>gold</code>, <code>target</code>, <code>expected_value</code>, and <code>is_answerable</code> fail validation.</p>
+          <table>
+            <thead><tr><th>Rule</th><th>Required behavior</th></tr></thead>
+            <tbody>
+              <tr><td>Version</td><td><code>agent_task_input_version</code> is <code>v2.2</code>.</td></tr>
+              <tr><td>Task family</td><td>Only <code>quant_metric</code> and <code>narrative_citation</code> are accepted by the text runtime.</td></tr>
+              <tr><td>Operation binding</td><td><code>allowed_tools</code> contains exactly the registry operation; <code>output_schema_id</code> exactly matches its terminal schema.</td></tr>
+              <tr><td>Task parameters</td><td>Quantitative tasks carry the complete non-gold <code>MetricOperationContractV2.2</code>; narrative tasks carry the frozen retrieval query and one registered subtype. Cross-family parameters are forbidden.</td></tr>
+              <tr><td>Evidence count</td><td><code>evidence_ids</code> contains zero through five unique IDs. An empty set is a valid negative scope, not a schema error.</td></tr>
+              <tr><td>Evidence provenance</td><td><code>selection_method</code> is <code>TYPED_FACT_MATERIALIZATION</code> or <code>FROZEN_BM25</code>.</td></tr>
+              <tr><td>Empty scope</td><td><code>empty_reason</code> is <code>NO_VALID_FACTS</code> or <code>NO_MATCHING_EVIDENCE</code> exactly when <code>evidence_ids</code> is empty; otherwise it is null.</td></tr>
+              <tr><td>Refusal policy</td><td>Only registered, task-appropriate refusal codes may be proposed; expected refusal labels remain evaluator-only.</td></tr>
+            </tbody>
+          </table>
+          <h3>Minimal valid narrative task</h3>
+          <pre><code class="language-json">{
+  "agent_task_input_version": "v2.2",
+  "task_id": "us-example-narrative-001",
+  "task_type": "narrative_citation",
+  "jurisdiction": "US",
+  "reporting_framework": "US_GAAP",
+  "standards_profile": {"name": "PCAOB_ORIENTED", "version": "2026"},
+  "source_system": "SEC_EDGAR",
+  "question": "What opinion language appears in the auditor report?",
+  "entity": {"entity_id": "example-issuer", "name": "Example Issuer"},
+  "filing": {"filing_id": "example-10k"},
+  "period": {"period_key": "FY2025"},
+  "task_parameters": {
+    "metric_spec_id": null,
+    "retrieval_query": "auditor report opinion"
+  },
+  "narrative_subtype": "auditor_report_opinion_language",
+  "metric_operation_contract": null,
+  "allowed_tools": ["load_frozen_evidence"],
+  "output_schema_id": "narrative_selection_or_refusal.v2.2",
+  "evidence_scope": {
+    "evidence_ids": [],
+    "filing_ids": ["example-10k"],
+    "max_items": 5,
+    "selection_method": "FROZEN_BM25",
+    "empty_reason": "NO_MATCHING_EVIDENCE"
+  },
+  "refusal_policy": {
+    "allowed_codes": [
+      "NARRATIVE_NOT_SUPPORTED",
+      "PROMPT_INJECTION_DETECTED"
+    ]
+  }
+}</code></pre>
+          <p class="small">Production identifiers and metadata come from the frozen corpus manifest; this compact example shows all required contract fields.</p>
+        </div>
+      </section>
+
+      <section id="context" data-status="IMPLEMENTED">
+        <span class="status implemented">IMPLEMENTED</span>
+        <h2>Evidence and ContextPackV2.2</h2>
+        <div class="grid">
+          <div class="card">
+            <h3>Closed evidence</h3>
+            <ul>
+              <li>Every evidence ID exists, is unique, and belongs to an allowed filing.</li>
+              <li>Ordering is stable and complete; the runtime never clips an ID or source descriptor.</li>
+              <li>Quantitative evidence retains period, unit, context, dimensions, and taxonomy provenance.</li>
+              <li>Narrative evidence retains source location and the exact extractive text used for claims.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Stateless context</h3>
+            <ul>
+              <li>At most five items enter one case-local context.</li>
+              <li>BM25 retrieval uses <code>candidate_k=15</code> and frozen stable ordering.</li>
+              <li>Narrative planning hides chunks; the load observation exposes the frozen scope once at synthesis.</li>
+              <li>The model context is 16,384 tokens and prompt-visible input is capped at 14,336.</li>
+              <li>An indivisible valid context that does not fit returns <code>CONTEXT_OVERFLOW</code>.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="callout"><strong>No hidden memory layer.</strong> There is no vector database, cross-case memory, autonomous swarm, or LLM context summarizer. Context construction is deterministic and its complete ordered form is hash-bound.</div>
+      </section>
+
+      <section id="proposal" class="panel" data-status="IMPLEMENTED">
+        <span class="status implemented">IMPLEMENTED</span>
+        <h2>AgentProposalV2 action invariants</h2>
+        <p>The public proposal remains a strict discriminated union. Inference uses smaller stage- and task-specific schemas: planning permits only the exact <code>CALL_TOOL</code>; direct, synthesis, and repair permit only terminal actions bound to the current task, period, unit, refusal codes, and evidence IDs. The runtime fills only invariant null and advisory fields when normalizing into <code>AgentProposalV2</code>.</p>
+        <table>
+          <thead><tr><th>Action</th><th>Required fields</th><th>Forbidden or fixed fields</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>CALL_TOOL</code></td>
+              <td>Registered <code>tool_name</code> and exact <code>tool_arguments</code>.</td>
+              <td>Final answer, refusal, citation, claim, value, unit, and period fields are null or empty; <code>model_uncertainty=NONE</code>; <code>model_escalation_requested=false</code>.</td>
+            </tr>
+            <tr>
+              <td><code>ANSWER</code></td>
+              <td><code>status=OK</code> and the exact task period. Quantitative output uses a canonical fixed-point decimal string and exact unit. A narrative model returns only one to three <code>{evidence_id, exact_quote}</code> extracts.</td>
+              <td>No model-authored narrative prose is released. The runtime derives answer text, claims, and citations from contiguous quotes; paraphrases, forged IDs, and duplicate extracts fail closed.</td>
+            </tr>
+            <tr>
+              <td><code>REFUSE</code></td>
+              <td><code>status=REFUSAL</code>, the exact task period, and a registered refusal code.</td>
+              <td>No tool, value, unit, answer text, citations, or claims.</td>
+            </tr>
+          </tbody>
+        </table>
+        <p><code>model_uncertainty</code> (<code>NONE</code>, <code>LOW</code>, or <code>HIGH</code>) and <code>model_escalation_requested</code> are advisory telemetry only. They never change verification, release, repair, or terminal routing.</p>
+        <div class="callout good"><strong>Canonical output matters.</strong> Numerically equal spellings such as <code>2</code>, <code>2.0</code>, and <code>2e0</code> are not interchangeable v2.2 outputs. One canonical value and exact unit produce one stable audit identity. Narrative generation is bounded to three exact extracts.</div>
+      </section>
+
+      <section id="observations" data-status="IMPLEMENTED">
+        <span class="status implemented">IMPLEMENTED</span>
+        <h2>ToolObservationV2.2 and deterministic execution</h2>
+        <div class="grid">
+          <div class="card">
+            <h3>Metric observation</h3>
+            <p><code>evaluate_metric_spec</code> runs only a registered formula over frozen typed facts. Its observation binds status, value, unit, period, input evidence, and calculation provenance.</p>
+          </div>
+          <div class="card">
+            <h3>Frozen-evidence observation</h3>
+            <p><code>load_frozen_evidence</code> returns <code>retrieval_status=SCOPE_LOADED</code>, <code>answerability_assessed=false</code>, the ordered frozen top-five chunks, scope hash, selection provenance, and typed empty reason. It does not imply support, search a live corpus, or discover evidence.</p>
+          </div>
+        </div>
+        <p>The strict observation union records whether an observation was model-visible or verifier-only. The verifier recomputes or replays the registered operation independently; a mismatch is an integrity failure, not an ordinary model or infrastructure error.</p>
+      </section>
+
+      <section id="verification" class="panel" data-status="IMPLEMENTED">
+        <span class="status implemented">IMPLEMENTED</span>
+        <h2>Local verifier states and terminal case outcomes</h2>
+        <p>Verifier dispositions describe a local gate decision. Case outcomes describe the one terminal result emitted by the runtime. The two vocabularies are intentionally separate.</p>
+        <table>
+          <thead><tr><th>Contract</th><th>Vocabulary</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>VerifierResultV2.disposition</code></td><td><code>TOOL_CALL_APPROVED</code>, <code>REPAIR_REQUIRED</code>, <code>RELEASED</code>, <code>SAFE_REFUSAL</code>, <code>FAILED</code></td><td>A stage-local gate state retained in the verifier trace.</td></tr>
+            <tr><td><code>AgentCaseResultV2.outcome</code><br><code>AgentRunRecordV2.outcome</code></td><td><code>RELEASED</code>, <code>SAFE_REFUSAL</code>, <code>MODEL_FAILURE</code>, <code>INFRASTRUCTURE_FAILURE</code>, <code>INTEGRITY_FAILURE</code></td><td>The final, externally visible case class. Transient verifier states cannot appear here.</td></tr>
+          </tbody>
+        </table>
+        <h3>Repair policy</h3>
+        <ul>
+          <li>Malformed JSON, schema/action-shape errors, and canonical lexical-format errors may receive one repair.</li>
+          <li>Target-sensitive, evidence, arithmetic, refusal, cross-task, observation-binding, prompt-injection-policy, and integrity errors are non-repairable.</li>
+          <li>A repair prompt contains only allowlisted safe diagnostics. If none remain, the case ends as <code>MODEL_FAILURE</code> without invoking or consuming a repair.</li>
+          <li>One case receives at most one repair. A failed repair is terminal and a second repair cannot be requested.</li>
+        </ul>
+        <div class="callout warn"><strong>Safe refusal is not necessity.</strong> <code>SAFE_REFUSAL</code> means the refusal is policy-safe to expose. Whether it was necessary, or was an over-refusal, is scored offline against evaluator-only gold.</div>
+      </section>
+
+      <section id="identity" data-status="IMPLEMENTED">
+        <span class="status implemented">IMPLEMENTED</span>
+        <h2>Portable identity and complete request binding</h2>
+        <div class="panel">
+          <p>All hash-bearing data uses <code>auditops.canonical_json.v1</code>: compact sorted-key JSON, UTF-8 text, no NaN or infinity, and string object keys only. This is a versioned AuditOps Python canonicalizer; it is <strong>not</strong> RFC 8785/JCS.</p>
+          <p>Each model attempt records <code>request_sha256</code> and <code>response_schema_sha256</code>. The request hash binds the stage, repair attempt, ordered messages, full response schema, output cap, sampling, seed, prompt version, and portable semantic model configuration.</p>
+          <p><code>AgentRunRecordV2.2</code> additionally binds the narrative subtype, exact demonstration pack, and metric-operation contract. It records initialization, generation, and tool timing separately. The runtime derives <code>run_id</code> only after context construction.</p>
+          <p>The portable model identity includes model ID, revision, quantization, backend, context/input/output caps, normalized sampling, seed, thinking mode, and chat-template hash. Deployment identity additionally binds the local model path; the path never changes the portable semantic run ID.</p>
+        </div>
+      </section>
+
+      <section id="vlm" class="panel" data-status="IMPLEMENTED">
+        <span class="status implemented">IMPLEMENTED</span>
+        <h2>VLM diagnostics use separate contracts</h2>
+        <p><code>vlm_diagnostic</code> is not a text-agent task and is rejected by the v2.2 text runtime. Image-PDF work enters the separate <code>VlmDiagnosticTaskV1</code> and <code>VlmDiagnosticResultV1</code> contracts and existing VLM runtime. Its extraction and page-citation results remain outside the XHTML/text benchmark score.</p>
+      </section>
+
+      <section id="future" data-status="PROPOSED">
+        <span class="status proposed">PROPOSED</span>
+        <h2>Possible extensions require a new decision</h2>
+        <div class="panel">
+          <p>Cross-language replay may justify a standards-conforming canonicalization profile later. Until then, implementations must identify the AuditOps Python canonicalizer and must not claim JCS compatibility.</p>
+        </div>
+      </section>
+
+      <section id="deferred" data-status="DEFERRED">
+        <span class="status deferred">DEFERRED</span>
+        <h2>Not part of v2.2</h2>
+        <div class="panel">
+          <p>Human escalation workflows, audit opinions, professional-judgment conclusions, fine-tuning, vector retrieval, multi-agent swarms, live model tools, and merging VLM results into the text benchmark are deferred. No <code>ESCALATED</code> terminal outcome exists without an approved human workflow.</p>
+        </div>
+      </section>
+
+      <section id="sources" class="panel" data-status="IMPLEMENTED">
+        <span class="status implemented">IMPLEMENTED</span>
+        <h2>Normative implementation sources</h2>
+        <p>The authoritative routing source is <a href="../auditops/agent_operations.py"><code>agent_operations.py</code></a>. The public contract catalog below is generated from committed version-suffixed schema snapshots.</p>
+        <!-- BEGIN GENERATED: schema-catalog -->
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Public interface</th><th>Schema ID</th><th>Committed snapshot</th></tr></thead>
+            <tbody>
+              <tr><td>AuditOps AgentCaseResultV2</td><td><code>agent_case_result.v2</code></td><td><a href="../auditops/specs/agent_case_result.v2.schema.json"><code>agent_case_result.v2.schema.json</code></a></td></tr>
+              <tr><td>AuditOps AgentCaseResultV2.1</td><td><code>agent_case_result.v2.1</code></td><td><a href="../auditops/specs/agent_case_result.v2.1.schema.json"><code>agent_case_result.v2.1.schema.json</code></a></td></tr>
+              <tr><td>AuditOps AgentCaseResultV2.2</td><td><code>agent_case_result.v2.2</code></td><td><a href="../auditops/specs/agent_case_result.v2.2.schema.json"><code>agent_case_result.v2.2.schema.json</code></a></td></tr>
+              <tr><td>AuditOps AgentPlanResponseV2.1</td><td><code>agent_plan_response.v2.1</code></td><td><a href="../auditops/specs/agent_plan_response.v2.1.schema.json"><code>agent_plan_response.v2.1.schema.json</code></a></td></tr>
+              <tr><td>AuditOps AgentPlanResponseV2.2</td><td><code>agent_plan_response.v2.2</code></td><td><a href="../auditops/specs/agent_plan_response.v2.2.schema.json"><code>agent_plan_response.v2.2.schema.json</code></a></td></tr>
+              <tr><td>AuditOps AgentProposalV2</td><td><code>agent_proposal.v2</code></td><td><a href="../auditops/specs/agent_proposal.v2.schema.json"><code>agent_proposal.v2.schema.json</code></a></td></tr>
+              <tr><td>AuditOps AgentProposalV2 under the v2.1 operation registry</td><td><code>agent_proposal.v2.1</code></td><td><a href="../auditops/specs/agent_proposal.v2.1.schema.json"><code>agent_proposal.v2.1.schema.json</code></a></td></tr>
+              <tr><td>AuditOps AgentProposalV2 under the v2.2 operation registry</td><td><code>agent_proposal.v2.2</code></td><td><a href="../auditops/specs/agent_proposal.v2.2.schema.json"><code>agent_proposal.v2.2.schema.json</code></a></td></tr>
+              <tr><td>AuditOps AgentRunRecordV2</td><td><code>agent_run_record.v2</code></td><td><a href="../auditops/specs/agent_run_record.v2.schema.json"><code>agent_run_record.v2.schema.json</code></a></td></tr>
+              <tr><td>AuditOps AgentRunRecordV2.1</td><td><code>agent_run_record.v2.1</code></td><td><a href="../auditops/specs/agent_run_record.v2.1.schema.json"><code>agent_run_record.v2.1.schema.json</code></a></td></tr>
+              <tr><td>AuditOps AgentRunRecordV2.2</td><td><code>agent_run_record.v2.2</code></td><td><a href="../auditops/specs/agent_run_record.v2.2.schema.json"><code>agent_run_record.v2.2.schema.json</code></a></td></tr>
+              <tr><td>AuditOps AgentTaskInputV2</td><td><code>agent_task_input.v2</code></td><td><a href="../auditops/specs/agent_task_input.v2.schema.json"><code>agent_task_input.v2.schema.json</code></a></td></tr>
+              <tr><td>AuditOps AgentTaskInputV2.1</td><td><code>agent_task_input.v2.1</code></td><td><a href="../auditops/specs/agent_task_input.v2.1.schema.json"><code>agent_task_input.v2.1.schema.json</code></a></td></tr>
+              <tr><td>AuditOps AgentTaskInputV2.2</td><td><code>agent_task_input.v2.2</code></td><td><a href="../auditops/specs/agent_task_input.v2.2.schema.json"><code>agent_task_input.v2.2.schema.json</code></a></td></tr>
+              <tr><td>AuditOps AgentTerminalResponseV2.1</td><td><code>agent_terminal_response.v2.1</code></td><td><a href="../auditops/specs/agent_terminal_response.v2.1.schema.json"><code>agent_terminal_response.v2.1.schema.json</code></a></td></tr>
+              <tr><td>AuditOps AgentTerminalResponseV2.2</td><td><code>agent_terminal_response.v2.2</code></td><td><a href="../auditops/specs/agent_terminal_response.v2.2.schema.json"><code>agent_terminal_response.v2.2.schema.json</code></a></td></tr>
+              <tr><td>AuditOps ContextPackV2</td><td><code>context_pack.v2</code></td><td><a href="../auditops/specs/context_pack.v2.schema.json"><code>context_pack.v2.schema.json</code></a></td></tr>
+              <tr><td>AuditOps ContextPackV2.1</td><td><code>context_pack.v2.1</code></td><td><a href="../auditops/specs/context_pack.v2.1.schema.json"><code>context_pack.v2.1.schema.json</code></a></td></tr>
+              <tr><td>AuditOps ContextPackV2.2</td><td><code>context_pack.v2.2</code></td><td><a href="../auditops/specs/context_pack.v2.2.schema.json"><code>context_pack.v2.2.schema.json</code></a></td></tr>
+              <tr><td>AuditOps FailureV2</td><td><code>failure.v2</code></td><td><a href="../auditops/specs/failure.v2.schema.json"><code>failure.v2.schema.json</code></a></td></tr>
+              <tr><td>AuditOps FailureV2.1</td><td><code>failure.v2.1</code></td><td><a href="../auditops/specs/failure.v2.1.schema.json"><code>failure.v2.1.schema.json</code></a></td></tr>
+              <tr><td>AuditOps FailureV2.2</td><td><code>failure.v2.2</code></td><td><a href="../auditops/specs/failure.v2.2.schema.json"><code>failure.v2.2.schema.json</code></a></td></tr>
+              <tr><td>BenchmarkAdjudicationV2.4</td><td><code>https://auditops.local/specs/benchmark_adjudication.v2.4.schema.json</code></td><td><a href="../auditops/specs/benchmark_adjudication.v2.4.schema.json"><code>benchmark_adjudication.v2.4.schema.json</code></a></td></tr>
+              <tr><td>BenchmarkApprovalV2.4</td><td><code>https://auditops.local/specs/benchmark_approval.v2.4.schema.json</code></td><td><a href="../auditops/specs/benchmark_approval.v2.4.schema.json"><code>benchmark_approval.v2.4.schema.json</code></a></td></tr>
+              <tr><td>BenchmarkReviewBundleManifestV2.4</td><td><code>https://auditops.local/specs/benchmark_review_bundle.v2.4.schema.json</code></td><td><a href="../auditops/specs/benchmark_review_bundle.v2.4.schema.json"><code>benchmark_review_bundle.v2.4.schema.json</code></a></td></tr>
+              <tr><td>BenchmarkReviewDecisionV2.4</td><td><code>https://auditops.local/specs/benchmark_review_decision.v2.4.schema.json</code></td><td><a href="../auditops/specs/benchmark_review_decision.v2.4.schema.json"><code>benchmark_review_decision.v2.4.schema.json</code></a></td></tr>
+              <tr><td>ExploratoryRunAuthorizationV2.4p.1</td><td><code>https://auditops.local/specs/exploratory_run_authorization.v2.4p.1.schema.json</code></td><td><a href="../auditops/specs/exploratory_run_authorization.v2.4p.1.schema.json"><code>exploratory_run_authorization.v2.4p.1.schema.json</code></a></td></tr>
+              <tr><td>FullRunAuthorizationV2.4</td><td><code>https://auditops.local/specs/full_run_authorization.v2.4.schema.json</code></td><td><a href="../auditops/specs/full_run_authorization.v2.4.schema.json"><code>full_run_authorization.v2.4.schema.json</code></a></td></tr>
+              <tr><td>GateProvisionalReviewV2.4p</td><td><code>https://auditops.local/specs/gate_provisional_review.v2.4p.schema.json</code></td><td><a href="../auditops/specs/gate_provisional_review.v2.4p.schema.json"><code>gate_provisional_review.v2.4p.schema.json</code></a></td></tr>
+              <tr><td>GateReleaseReviewV2.4</td><td><code>https://auditops.local/specs/gate_release_review.v2.4.schema.json</code></td><td><a href="../auditops/specs/gate_release_review.v2.4.schema.json"><code>gate_release_review.v2.4.schema.json</code></a></td></tr>
+              <tr><td>NarrativeGoldV2.4</td><td><code>https://auditops.local/specs/narrative_gold.v2.4.schema.json</code></td><td><a href="../auditops/specs/narrative_gold.v2.4.schema.json"><code>narrative_gold.v2.4.schema.json</code></a></td></tr>
+              <tr><td>ProvisionalAIReviewV2.4p</td><td><code>https://auditops.local/specs/provisional_ai_review.v2.4p.schema.json</code></td><td><a href="../auditops/specs/provisional_ai_review.v2.4p.schema.json"><code>provisional_ai_review.v2.4p.schema.json</code></a></td></tr>
+              <tr><td>ProvisionalBenchmarkAcceptanceV2.4p</td><td><code>https://auditops.local/specs/provisional_benchmark_acceptance.v2.4p.schema.json</code></td><td><a href="../auditops/specs/provisional_benchmark_acceptance.v2.4p.schema.json"><code>provisional_benchmark_acceptance.v2.4p.schema.json</code></a></td></tr>
+              <tr><td>AuditOps ModelConfigV2</td><td><code>model_config.v2</code></td><td><a href="../auditops/specs/model_config.v2.schema.json"><code>model_config.v2.schema.json</code></a></td></tr>
+              <tr><td>AuditOps Narrative Answer or Refusal V2</td><td><code>narrative_answer_or_refusal.v2</code></td><td><a href="../auditops/specs/narrative_answer_or_refusal.v2.schema.json"><code>narrative_answer_or_refusal.v2.schema.json</code></a></td></tr>
+              <tr><td>AuditOps Narrative Selection or Refusal V2.2</td><td><code>narrative_selection_or_refusal.v2.2</code></td><td><a href="../auditops/specs/narrative_selection_or_refusal.v2.2.schema.json"><code>narrative_selection_or_refusal.v2.2.schema.json</code></a></td></tr>
+              <tr><td>AuditOps NarrativeSelectionResponseV2.2</td><td><code>narrative_selection_response.v2.2</code></td><td><a href="../auditops/specs/narrative_selection_response.v2.2.schema.json"><code>narrative_selection_response.v2.2.schema.json</code></a></td></tr>
+              <tr><td>AuditOps Quantitative Answer or Refusal V2</td><td><code>quantitative_answer_or_refusal.v2</code></td><td><a href="../auditops/specs/quantitative_answer_or_refusal.v2.schema.json"><code>quantitative_answer_or_refusal.v2.schema.json</code></a></td></tr>
+              <tr><td>AuditOps Quantitative Answer or Refusal V2.2</td><td><code>quantitative_answer_or_refusal.v2.2</code></td><td><a href="../auditops/specs/quantitative_answer_or_refusal.v2.2.schema.json"><code>quantitative_answer_or_refusal.v2.2.schema.json</code></a></td></tr>
+              <tr><td>AuditOps ToolArgumentsV2</td><td><code>tool_arguments.v2</code></td><td><a href="../auditops/specs/tool_arguments.v2.schema.json"><code>tool_arguments.v2.schema.json</code></a></td></tr>
+              <tr><td>AuditOps ToolArgumentsV2.1</td><td><code>tool_arguments.v2.1</code></td><td><a href="../auditops/specs/tool_arguments.v2.1.schema.json"><code>tool_arguments.v2.1.schema.json</code></a></td></tr>
+              <tr><td>AuditOps ToolArgumentsV2.2</td><td><code>tool_arguments.v2.2</code></td><td><a href="../auditops/specs/tool_arguments.v2.2.schema.json"><code>tool_arguments.v2.2.schema.json</code></a></td></tr>
+              <tr><td>AuditOps ToolObservationV2</td><td><code>tool_observation.v2</code></td><td><a href="../auditops/specs/tool_observation.v2.schema.json"><code>tool_observation.v2.schema.json</code></a></td></tr>
+              <tr><td>AuditOps ToolObservationV2.1</td><td><code>tool_observation.v2.1</code></td><td><a href="../auditops/specs/tool_observation.v2.1.schema.json"><code>tool_observation.v2.1.schema.json</code></a></td></tr>
+              <tr><td>AuditOps ToolObservationV2.2</td><td><code>tool_observation.v2.2</code></td><td><a href="../auditops/specs/tool_observation.v2.2.schema.json"><code>tool_observation.v2.2.schema.json</code></a></td></tr>
+              <tr><td>AuditOps VerifierResultV2</td><td><code>verifier_result.v2</code></td><td><a href="../auditops/specs/verifier_result.v2.schema.json"><code>verifier_result.v2.schema.json</code></a></td></tr>
+              <tr><td>AuditOps VlmDiagnosticResultV1</td><td><code>vlm_diagnostic_result.v1</code></td><td><a href="../auditops/specs/vlm_diagnostic_result.v1.schema.json"><code>vlm_diagnostic_result.v1.schema.json</code></a></td></tr>
+              <tr><td>AuditOps VlmDiagnosticTaskV1</td><td><code>vlm_diagnostic_task.v1</code></td><td><a href="../auditops/specs/vlm_diagnostic_task.v1.schema.json"><code>vlm_diagnostic_task.v1.schema.json</code></a></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <!-- END GENERATED: schema-catalog -->
+        <p class="small">After an intentional registry or schema change, run <code>python -m auditops.agent_docs --write</code>; CI uses <code>python -m auditops.agent_docs --check</code> to reject drift.</p>
+        <p>See the <a href="agent-runtime-protocol.html">Runtime Protocol</a> for state transitions, visibility rules, and terminal failure handling.</p>
+      </section>
+    </main>
+  </div>
+
+  <footer>
+    AuditOps v2.2 text-agent reference. The reviewed files in the local Downloads folder were non-normative review input; this correctly named repository document supersedes them.
+  </footer>
+</body>
+</html>

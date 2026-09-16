@@ -30,14 +30,14 @@ echo "CONSTITUENT_SOURCE=$CONSTITUENT_SOURCE"
 echo "TRAILING_FISCAL_YEARS=$TRAILING_FISCAL_YEARS"
 echo "LOG=$LOG_FILE"
 
-auditops build-manifest \
+python -m auditops.cli build-manifest \
   --constituents "$CONSTITUENTS_CSV" \
   --corpus-root "$CORPUS_ROOT" \
   --snapshot-date "$SNAPSHOT_DATE" \
   --trailing-fiscal-years "$TRAILING_FISCAL_YEARS" \
   --constituent-source "$CONSTITUENT_SOURCE"
 
-auditops download-filings --corpus-root "$CORPUS_ROOT"
-auditops ingest-corpus --corpus-root "$CORPUS_ROOT"
-auditops generate-corpus-datasets --corpus-root "$CORPUS_ROOT"
-auditops eval-corpus --corpus-root "$CORPUS_ROOT"
+python -m auditops.cli download-filings --corpus-root "$CORPUS_ROOT"
+python -m auditops.cli ingest-corpus --corpus-root "$CORPUS_ROOT"
+python -m auditops.cli generate-corpus-datasets --corpus-root "$CORPUS_ROOT"
+python -m auditops.cli eval-corpus --corpus-root "$CORPUS_ROOT"

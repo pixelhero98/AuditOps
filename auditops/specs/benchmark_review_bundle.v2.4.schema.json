@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://auditops.local/specs/benchmark_review_bundle.v2.4.schema.json",
+  "title": "BenchmarkReviewBundleManifestV2.4",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "bundle_manifest_version",
+    "bundle_version",
+    "candidate_id",
+    "candidate_manifest_sha256",
+    "rendered_packet_sha256",
+    "review_packet_json_sha256",
+    "source_manifest_sha256",
+    "primary_task_ids_sha256",
+    "secondary_task_ids_sha256",
+    "counts",
+    "refusal_scope_bindings",
+    "files",
+    "inference_visible",
+    "external_human_approval",
+    "bundle_id"
+  ],
+  "properties": {
+    "bundle_manifest_version": {"const": "auditops-benchmark-review-bundle-manifest.v2.4"},
+    "bundle_version": {"const": "auditops-benchmark-review-bundle.v2.4"},
+    "candidate_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "candidate_manifest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "rendered_packet_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "review_packet_json_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "source_manifest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "primary_task_ids_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "secondary_task_ids_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["filings", "narrative_cases", "refusal_cases", "secondary_cases"],
+      "properties": {
+        "filings": {"const": 20},
+        "narrative_cases": {"const": 200},
+        "refusal_cases": {"const": 100},
+        "secondary_cases": {"const": 40}
+      }
+    },
+    "refusal_scope_bindings": {
+      "type": "array",
+      "minItems": 100,
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["task_id", "scope_kind", "scope_path", "chunk_count", "sha256"],
+        "properties": {
+          "task_id": {"type": "string", "minLength": 1},
+          "scope_kind": {"enum": ["CANONICAL", "CANONICAL_PLUS_RAW_CAM"]},
+          "scope_path": {"type": "string", "minLength": 1},
+          "chunk_count": {"type": "integer", "minimum": 1},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    },
+    "files": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "bytes", "sha256"],
+        "properties": {
+          "path": {"type": "string", "minLength": 1},
+          "bytes": {"type": "integer", "minimum": 0},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    },
+    "inference_visible": {"const": false},
+    "external_human_approval": {"const": false},
+    "bundle_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "narrative_answer_or_refusal.v2",
+  "title": "AuditOps Narrative Answer or Refusal V2",
+  "oneOf": [
+    {"$ref": "agent_proposal.v2.schema.json#/$defs/narrativeAnswer"},
+    {
+      "allOf": [
+        {"$ref": "agent_proposal.v2.schema.json#/$defs/refusal"},
+        {
+          "properties": {
+            "refusal_code": {
+              "enum": [
+                "NARRATIVE_CITATION_MISS", "NARRATIVE_NOT_SUPPORTED",
+                "PROMPT_INJECTION_DETECTED", "TASK_NOT_SUPPORTED",
+                "UNSUPPORTED_REQUEST"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

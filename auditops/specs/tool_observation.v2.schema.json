@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tool_observation.v2",
+  "title": "AuditOps ToolObservationV2",
+  "oneOf": [
+    {"$ref": "#/$defs/metric"},
+    {"$ref": "#/$defs/retrieval"}
+  ],
+  "$defs": {
+    "canonicalDecimal": {
+      "type": "string",
+      "pattern": "^(?:0|-?(?:[1-9][0-9]*(?:\\.[0-9]*[1-9])?|0\\.[0-9]*[1-9]))$"
+    },
+    "metric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tool_observation_version", "observation_kind", "visibility",
+        "task_id", "filing_id", "metric_spec_id", "period_key", "status",
+        "value", "unit", "evidence_ids", "refusal_code"
+      ],
+      "properties": {
+        "tool_observation_version": {"const": "v2"},
+        "observation_kind": {"const": "METRIC"},
+        "visibility": {"enum": ["MODEL_VISIBLE", "VERIFIER_ONLY"]},
+        "task_id": {"type": "string", "minLength": 1},
+        "filing_id": {"type": "string", "minLength": 1},
+        "metric_spec_id": {"type": "string", "minLength": 1},
+        "period_key": {"type": "string", "minLength": 1},
+        "status": {"enum": ["OK", "REFUSAL"]},
+        "value": {"type": ["string", "null"]},
+        "unit": {"type": ["string", "null"], "minLength": 1},
+        "evidence_ids": {
+          "type": "array",
+          "maxItems": 5,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "refusal_code": {
+          "enum": [
+            null, "AMBIGUOUS_CONTEXT", "DIVISION_BY_ZERO",
+            "INCOMPATIBLE_UNITS", "MISSING_INPUT", "PERIOD_NOT_SUPPORTED",
+            "UNSUPPORTED_REQUEST", "ZERO_DENOMINATOR"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"status": {"const": "OK"}}},
+          "then": {
+            "properties": {
+              "value": {"$ref": "#/$defs/canonicalDecimal"},
+              "unit": {"type": "string", "minLength": 1},
+              "evidence_ids": {"minItems": 1},
+              "refusal_code": {"type": "null"}
+            }
+          },
+          "else": {
+            "properties": {
+              "value": {"type": "null"},
+              "unit": {"type": "null"},
+              "evidence_ids": {"maxItems": 0},
+              "refusal_code": {
+                "enum": [
+                  "AMBIGUOUS_CONTEXT", "DIVISION_BY_ZERO",
+                  "INCOMPATIBLE_UNITS", "MISSING_INPUT",
+                  "PERIOD_NOT_SUPPORTED", "UNSUPPORTED_REQUEST",
+                  "ZERO_DENOMINATOR"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "retrieval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tool_observation_version", "observation_kind", "visibility",
+        "task_id", "filing_id", "status", "period_key", "query",
+        "candidate_k", "top_k", "evidence_ids"
+      ],
+      "properties": {
+        "tool_observation_version": {"const": "v2"},
+        "observation_kind": {"const": "RETRIEVAL"},
+        "visibility": {"enum": ["MODEL_VISIBLE", "VERIFIER_ONLY"]},
+        "task_id": {"type": "string", "minLength": 1},
+        "filing_id": {"type": "string", "minLength": 1},
+        "status": {"const": "RETRIEVED"},
+        "period_key": {"type": "string", "minLength": 1},
+        "query": {"type": "string", "minLength": 1},
+        "candidate_k": {"const": 15},
+        "top_k": {"const": 5},
+        "evidence_ids": {
+          "type": "array",
+          "maxItems": 5,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        }
+      }
+    }
+  }
+}

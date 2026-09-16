@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://auditops.local/specs/benchmark_review_decision.v2.4.schema.json",
+  "title": "BenchmarkReviewDecisionV2.4",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["review_decision_version", "candidate_id", "rendered_packet_sha256", "reviewer", "decisions"],
+  "properties": {
+    "review_decision_version": {"const": "auditops-benchmark-review-decision.v2.4"},
+    "candidate_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "rendered_packet_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "reviewer": {
+      "type": "object", "additionalProperties": false,
+      "required": ["identity", "role", "reviewed_at", "attestation"],
+      "properties": {
+        "identity": {"type": "string", "minLength": 1},
+        "role": {"enum": ["PRIMARY", "SECONDARY"]},
+        "reviewed_at": {"type": "string", "format": "date-time"},
+        "attestation": {"const": "I independently reviewed the assigned AuditOps cases as a human reviewer."}
+      }
+    },
+    "decisions": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["task_id", "decision", "checks", "comment"],
+        "properties": {
+          "task_id": {"type": "string", "minLength": 1},
+          "decision": {"enum": ["APPROVE", "REJECT"]},
+          "checks": {
+            "type": "object", "additionalProperties": false,
+            "required": ["question_quality", "subtype", "scope", "answerability", "evidence", "semantic_anchors", "refusal_validity"],
+            "properties": {
+              "question_quality": {"type": "boolean"}, "subtype": {"type": "boolean"},
+              "scope": {"type": "boolean"}, "answerability": {"type": "boolean"},
+              "evidence": {"type": "boolean"}, "semantic_anchors": {"type": "boolean"},
+              "refusal_validity": {"type": "boolean"}
+            }
+          },
+          "comment": {"type": ["string", "null"]}
+        },
+        "allOf": [
+          {
+            "if": {"properties": {"decision": {"const": "REJECT"}}},
+            "then": {"properties": {"comment": {"type": "string", "minLength": 1}}}
+          }
+        ]
+      }
+    }
+  }
+}

@@ -26,4 +26,4 @@ echo "TICKER=$TICKER"
 echo "ACCESSION=$ACCESSION"
 echo "LOG=$LOG_FILE"
 
-auditops repair-filing --corpus-root "$CORPUS_ROOT" --ticker "$TICKER" --accession "$ACCESSION"
+python -m auditops.cli repair-filing --corpus-root "$CORPUS_ROOT" --ticker "$TICKER" --accession "$ACCESSION"

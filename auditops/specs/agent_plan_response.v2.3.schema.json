@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent_plan_response.v2.3",
+  "title": "AuditOps AgentPlanResponseV2.3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "task_id",
+    "action",
+    "tool_name",
+    "tool_arguments"
+  ],
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "action": {
+      "const": "CALL_TOOL"
+    },
+    "tool_name": {
+      "enum": [
+        "evaluate_metric_spec",
+        "load_frozen_evidence"
+      ]
+    },
+    "tool_arguments": {
+      "oneOf": [
+        {
+          "$ref": "tool_arguments.v2.3.schema.json#/$defs/metric"
+        },
+        {
+          "$ref": "tool_arguments.v2.3.schema.json#/$defs/frozenEvidence"
+        }
+      ]
+    }
+  }
+}

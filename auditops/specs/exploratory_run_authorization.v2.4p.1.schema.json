@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://auditops.local/specs/exploratory_run_authorization.v2.4p.1.schema.json",
+  "title": "ExploratoryRunAuthorizationV2.4p.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "authorization_version",
+    "benchmark_id",
+    "gate_metrics_sha256",
+    "decision",
+    "authorized_by",
+    "authorized_at",
+    "assurance",
+    "experiment_label",
+    "known_limitations",
+    "known_limitations_sha256",
+    "authorization_id"
+  ],
+  "properties": {
+    "authorization_version": {
+      "const": "auditops-exploratory-run-authorization.v2.4p.1"
+    },
+    "benchmark_id": {
+      "$ref": "#/$defs/digest"
+    },
+    "gate_metrics_sha256": {
+      "$ref": "#/$defs/digest"
+    },
+    "decision": {
+      "const": "GO_EXPLORATORY"
+    },
+    "authorized_by": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S(?:[^\\r\\n]*\\S)?$"
+    },
+    "authorized_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "assurance": {
+      "const": "PROVISIONAL_AI_REVIEW"
+    },
+    "experiment_label": {
+      "const": "EXPLORATORY"
+    },
+    "known_limitations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "assurance",
+        "experiment_label",
+        "generalization_label",
+        "external_human_approval",
+        "official_baseline"
+      ],
+      "properties": {
+        "assurance": {
+          "const": "PROVISIONAL_AI_REVIEW"
+        },
+        "experiment_label": {
+          "const": "EXPLORATORY"
+        },
+        "generalization_label": {
+          "const": "cached-20"
+        },
+        "external_human_approval": {
+          "const": false
+        },
+        "official_baseline": {
+          "const": false
+        }
+      }
+    },
+    "known_limitations_sha256": {
+      "$ref": "#/$defs/digest"
+    },
+    "authorization_id": {
+      "$ref": "#/$defs/digest"
+    }
+  },
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://auditops.local/specs/benchmark_adjudication.v2.4.schema.json",
+  "title": "BenchmarkAdjudicationV2.4",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "adjudication_version",
+    "candidate_id",
+    "rendered_packet_sha256",
+    "affected_subtypes",
+    "reviewers",
+    "decisions"
+  ],
+  "properties": {
+    "adjudication_version": {"const": "auditops-benchmark-adjudication.v2.4"},
+    "candidate_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "rendered_packet_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "affected_subtypes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "accounting_policy",
+          "auditor_report_opinion_language",
+          "critical_audit_matter",
+          "footnote_note"
+        ]
+      }
+    },
+    "reviewers": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary_identity", "secondary_identity", "attestation"],
+      "properties": {
+        "primary_identity": {"type": "string", "minLength": 1},
+        "secondary_identity": {"type": "string", "minLength": 1},
+        "attestation": {
+          "const": "Both named reviewers independently re-reviewed every case in each affected subtype."
+        }
+      }
+    },
+    "decisions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "task_id",
+          "primary_re_reviewed",
+          "secondary_re_reviewed",
+          "final_decision",
+          "comment"
+        ],
+        "properties": {
+          "task_id": {"type": "string", "minLength": 1},
+          "primary_re_reviewed": {"const": true},
+          "secondary_re_reviewed": {"const": true},
+          "final_decision": {"enum": ["APPROVE", "REJECT"]},
+          "comment": {"type": "string", "minLength": 1}
+        }
+      }
+    }
+  }
+}

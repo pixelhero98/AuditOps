@@ -1,0 +1,243 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tool_observation.v2.3",
+  "title": "AuditOps ToolObservationV2.3",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/metric"
+    },
+    {
+      "$ref": "#/$defs/frozenEvidence"
+    }
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "canonicalDecimal": {
+      "type": "string",
+      "pattern": "^(?:0|-?(?:[1-9][0-9]*(?:\\.[0-9]*[1-9])?|0\\.[0-9]*[1-9]))$"
+    },
+    "evidenceIds": {
+      "type": "array",
+      "maxItems": 5,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "metric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tool_observation_version",
+        "observation_kind",
+        "visibility",
+        "task_id",
+        "filing_id",
+        "metric_spec_id",
+        "period_key",
+        "status",
+        "value",
+        "unit",
+        "evidence_ids",
+        "refusal_code"
+      ],
+      "properties": {
+        "tool_observation_version": {
+          "const": "v2.3"
+        },
+        "observation_kind": {
+          "const": "METRIC"
+        },
+        "visibility": {
+          "enum": [
+            "MODEL_VISIBLE",
+            "VERIFIER_ONLY"
+          ]
+        },
+        "task_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "filing_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "metric_spec_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "period_key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "OK",
+            "REFUSAL"
+          ]
+        },
+        "value": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "unit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "evidence_ids": {
+          "$ref": "#/$defs/evidenceIds"
+        },
+        "refusal_code": {
+          "enum": [
+            null,
+            "AMBIGUOUS_CONTEXT",
+            "DIVISION_BY_ZERO",
+            "INCOMPATIBLE_UNITS",
+            "MISSING_INPUT",
+            "PERIOD_NOT_SUPPORTED",
+            "UNSUPPORTED_REQUEST",
+            "ZERO_DENOMINATOR"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "OK"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "value": {
+                "$ref": "#/$defs/canonicalDecimal"
+              },
+              "unit": {
+                "type": "string",
+                "minLength": 1
+              },
+              "evidence_ids": {
+                "minItems": 1
+              },
+              "refusal_code": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "value": {
+                "type": "null"
+              },
+              "unit": {
+                "type": "null"
+              },
+              "evidence_ids": {
+                "maxItems": 0
+              },
+              "refusal_code": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "frozenEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tool_observation_version",
+        "observation_kind",
+        "visibility",
+        "task_id",
+        "filing_id",
+        "retrieval_status",
+        "answerability_assessed",
+        "period_key",
+        "evidence_scope_sha256",
+        "evidence_ids",
+        "evidence_items",
+        "selection_provenance"
+      ],
+      "properties": {
+        "tool_observation_version": {
+          "const": "v2.3"
+        },
+        "observation_kind": {
+          "const": "FROZEN_EVIDENCE"
+        },
+        "visibility": {
+          "enum": [
+            "MODEL_VISIBLE",
+            "VERIFIER_ONLY"
+          ]
+        },
+        "task_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "filing_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "period_key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence_scope_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "evidence_ids": {
+          "$ref": "#/$defs/evidenceIds"
+        },
+        "evidence_items": {
+          "type": "array",
+          "maxItems": 5,
+          "items": {
+            "$ref": "context_pack.v2.3.schema.json#/$defs/evidenceItem"
+          }
+        },
+        "selection_provenance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "selection_method",
+            "empty_reason",
+            "ordered_evidence_ids"
+          ],
+          "properties": {
+            "selection_method": {
+              "const": "FROZEN_BM25_V23_SECTION_SPLIT"
+            },
+            "empty_reason": {
+              "enum": [
+                null,
+                "NO_MATCHING_EVIDENCE"
+              ]
+            },
+            "ordered_evidence_ids": {
+              "$ref": "#/$defs/evidenceIds"
+            }
+          }
+        },
+        "retrieval_status": {
+          "const": "SCOPE_LOADED"
+        },
+        "answerability_assessed": {
+          "const": false
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,9 @@
+include README.md pyproject.toml .gitattributes
+recursive-include auditops/specs *.json
+recursive-include config *.json
+recursive-include docs *.md *.html *.json
+recursive-include archive *.md
+recursive-include scripts *.py *.sh *.sbatch .gitattributes
+recursive-include tests *.py *.htm *.xml *.xsd
+recursive-include requirements *.lock
+global-exclude __pycache__ *.py[cod]

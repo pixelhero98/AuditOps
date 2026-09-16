@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent_case_result.v2",
+  "title": "AuditOps AgentCaseResultV2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "agent_case_result_version", "task_id", "outcome", "plan_proposal",
+    "final_proposal", "tool_observation", "run_record", "failure"
+  ],
+  "properties": {
+    "agent_case_result_version": {"const": "v2"},
+    "task_id": {"type": "string", "minLength": 1},
+    "outcome": {
+      "enum": [
+        "RELEASED", "SAFE_REFUSAL", "MODEL_FAILURE",
+        "INFRASTRUCTURE_FAILURE", "INTEGRITY_FAILURE"
+      ]
+    },
+    "plan_proposal": {
+      "oneOf": [
+        {"$ref": "agent_proposal.v2.schema.json"},
+        {"type": "null"}
+      ]
+    },
+    "final_proposal": {
+      "oneOf": [
+        {"$ref": "agent_proposal.v2.schema.json"},
+        {"type": "null"}
+      ]
+    },
+    "tool_observation": {
+      "oneOf": [
+        {"$ref": "tool_observation.v2.schema.json"},
+        {"type": "null"}
+      ]
+    },
+    "run_record": {"$ref": "agent_run_record.v2.schema.json"},
+    "failure": {
+      "oneOf": [
+        {"$ref": "failure.v2.schema.json"},
+        {"type": "null"}
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"outcome": {"const": "RELEASED"}}},
+      "then": {
+        "properties": {
+          "final_proposal": {
+            "oneOf": [
+              {"$ref": "agent_proposal.v2.schema.json#/$defs/quantitativeAnswer"},
+              {"$ref": "agent_proposal.v2.schema.json#/$defs/narrativeAnswer"}
+            ]
+          },
+          "run_record": {
+            "allOf": [
+              {"$ref": "agent_run_record.v2.schema.json"},
+              {"properties": {"outcome": {"const": "RELEASED"}}}
+            ]
+          },
+          "failure": {"type": "null"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"outcome": {"const": "SAFE_REFUSAL"}}},
+      "then": {
+        "properties": {
+          "final_proposal": {"$ref": "agent_proposal.v2.schema.json#/$defs/refusal"},
+          "run_record": {
+            "allOf": [
+              {"$ref": "agent_run_record.v2.schema.json"},
+              {"properties": {"outcome": {"const": "SAFE_REFUSAL"}}}
+            ]
+          },
+          "failure": {"type": "null"}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "enum": ["MODEL_FAILURE", "INFRASTRUCTURE_FAILURE", "INTEGRITY_FAILURE"]
+          }
+        }
+      },
+      "then": {"properties": {"failure": {"$ref": "failure.v2.schema.json"}}}
+    },
+    {
+      "if": {"properties": {"outcome": {"const": "MODEL_FAILURE"}}},
+      "then": {
+        "properties": {
+          "run_record": {
+            "allOf": [
+              {"$ref": "agent_run_record.v2.schema.json"},
+              {"properties": {"outcome": {"const": "MODEL_FAILURE"}}}
+            ]
+          },
+          "failure": {
+            "allOf": [
+              {"$ref": "failure.v2.schema.json"},
+              {"properties": {"failure_class": {"const": "MODEL_FAILURE"}}}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {"properties": {"outcome": {"const": "INFRASTRUCTURE_FAILURE"}}},
+      "then": {
+        "properties": {
+          "run_record": {
+            "allOf": [
+              {"$ref": "agent_run_record.v2.schema.json"},
+              {"properties": {"outcome": {"const": "INFRASTRUCTURE_FAILURE"}}}
+            ]
+          },
+          "failure": {
+            "allOf": [
+              {"$ref": "failure.v2.schema.json"},
+              {"properties": {"failure_class": {"const": "INFRASTRUCTURE_FAILURE"}}}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {"properties": {"outcome": {"const": "INTEGRITY_FAILURE"}}},
+      "then": {
+        "properties": {
+          "run_record": {
+            "allOf": [
+              {"$ref": "agent_run_record.v2.schema.json"},
+              {"properties": {"outcome": {"const": "INTEGRITY_FAILURE"}}}
+            ]
+          },
+          "failure": {
+            "allOf": [
+              {"$ref": "failure.v2.schema.json"},
+              {"properties": {"failure_class": {"const": "INTEGRITY_FAILURE"}}}
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

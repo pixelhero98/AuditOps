@@ -1,0 +1,210 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "failure.v2",
+  "title": "AuditOps FailureV2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "failure_version", "failure_class", "code", "stage", "retryable",
+    "sanitized_detail"
+  ],
+  "properties": {
+    "failure_version": {"const": "v2"},
+    "failure_class": {
+      "enum": ["MODEL_FAILURE", "INFRASTRUCTURE_FAILURE", "INTEGRITY_FAILURE"]
+    },
+    "code": {
+      "enum": [
+        "ACTION_SHAPE_INVALID", "ARTIFACT_HASH_MISMATCH", "BACKEND_FAILURE",
+        "CANONICAL_FORMAT_INVALID", "CONTEXT_OVERFLOW",
+        "DETERMINISTIC_REPLAY_MISMATCH", "MODEL_ADAPTER_FAILED",
+        "MODEL_INITIALIZATION_FAILED", "MODEL_OOM",
+        "MODEL_OUTPUT_NOT_STRICT_JSON", "MODEL_OUTPUT_SCHEMA_INVALID",
+        "MODEL_TIMEOUT", "OVERWRITE_DETECTED",
+        "PROMPT_INJECTION_POLICY_VIOLATION", "PROPOSAL_REJECTED",
+        "REPAIR_EXHAUSTED", "REPAIR_NOT_SAFE", "TASK_BINDING_MISMATCH",
+        "TOOL_ARGUMENT_MISMATCH", "TOOL_EXECUTION_FAILED",
+        "TOOL_OBSERVATION_MISMATCH"
+      ]
+    },
+    "stage": {
+      "enum": [
+        "artifact", "context", "direct", "input", "model", "output",
+        "plan", "repair", "replay", "report", "synthesis", "tool",
+        "verification"
+      ]
+    },
+    "retryable": {"type": "boolean"},
+    "sanitized_detail": {"type": "string", "minLength": 1, "maxLength": 512}
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "code": {"const": "MODEL_OUTPUT_NOT_STRICT_JSON"},
+        "failure_class": {"const": "MODEL_FAILURE"},
+        "stage": {"enum": ["plan", "synthesis", "direct", "repair"]},
+        "retryable": {"const": false}
+      }
+    },
+    {
+      "properties": {
+        "code": {"const": "MODEL_OUTPUT_SCHEMA_INVALID"},
+        "failure_class": {"const": "MODEL_FAILURE"},
+        "stage": {"enum": ["plan", "synthesis", "direct", "repair"]},
+        "retryable": {"const": false}
+      }
+    },
+    {
+      "properties": {
+        "code": {"const": "ACTION_SHAPE_INVALID"},
+        "failure_class": {"const": "MODEL_FAILURE"},
+        "stage": {"enum": ["plan", "synthesis", "direct", "repair"]},
+        "retryable": {"const": false}
+      }
+    },
+    {
+      "properties": {
+        "code": {"const": "CANONICAL_FORMAT_INVALID"},
+        "failure_class": {"const": "MODEL_FAILURE"},
+        "stage": {"enum": ["synthesis", "direct", "repair"]},
+        "retryable": {"const": false}
+      }
+    },
+    {
+      "properties": {
+        "code": {"const": "PROPOSAL_REJECTED"},
+        "failure_class": {"const": "MODEL_FAILURE"},
+        "stage": {"enum": ["plan", "synthesis", "direct", "repair", "verification"]},
+        "retryable": {"const": false}
+      }
+    },
+    {
+      "properties": {
+        "code": {"const": "REPAIR_NOT_SAFE"},
+        "failure_class": {"const": "MODEL_FAILURE"},
+        "stage": {"enum": ["plan", "synthesis", "direct", "verification"]},
+        "retryable": {"const": false}
+      }
+    },
+    {
+      "properties": {
+        "code": {"const": "REPAIR_EXHAUSTED"},
+        "failure_class": {"const": "MODEL_FAILURE"},
+        "stage": {"enum": ["repair", "verification"]},
+        "retryable": {"const": false}
+      }
+    },
+    {
+      "properties": {
+        "code": {"const": "PROMPT_INJECTION_POLICY_VIOLATION"},
+        "failure_class": {"const": "MODEL_FAILURE"},
+        "stage": {"enum": ["plan", "synthesis", "direct", "repair", "verification"]},
+        "retryable": {"const": false}
+      }
+    },
+    {
+      "properties": {
+        "code": {"const": "CONTEXT_OVERFLOW"},
+        "failure_class": {"const": "INFRASTRUCTURE_FAILURE"},
+        "stage": {"const": "context"},
+        "retryable": {"const": false}
+      }
+    },
+    {
+      "properties": {
+        "code": {"const": "MODEL_INITIALIZATION_FAILED"},
+        "failure_class": {"const": "INFRASTRUCTURE_FAILURE"},
+        "stage": {"enum": ["context", "model"]},
+        "retryable": {"const": true}
+      }
+    },
+    {
+      "properties": {
+        "code": {"const": "MODEL_ADAPTER_FAILED"},
+        "failure_class": {"const": "INFRASTRUCTURE_FAILURE"},
+        "stage": {"enum": ["plan", "synthesis", "direct", "repair", "model"]},
+        "retryable": {"const": true}
+      }
+    },
+    {
+      "properties": {
+        "code": {"const": "MODEL_TIMEOUT"},
+        "failure_class": {"const": "INFRASTRUCTURE_FAILURE"},
+        "stage": {"enum": ["context", "plan", "synthesis", "direct", "repair", "model"]},
+        "retryable": {"const": true}
+      }
+    },
+    {
+      "properties": {
+        "code": {"const": "MODEL_OOM"},
+        "failure_class": {"const": "INFRASTRUCTURE_FAILURE"},
+        "stage": {"enum": ["context", "plan", "synthesis", "direct", "repair", "model"]},
+        "retryable": {"const": true}
+      }
+    },
+    {
+      "properties": {
+        "code": {"const": "BACKEND_FAILURE"},
+        "failure_class": {"const": "INFRASTRUCTURE_FAILURE"},
+        "stage": {"enum": ["context", "model"]},
+        "retryable": {"const": true}
+      }
+    },
+    {
+      "properties": {
+        "code": {"const": "TOOL_EXECUTION_FAILED"},
+        "failure_class": {"const": "INFRASTRUCTURE_FAILURE"},
+        "stage": {"const": "tool"},
+        "retryable": {"const": true}
+      }
+    },
+    {
+      "properties": {
+        "code": {"const": "ARTIFACT_HASH_MISMATCH"},
+        "failure_class": {"const": "INTEGRITY_FAILURE"},
+        "stage": {"enum": ["artifact", "input", "context", "output", "replay", "report"]},
+        "retryable": {"const": false}
+      }
+    },
+    {
+      "properties": {
+        "code": {"const": "TASK_BINDING_MISMATCH"},
+        "failure_class": {"const": "INTEGRITY_FAILURE"},
+        "stage": {"enum": ["plan", "synthesis", "direct", "repair", "verification", "replay"]},
+        "retryable": {"const": false}
+      }
+    },
+    {
+      "properties": {
+        "code": {"const": "TOOL_ARGUMENT_MISMATCH"},
+        "failure_class": {"const": "INTEGRITY_FAILURE"},
+        "stage": {"enum": ["plan", "tool", "verification", "replay"]},
+        "retryable": {"const": false}
+      }
+    },
+    {
+      "properties": {
+        "code": {"const": "TOOL_OBSERVATION_MISMATCH"},
+        "failure_class": {"const": "INTEGRITY_FAILURE"},
+        "stage": {"enum": ["tool", "verification", "replay"]},
+        "retryable": {"const": false}
+      }
+    },
+    {
+      "properties": {
+        "code": {"const": "DETERMINISTIC_REPLAY_MISMATCH"},
+        "failure_class": {"const": "INTEGRITY_FAILURE"},
+        "stage": {"const": "replay"},
+        "retryable": {"const": false}
+      }
+    },
+    {
+      "properties": {
+        "code": {"const": "OVERWRITE_DETECTED"},
+        "failure_class": {"const": "INTEGRITY_FAILURE"},
+        "stage": {"enum": ["artifact", "report"]},
+        "retryable": {"const": false}
+      }
+    }
+  ]
+}

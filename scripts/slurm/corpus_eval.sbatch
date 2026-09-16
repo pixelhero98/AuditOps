@@ -22,4 +22,4 @@ echo "ENV=$AUDITOPS_ENV_ROOT"
 echo "CORPUS_ROOT=$CORPUS_ROOT"
 echo "LOG=$LOG_FILE"
 
-auditops eval-corpus --corpus-root "$CORPUS_ROOT"
+python -m auditops.cli eval-corpus --corpus-root "$CORPUS_ROOT"

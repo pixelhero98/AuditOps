@@ -4,7 +4,7 @@ import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence
+from typing import Any, Dict, List, Mapping, Optional, Sequence
 
 from .narrative import ITEM_MARKER_RE, normalize_heading_text
 from .pipeline import connect_db
@@ -157,8 +157,12 @@ def _import_haystack():
         from haystack import Document
         from haystack.components.retrievers.in_memory import InMemoryBM25Retriever
         from haystack.document_stores.in_memory import InMemoryDocumentStore
-    except ImportError as error:  # pragma: no cover - exercised when optional dep missing
-        raise RuntimeError("Haystack is not installed. Install AuditOps with the retrieval extra.") from error
+    except (
+        ImportError
+    ) as error:  # pragma: no cover - exercised when optional dep missing
+        raise RuntimeError(
+            "Haystack is not installed. Install AuditOps with the retrieval extra."
+        ) from error
     return Document, InMemoryBM25Retriever, InMemoryDocumentStore
 
 
@@ -199,7 +203,9 @@ def load_retrieval_examples(path: str | Path) -> List[RetrievalExample]:
     return examples
 
 
-def write_retrieval_examples(path: str | Path, examples: Sequence[RetrievalExample]) -> None:
+def write_retrieval_examples(
+    path: str | Path, examples: Sequence[RetrievalExample]
+) -> None:
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("w", encoding="utf-8") as handle:
@@ -219,7 +225,9 @@ def write_retrieval_examples(path: str | Path, examples: Sequence[RetrievalExamp
             handle.write("\n")
 
 
-def _fetch_chunk_rows(db_path: str, filing_ids: Optional[Sequence[str]] = None) -> List[Mapping[str, Any]]:
+def _fetch_chunk_rows(
+    db_path: str, filing_ids: Optional[Sequence[str]] = None
+) -> List[Mapping[str, Any]]:
     conn = connect_db(db_path)
     try:
         query = """
@@ -269,7 +277,9 @@ def _is_generic_line(text: Optional[str]) -> bool:
         return True
     if compact.startswith("notesto") and "financialstatements" in compact:
         return True
-    if (lowered.startswith("notes to ") or alpha_only.startswith("notes to ")) and "financial statements" in alpha_only:
+    if (
+        lowered.startswith("notes to ") or alpha_only.startswith("notes to ")
+    ) and "financial statements" in alpha_only:
         return True
     if "table of contents" in lowered or "index to financial statements" in alpha_only:
         return True
@@ -286,9 +296,8 @@ def _is_generic_line(text: Optional[str]) -> bool:
     if ITEM_MARKER_RE.match(normalized):
         return True
     tokens = normalized.split()
-    if (
-        len(tokens) <= 10
-        and any(token.lower().rstrip(".,") in COMPANY_SUFFIX_TOKENS for token in tokens)
+    if len(tokens) <= 10 and any(
+        token.lower().rstrip(".,") in COMPANY_SUFFIX_TOKENS for token in tokens
     ):
         return True
     return False
@@ -324,7 +333,11 @@ def _query_tokens(text: str) -> List[str]:
     tokens: List[str] = []
     seen = set()
     for token in _tokenize_for_benchmark(text):
-        if token in RETRIEVAL_QUERY_STOPWORDS or token in COMPANY_SUFFIX_TOKENS or token == "num":
+        if (
+            token in RETRIEVAL_QUERY_STOPWORDS
+            or token in COMPANY_SUFFIX_TOKENS
+            or token == "num"
+        ):
             continue
         if token not in seen:
             tokens.append(token)
@@ -342,11 +355,19 @@ def _normalize_query_text(query: str) -> str:
 def _query_keywords(row: Mapping[str, Any], *, max_keywords: int = 6) -> List[str]:
     heading_tokens = set(_tokenize_for_benchmark(row.get("heading") or ""))
     subheading_tokens = set(_tokenize_for_benchmark(row.get("subheading") or ""))
-    blocked = BENCHMARK_STOPWORDS | RETRIEVAL_QUERY_STOPWORDS | COMPANY_SUFFIX_TOKENS | heading_tokens | subheading_tokens
+    blocked = (
+        BENCHMARK_STOPWORDS
+        | RETRIEVAL_QUERY_STOPWORDS
+        | COMPANY_SUFFIX_TOKENS
+        | heading_tokens
+        | subheading_tokens
+    )
 
     keywords: List[str] = []
     seen = set()
-    source_text = "\n\n".join(_meaningful_content_lines(row.get("text_masked") or "")) or (row.get("text_masked") or "")
+    source_text = "\n\n".join(
+        _meaningful_content_lines(row.get("text_masked") or "")
+    ) or (row.get("text_masked") or "")
     for token in _tokenize_for_benchmark(source_text):
         if token in blocked or token == "num":
             continue
@@ -499,7 +520,9 @@ def build_retrieval_benchmark_examples(
 ) -> List[RetrievalExample]:
     rows = _fetch_chunk_rows(db_path, filing_ids=filing_ids)
 
-    candidates_by_filing: Dict[str, List[tuple[tuple[int, int], str, RetrievalExample]]] = {}
+    candidates_by_filing: Dict[
+        str, List[tuple[tuple[int, int], str, RetrievalExample]]
+    ] = {}
     for row in rows:
         if not _is_benchmarkable_row(row):
             continue
@@ -515,7 +538,9 @@ def build_retrieval_benchmark_examples(
         )
         quality = _benchmark_candidate_quality(row, query)
         order_key = _stable_text_hash(label, row["filing_id"], row["chunk_evidence_id"])
-        candidates_by_filing.setdefault(row["filing_id"], []).append((quality, order_key, example))
+        candidates_by_filing.setdefault(row["filing_id"], []).append(
+            (quality, order_key, example)
+        )
 
     filing_candidates: List[tuple[str, RetrievalExample]] = []
     for filing_id, candidates in candidates_by_filing.items():
@@ -576,9 +601,16 @@ def _heading_cue_bonus(query: str, heading: str) -> float:
     heading_lower = normalize_heading_text(heading).lower()
     query_tokens = set(_query_tokens(query))
 
-    if "financial statements" in query_lower and "financial statements" in heading_lower:
+    if (
+        "financial statements" in query_lower
+        and "financial statements" in heading_lower
+    ):
         return 4.0
-    if {"management", "discussion", "analysis"}.issubset(query_tokens) and "management" in heading_lower and "analysis" in heading_lower:
+    if (
+        {"management", "discussion", "analysis"}.issubset(query_tokens)
+        and "management" in heading_lower
+        and "analysis" in heading_lower
+    ):
         return 4.0
     if "risk factors" in query_lower and "risk factors" in heading_lower:
         return 4.0
@@ -604,7 +636,9 @@ def _rerank_documents(query: str, documents: Sequence[Any], *, top_k: int) -> Li
         lead_tokens = set(_query_tokens(lead_text))
 
         heading_bonus = _heading_cue_bonus(query_normalized, heading)
-        exact_subheading_bonus = 2.0 if subheading and subheading.lower() in query_lower else 0.0
+        exact_subheading_bonus = (
+            2.0 if subheading and subheading.lower() in query_lower else 0.0
+        )
         subheading_overlap = len(query_tokens & subheading_tokens)
         lead_overlap = len(query_tokens & lead_tokens)
         heading_overlap = len(query_tokens & heading_tokens)
@@ -634,7 +668,11 @@ def _retrieve_documents_for_example(
 ):
     filters = None
     if example.filing_id:
-        filters = {"field": "meta.filing_id", "operator": "==", "value": example.filing_id}
+        filters = {
+            "field": "meta.filing_id",
+            "operator": "==",
+            "value": example.filing_id,
+        }
     response = retriever.run(
         query=_normalize_query_text(example.query),
         top_k=top_k if method == "bm25" else candidate_k,
@@ -661,8 +699,12 @@ def evaluate_bm25_retrieval(
     retriever = None
     filing_retrievers: Dict[str, Any] = {}
     if all(example.filing_id for example in examples):
-        filing_ids = sorted({example.filing_id for example in examples if example.filing_id})
-        grouped_rows: Dict[str, List[Mapping[str, Any]]] = {filing_id: [] for filing_id in filing_ids}
+        filing_ids = sorted(
+            {example.filing_id for example in examples if example.filing_id}
+        )
+        grouped_rows: Dict[str, List[Mapping[str, Any]]] = {
+            filing_id: [] for filing_id in filing_ids
+        }
         for row in _fetch_chunk_rows(db_path, filing_ids=filing_ids):
             grouped_rows[row["filing_id"]].append(row)
         filing_retrievers = {
@@ -679,9 +721,13 @@ def evaluate_bm25_retrieval(
     reciprocal_rank_total = 0.0
 
     for example in examples:
-        active_retriever = filing_retrievers.get(example.filing_id) if example.filing_id else retriever
+        active_retriever = (
+            filing_retrievers.get(example.filing_id) if example.filing_id else retriever
+        )
         if active_retriever is None:
-            raise ValueError(f"No retriever available for filing_id={example.filing_id!r}")
+            raise ValueError(
+                f"No retriever available for filing_id={example.filing_id!r}"
+            )
         documents = _retrieve_documents_for_example(
             active_retriever,
             example,
@@ -691,7 +737,11 @@ def evaluate_bm25_retrieval(
         )
         retrieved_ids = [document.id for document in documents]
         matched_rank = next(
-            (index + 1 for index, chunk_id in enumerate(retrieved_ids) if chunk_id in set(example.expected_chunk_ids)),
+            (
+                index + 1
+                for index, chunk_id in enumerate(retrieved_ids)
+                if chunk_id in set(example.expected_chunk_ids)
+            ),
             None,
         )
         hit = matched_rank is not None

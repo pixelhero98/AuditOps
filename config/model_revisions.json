@@ -1,0 +1,30 @@
+{
+  "manifest_version": "auditops-model-revisions.v1",
+  "resolved_on": "2026-08-21",
+  "models": [
+    {
+      "model_id": "Qwen/Qwen3.5-27B-FP8",
+      "revision": "97f5941bf617e31c5e237364a8602ce3f03a551a",
+      "quantization": "fp8",
+      "role": "primary"
+    },
+    {
+      "model_id": "google/gemma-4-31B-it-qat-w4a16-ct",
+      "revision": "52f3f65bc7a02d555763bc923bd1d9094898219d",
+      "quantization": "compressed-tensors",
+      "role": "challenger"
+    },
+    {
+      "model_id": "Qwen/Qwen3.5-27B",
+      "revision": "fc05daec18b0a78c049392ed2e771dde82bdf654",
+      "quantization": null,
+      "role": "bf16_parity"
+    },
+    {
+      "model_id": "google/gemma-4-31B-it",
+      "revision": "842da3794eaa0b77d5f08bae87a17459d91ff475",
+      "quantization": null,
+      "role": "bf16_parity"
+    }
+  ]
+}

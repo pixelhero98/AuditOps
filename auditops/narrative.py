@@ -7,12 +7,14 @@ import zipfile
 from dataclasses import dataclass
 from typing import List, Optional, Sequence, Tuple
 
-from bs4 import BeautifulSoup
-from bs4 import XMLParsedAsHTMLWarning
+from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
 
-
-ITEM_RE = re.compile(r"^\s*item\s*(\d{1,2}[a]?)\s*(?:[\.\-:]\s*(.*))?$", flags=re.IGNORECASE)
-ITEM_MARKER_RE = re.compile(r"^\s*item\s*\d[\dA-Za-z,\s]*(?:[\.\-:]\s*.*)?$", flags=re.IGNORECASE)
+ITEM_RE = re.compile(
+    r"^\s*item\s*(\d{1,2}[a]?)\s*(?:[\.\-:]\s*(.*))?$", flags=re.IGNORECASE
+)
+ITEM_MARKER_RE = re.compile(
+    r"^\s*item\s*\d[\dA-Za-z,\s]*(?:[\.\-:]\s*.*)?$", flags=re.IGNORECASE
+)
 NUM_RE = re.compile(
     r"""
     (?:
@@ -38,7 +40,23 @@ NUM_RE = re.compile(
 )
 
 BLOCK_TAGS = ("h1", "h2", "h3", "h4", "h5", "h6", "p", "li", "div")
-HEADING_CONNECTORS = {"a", "an", "and", "as", "at", "by", "for", "from", "in", "of", "on", "or", "the", "to", "with"}
+HEADING_CONNECTORS = {
+    "a",
+    "an",
+    "and",
+    "as",
+    "at",
+    "by",
+    "for",
+    "from",
+    "in",
+    "of",
+    "on",
+    "or",
+    "the",
+    "to",
+    "with",
+}
 PART_RE = re.compile(r"^part\s*[ivx]+$", flags=re.IGNORECASE)
 PAGE_ONLY_RE = re.compile(r"^page\s+\d+$", flags=re.IGNORECASE)
 STATUS_PAREN_RE = re.compile(r"^\((?:continued|unaudited)\)$", flags=re.IGNORECASE)
@@ -135,7 +153,9 @@ def normalize_heading_text(text: str) -> str:
             left = words[index]
             right = words[index + 1]
             if left.isupper() and right.isupper():
-                if (len(left) == 1 and len(right) > 1) or (len(left) > 3 and 1 < len(right) <= 3):
+                if (len(left) == 1 and len(right) > 1) or (
+                    len(left) > 3 and 1 < len(right) <= 3
+                ):
                     merged.append(left + right)
                     index += 2
                     continue
@@ -147,7 +167,12 @@ def normalize_heading_text(text: str) -> str:
 def unwrap_inline_xbrl_tags(soup: BeautifulSoup) -> None:
     for tag in list(soup.find_all()):
         name = (tag.name or "").lower()
-        if name.startswith("ix:") or name in {"nonfraction", "nonnumeric", "fraction", "continuation"}:
+        if name.startswith("ix:") or name in {
+            "nonfraction",
+            "nonnumeric",
+            "fraction",
+            "continuation",
+        }:
             tag.unwrap()
 
 
@@ -210,7 +235,9 @@ def detect_item_sections(text: str) -> List[Section]:
         end = hits[index + 1][2] if index + 1 < len(hits) else len(text)
         if end - start < 80:
             continue
-        sections.append(Section(item=item, heading=heading or f"Item {item}", start=start, end=end))
+        sections.append(
+            Section(item=item, heading=heading or f"Item {item}", start=start, end=end)
+        )
     return sections
 
 
@@ -251,8 +278,12 @@ def looks_like_page_header_footer(text: str) -> bool:
     if len(words) > 14:
         return False
 
-    has_page_counter = bool(re.search(r"(?:\||page\s*)\s*\d+\s*$", normalized, flags=re.IGNORECASE))
-    if FORM_TYPE_RE.search(normalized) and (has_page_counter or "|" in normalized or re.search(r"\b20\d{2}\b", normalized)):
+    has_page_counter = bool(
+        re.search(r"(?:\||page\s*)\s*\d+\s*$", normalized, flags=re.IGNORECASE)
+    )
+    if FORM_TYPE_RE.search(normalized) and (
+        has_page_counter or "|" in normalized or re.search(r"\b20\d{2}\b", normalized)
+    ):
         return True
     if normalized.count("|") >= 2 and has_page_counter:
         return True
@@ -292,7 +323,11 @@ def is_noise_paragraph(text: str) -> bool:
 
 def is_subheading(text: str) -> bool:
     normalized = normalize_heading_text(text)
-    if not normalized or is_noise_paragraph(normalized) or ITEM_MARKER_RE.match(normalized):
+    if (
+        not normalized
+        or is_noise_paragraph(normalized)
+        or ITEM_MARKER_RE.match(normalized)
+    ):
         return False
     if len(normalized) < 3 or len(normalized) > 120:
         return False
@@ -307,9 +342,15 @@ def is_subheading(text: str) -> bool:
     if not alpha_words:
         return False
 
-    connector_ratio = sum(1 for word in alpha_words if word.lower() in HEADING_CONNECTORS) / len(alpha_words)
-    titleish_ratio = sum(1 for word in alpha_words if word[0].isupper()) / len(alpha_words)
-    uppercase_ratio = sum(1 for word in alpha_words if word.isupper() and len(word) > 1) / len(alpha_words)
+    connector_ratio = sum(
+        1 for word in alpha_words if word.lower() in HEADING_CONNECTORS
+    ) / len(alpha_words)
+    titleish_ratio = sum(1 for word in alpha_words if word[0].isupper()) / len(
+        alpha_words
+    )
+    uppercase_ratio = sum(
+        1 for word in alpha_words if word.isupper() and len(word) > 1
+    ) / len(alpha_words)
 
     if connector_ratio > 0.45 and len(alpha_words) > 4:
         return False
@@ -329,7 +370,14 @@ def annotate_paragraphs(section_text: str) -> List[Paragraph]:
         if normalized and is_subheading(normalized):
             current_subheading = normalized
             paragraph_subheading = current_subheading
-        annotated.append(Paragraph(start=start, end=end, text=paragraph_text, subheading=paragraph_subheading))
+        annotated.append(
+            Paragraph(
+                start=start,
+                end=end,
+                text=paragraph_text,
+                subheading=paragraph_subheading,
+            )
+        )
     return annotated
 
 
@@ -356,7 +404,11 @@ def chunk_paragraphs(
             end_index += 1
 
         chunk_end = paragraphs[end_index - 1].end
-        raw = "\n\n".join(paragraph.text.strip() for paragraph in paragraphs[start_index:end_index] if paragraph.text.strip()).strip()
+        raw = "\n\n".join(
+            paragraph.text.strip()
+            for paragraph in paragraphs[start_index:end_index]
+            if paragraph.text.strip()
+        ).strip()
         subheading = None
         for paragraph in paragraphs[start_index:end_index]:
             if paragraph.subheading:
@@ -390,7 +442,9 @@ def chunk_paragraphs(
     return chunks
 
 
-def build_heading_path(item: Optional[str], heading: Optional[str], subheading: Optional[str]) -> Optional[str]:
+def build_heading_path(
+    item: Optional[str], heading: Optional[str], subheading: Optional[str]
+) -> Optional[str]:
     parts: List[str] = []
     if item:
         parts.append(f"Item {item}")
@@ -398,12 +452,19 @@ def build_heading_path(item: Optional[str], heading: Optional[str], subheading: 
         parts.append(normalize_heading_text(heading))
     if subheading:
         normalized_subheading = normalize_heading_text(subheading)
-        if normalized_subheading and normalized_subheading != normalize_heading_text(heading or ""):
+        if normalized_subheading and normalized_subheading != normalize_heading_text(
+            heading or ""
+        ):
             parts.append(normalized_subheading)
     return " > ".join(parts) if parts else None
 
 
-def build_retrieval_text(item: Optional[str], heading: Optional[str], subheading: Optional[str], text_masked: str) -> str:
+def build_retrieval_text(
+    item: Optional[str],
+    heading: Optional[str],
+    subheading: Optional[str],
+    text_masked: str,
+) -> str:
     lines: List[str] = []
     if item:
         lines.append(f"Item: {item}")
@@ -411,22 +472,31 @@ def build_retrieval_text(item: Optional[str], heading: Optional[str], subheading
         lines.append(f"Section: {normalize_heading_text(heading)}")
     if subheading:
         normalized_subheading = normalize_heading_text(subheading)
-        if normalized_subheading and normalized_subheading != normalize_heading_text(heading or ""):
+        if normalized_subheading and normalized_subheading != normalize_heading_text(
+            heading or ""
+        ):
             lines.append(f"Subsection: {normalized_subheading}")
     lines.append("Content:")
     lines.append(text_masked)
     return "\n".join(lines)
 
 
-def build_narrative_chunks(text: str, chunk_chars: int = 3500, overlap: int = 450) -> Tuple[Sequence[Section], Sequence[NarrativeChunk]]:
+def build_narrative_chunks(
+    text: str, chunk_chars: int = 3500, overlap: int = 450
+) -> Tuple[Sequence[Section], Sequence[NarrativeChunk]]:
     sections = detect_item_sections(text)
-    spans = [(section.item, section.heading, section.start, section.end) for section in sections] or [(None, None, 0, len(text))]
+    spans = [
+        (section.item, section.heading, section.start, section.end)
+        for section in sections
+    ] or [(None, None, 0, len(text))]
 
     chunks: List[NarrativeChunk] = []
     for item, heading, start, end in spans:
         section_text = text[start:end]
         paragraphs = annotate_paragraphs(section_text)
-        raw_chunks = chunk_paragraphs(section_text, paragraphs, chunk_chars=chunk_chars, overlap=overlap)
+        raw_chunks = chunk_paragraphs(
+            section_text, paragraphs, chunk_chars=chunk_chars, overlap=overlap
+        )
         for index, (chunk_start, chunk_end, raw, subheading) in enumerate(raw_chunks):
             doc_start = start + chunk_start
             doc_end = start + chunk_end

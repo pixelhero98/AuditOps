@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://auditops.local/specs/full_run_authorization.v2.4.schema.json",
+  "title": "FullRunAuthorizationV2.4",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "authorization_version",
+    "benchmark_id",
+    "gate_metrics_sha256",
+    "decision",
+    "authorized_by",
+    "authorized_at"
+  ],
+  "properties": {
+    "authorization_version": {"const": "auditops-full-run-authorization.v2.4"},
+    "benchmark_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "gate_metrics_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "decision": {"const": "GO"},
+    "authorized_by": {"type": "string", "minLength": 1},
+    "authorized_at": {"type": "string", "format": "date-time"}
+  }
+}

@@ -8,17 +8,24 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence
 from .metrics import GENERATOR_VERSION, generate_answer_objects, load_metric_specs_by_id
 from .pipeline import _stable_digest
 
-
 TASK_SPEC_VERSION = "v1"
 TASK_TYPE = "quant_metric"
 TASK_PLAN_SCHEMA_ID = "task_plan.v1"
 STRUCTURED_ANSWER_SCHEMA_ID = "structured_answer.v1"
 TASK_SPEC_SCHEMA_ID = "task_spec_quant.v1"
-RENDER_VERSION = "template-v1"
+RENDER_VERSION = "template-v2"
+CODE_TARGET_VERSION = "python-task-plan-v2"
 HARD_NEGATIVE_VERSION = "v1"
 HOLDOUT_SPLIT_VERSION = "issuer_year_v1"
 EXECUTOR_OP = "evaluate_metric_spec"
-OUTPUT_FIELDS = ["status", "value", "unit", "period_key", "evidence_ids", "refusal_code"]
+OUTPUT_FIELDS = [
+    "status",
+    "value",
+    "unit",
+    "period_key",
+    "evidence_ids",
+    "refusal_code",
+]
 
 _NEGATIVE_TYPE_MAP = {
     "MISSING_INPUT": "missing_input",
@@ -28,15 +35,10 @@ _NEGATIVE_TYPE_MAP = {
     "PERIOD_NOT_SUPPORTED": "period_trap",
 }
 
-_QA_TEMPLATES = (
+_QUANT_TEMPLATES = (
     "Using filing {filing_id} for {ticker}, calculate {metric_label} ({metric_spec_id}) for period {period_key}. Return status, value, unit, period_key, evidence_ids, and refusal_code.",
     "For {ticker} filing {filing_id}, determine {metric_label} ({metric_spec_id}) at {period_key}. Respond with the structured answer fields status, value, unit, period_key, evidence_ids, refusal_code.",
     "AuditOps quant task: compute {metric_label} ({metric_spec_id}) for filing {filing_id} and period {period_key}. The output must be a structured answer with evidence IDs.",
-)
-
-_REFUSAL_TEMPLATES = (
-    "Using filing {filing_id} for {ticker}, attempt {metric_label} ({metric_spec_id}) for period {period_key}. If it cannot be supported deterministically, return a refusal with refusal_code and evidence_ids.",
-    "For {ticker} filing {filing_id}, resolve {metric_label} ({metric_spec_id}) at {period_key}. Return a structured refusal when the canon does not support a deterministic answer.",
 )
 
 
@@ -44,7 +46,31 @@ def _metric_label(metric_spec_id: str) -> str:
     return metric_spec_id.replace("_", " ")
 
 
-def _read_facts(conn, filing_id: Optional[str] = None) -> Dict[tuple[str, str], List[Dict[str, Any]]]:
+def _filing_text_array(
+    filing: Mapping[str, Any],
+    field_name: str,
+) -> List[str]:
+    value = filing.get(field_name)
+    if value is None:
+        return []
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except json.JSONDecodeError as error:
+            raise ValueError(
+                f"Invalid {field_name} JSON for filing {filing.get('filing_id')!r}"
+            ) from error
+    if not isinstance(value, list):
+        raise ValueError(
+            f"Invalid {field_name} for filing {filing.get('filing_id')!r}: "
+            "expected a JSON array"
+        )
+    return sorted({str(item).strip() for item in value if str(item).strip()})
+
+
+def _read_facts(
+    conn, filing_id: Optional[str] = None
+) -> Dict[tuple[str, str], List[Dict[str, Any]]]:
     facts_by_period: Dict[tuple[str, str], List[Dict[str, Any]]] = defaultdict(list)
     if filing_id:
         rows = conn.execute(
@@ -72,7 +98,9 @@ def _read_facts(conn, filing_id: Optional[str] = None) -> Dict[tuple[str, str], 
     return facts_by_period
 
 
-def _read_validators(conn, filing_id: Optional[str] = None) -> Dict[str, List[Dict[str, Any]]]:
+def _read_validators(
+    conn, filing_id: Optional[str] = None
+) -> Dict[str, List[Dict[str, Any]]]:
     validators_by_filing: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
     if filing_id:
         rows = conn.execute(
@@ -125,6 +153,12 @@ def _canonical_inputs(answer: Dict[str, Any]) -> List[Dict[str, Any]]:
                 "concept_norm": payload["concept_norm"],
                 "period_key": payload["period_key"],
                 "unit_canon": payload["unit_canon"],
+                "value_num_exact": (
+                    str(payload["numeric_value"])
+                    if payload.get("numeric_value") is not None
+                    else None
+                ),
+                "value_text": payload.get("text_value"),
                 "fact_evidence_ids": list(payload["fact_evidence_ids"]),
                 "derived": bool(payload["derived"]),
             }
@@ -194,7 +228,8 @@ def dedupe_task_specs(task_specs: Sequence[Mapping[str, Any]]) -> List[Dict[str,
         existing = deduped[existing_index]
         if "validator_codes" in materialized or "validator_codes" in existing:
             merged_codes = sorted(
-                set(existing.get("validator_codes", [])) | set(materialized.get("validator_codes", []))
+                set(existing.get("validator_codes", []))
+                | set(materialized.get("validator_codes", []))
             )
             existing["validator_codes"] = merged_codes
     return deduped
@@ -226,7 +261,9 @@ def validate_task_spec(task_spec: Mapping[str, Any]) -> None:
     if missing:
         raise ValueError(f"TaskSpec is missing required fields: {', '.join(missing)}")
     if task_spec["task_spec_version"] != TASK_SPEC_VERSION:
-        raise ValueError(f"Unsupported TaskSpec version: {task_spec['task_spec_version']}")
+        raise ValueError(
+            f"Unsupported TaskSpec version: {task_spec['task_spec_version']}"
+        )
     if task_spec["task_type"] != TASK_TYPE:
         raise ValueError(f"Unsupported task type: {task_spec['task_type']}")
     if task_spec["target_status"] not in {"OK", "REFUSAL"}:
@@ -258,23 +295,34 @@ def build_task_plan_target(task_spec: Mapping[str, Any]) -> Dict[str, Any]:
     }
 
 
-def build_task_specs_from_answers(conn, answers: Sequence[Dict[str, Any]], filing_id: Optional[str] = None) -> List[Dict[str, Any]]:
+def build_task_specs_from_answers(
+    conn, answers: Sequence[Dict[str, Any]], filing_id: Optional[str] = None
+) -> List[Dict[str, Any]]:
     specs_by_id = load_metric_specs_by_id()
     facts_by_period = _read_facts(conn, filing_id=filing_id)
     validators_by_filing = _read_validators(conn, filing_id=filing_id)
     if filing_id:
-        filing_rows = conn.execute("SELECT * FROM filings WHERE filing_id=? ORDER BY filing_id", (filing_id,)).fetchall()
+        filing_rows = conn.execute(
+            "SELECT * FROM filings WHERE filing_id=? ORDER BY filing_id", (filing_id,)
+        ).fetchall()
     else:
-        filing_rows = conn.execute("SELECT * FROM filings ORDER BY filing_id").fetchall()
+        filing_rows = conn.execute(
+            "SELECT * FROM filings ORDER BY filing_id"
+        ).fetchall()
     filings = {row["filing_id"]: dict(row) for row in filing_rows}
 
     task_specs: List[Dict[str, Any]] = []
     for answer in answers:
         spec = specs_by_id[answer["metric_spec_id"]]
+        filing = filings[answer["filing_id"]]
         task_id = _stable_digest("task-spec", answer["answer_id"], TASK_SPEC_VERSION)
         canonical_inputs = _canonical_inputs(answer)
         used_concepts = [payload["concept_norm"] for payload in canonical_inputs]
-        used_evidence_ids = [evidence_id for payload in canonical_inputs for evidence_id in payload["fact_evidence_ids"]]
+        used_evidence_ids = [
+            evidence_id
+            for payload in canonical_inputs
+            for evidence_id in payload["fact_evidence_ids"]
+        ]
         task_spec = {
             "task_spec_version": TASK_SPEC_VERSION,
             "task_spec_schema_id": TASK_SPEC_SCHEMA_ID,
@@ -289,10 +337,20 @@ def build_task_specs_from_answers(conn, answers: Sequence[Dict[str, Any]], filin
             "filing_id": answer["filing_id"],
             "ticker": answer["ticker"],
             "filing_metadata": {
-                "form_type": filings[answer["filing_id"]]["form_type"],
-                "fiscal_year_focus": filings[answer["filing_id"]]["fiscal_year_focus"],
-                "fiscal_period_focus": filings[answer["filing_id"]]["fiscal_period_focus"],
-                "report_date": filings[answer["filing_id"]]["report_date"],
+                "form_type": filing.get("form_type"),
+                "fiscal_year_focus": filing.get("fiscal_year_focus"),
+                "fiscal_period_focus": filing.get("fiscal_period_focus"),
+                "report_date": filing.get("report_date"),
+                "cik": filing.get("cik"),
+                "accession": filing.get("accession"),
+                "source_zip_name": filing.get("zip_name"),
+                "main_html": filing.get("main_html"),
+                "source_sha256": filing.get("source_sha256"),
+                "source_size_bytes": filing.get("source_size_bytes"),
+                "taxonomy_refs": _filing_text_array(filing, "taxonomy_refs_json"),
+                "taxonomy_identifiers": _filing_text_array(
+                    filing, "taxonomy_identifiers_json"
+                ),
             },
             "period": dict(answer["period"]),
             "target_status": answer["status"],
@@ -320,8 +378,19 @@ def build_task_specs_from_answers(conn, answers: Sequence[Dict[str, Any]], filin
                 "allowed_codes": list(spec["refusal_rules"]),
                 "default_code": answer.get("refusal_code"),
             },
-            "validator_codes": sorted({row["validator_code"] for row in validators_by_filing.get(answer["filing_id"], [])}),
+            "validator_codes": sorted(
+                {
+                    row["validator_code"]
+                    for row in validators_by_filing.get(answer["filing_id"], [])
+                }
+            ),
         }
+        task_spec["template_id"] = _question_template_id(task_spec)
+        task_spec["task_family"] = (
+            f"quant_metric:{task_spec['metric_spec_id']}:"
+            f"{str(task_spec['target_status']).casefold()}"
+        )
+        task_spec["question"] = _build_question(task_spec)
         validate_task_spec(task_spec)
         task_specs.append(task_spec)
     return dedupe_task_specs(task_specs)
@@ -340,7 +409,8 @@ def _assign_holdout_splits(task_specs: Sequence[Dict[str, Any]]) -> Dict[str, st
         eval_keys = {
             key
             for key in keys
-            if int(_stable_digest("holdout", HOLDOUT_SPLIT_VERSION, key)[:8], 16) % 5 == 0
+            if int(_stable_digest("holdout", HOLDOUT_SPLIT_VERSION, key)[:8], 16) % 5
+            == 0
         }
         if not eval_keys:
             eval_keys = {keys[-1]}
@@ -349,14 +419,15 @@ def _assign_holdout_splits(task_specs: Sequence[Dict[str, Any]]) -> Dict[str, st
 
     split_by_task_id = {}
     for task_spec in task_specs:
-        split_by_task_id[task_spec["task_id"]] = "eval_holdout" if _issuer_year_key(task_spec) in eval_keys else "train"
+        split_by_task_id[task_spec["task_id"]] = (
+            "eval_holdout" if _issuer_year_key(task_spec) in eval_keys else "train"
+        )
     return split_by_task_id
 
 
 def _build_question(task_spec: Mapping[str, Any]) -> str:
-    question_set = _REFUSAL_TEMPLATES if task_spec["target_status"] == "REFUSAL" else _QA_TEMPLATES
-    template_index = int(_stable_digest("question", task_spec["task_id"])[:8], 16) % len(question_set)
-    template = question_set[template_index]
+    template_index = _question_template_index(task_spec)
+    template = _QUANT_TEMPLATES[template_index]
     return template.format(
         filing_id=task_spec["filing_id"],
         ticker=task_spec["ticker"] or "UNKNOWN",
@@ -366,13 +437,24 @@ def _build_question(task_spec: Mapping[str, Any]) -> str:
     )
 
 
+def _question_template_index(task_spec: Mapping[str, Any]) -> int:
+    return int(_stable_digest("question", task_spec["task_id"])[:8], 16) % len(
+        _QUANT_TEMPLATES
+    )
+
+
+def _question_template_id(task_spec: Mapping[str, Any]) -> str:
+    return f"quant:{_question_template_index(task_spec)}:{RENDER_VERSION}"
+
+
 def _build_code_target(task_spec: Mapping[str, Any]) -> str:
     task_plan = json.dumps(build_task_plan_target(task_spec), indent=2, sort_keys=True)
     return "\n".join(
         [
+            "import json",
             "from auditops.runtime import execute_task_plan",
             "",
-            f"task_plan = {task_plan}",
+            f"task_plan = json.loads({task_plan!r})",
             "structured_answer = execute_task_plan(conn, task_plan)",
         ]
     )
@@ -388,6 +470,8 @@ def _base_rendered_record(task_spec: Mapping[str, Any], split: str) -> Dict[str,
         "ticker": task_spec["ticker"],
         "metric_spec_id": task_spec["metric_spec_id"],
         "period_key": task_spec["period"]["period_key"],
+        "template_id": _question_template_id(task_spec),
+        "task_family": f"quant_metric:{task_spec['metric_spec_id']}:{str(task_spec['target_status']).casefold()}",
         "question": _build_question(task_spec),
         "task_plan": build_task_plan_target(task_spec),
         "target_answer": dict(task_spec["target_answer"]),
@@ -396,7 +480,9 @@ def _base_rendered_record(task_spec: Mapping[str, Any], split: str) -> Dict[str,
     }
 
 
-def _period_siblings(task_specs: Sequence[Mapping[str, Any]], source_task: Mapping[str, Any]) -> List[Mapping[str, Any]]:
+def _period_siblings(
+    task_specs: Sequence[Mapping[str, Any]], source_task: Mapping[str, Any]
+) -> List[Mapping[str, Any]]:
     siblings = []
     for candidate in task_specs:
         if candidate["task_id"] == source_task["task_id"]:
@@ -419,12 +505,17 @@ def build_hard_negatives(task_specs: Sequence[Dict[str, Any]]) -> List[Dict[str,
             negatives.append(
                 {
                     "hard_negative_version": HARD_NEGATIVE_VERSION,
-                    "negative_id": _stable_digest("hard-negative", task_spec["task_id"], task_spec["target_answer"]["refusal_code"] or "refusal"),
+                    "negative_id": _stable_digest(
+                        "hard-negative",
+                        task_spec["task_id"],
+                        task_spec["target_answer"]["refusal_code"] or "refusal",
+                    ),
                     "source_task_id": task_spec["task_id"],
                     "filing_id": task_spec["filing_id"],
                     "metric_spec_id": task_spec["metric_spec_id"],
                     "period_key": task_spec["period"]["period_key"],
-                    "negative_type": task_spec["negative_type"] or "deterministic_refusal",
+                    "negative_type": task_spec["negative_type"]
+                    or "deterministic_refusal",
                     "target_answer": dict(task_spec["target_answer"]),
                     "challenge": {
                         "kind": "actual_refusal",
@@ -438,7 +529,9 @@ def build_hard_negatives(task_specs: Sequence[Dict[str, Any]]) -> List[Dict[str,
             negatives.append(
                 {
                     "hard_negative_version": HARD_NEGATIVE_VERSION,
-                    "negative_id": _stable_digest("hard-negative", task_spec["task_id"], "distractor"),
+                    "negative_id": _stable_digest(
+                        "hard-negative", task_spec["task_id"], "distractor"
+                    ),
                     "source_task_id": task_spec["task_id"],
                     "filing_id": task_spec["filing_id"],
                     "metric_spec_id": task_spec["metric_spec_id"],
@@ -457,7 +550,9 @@ def build_hard_negatives(task_specs: Sequence[Dict[str, Any]]) -> List[Dict[str,
             negatives.append(
                 {
                     "hard_negative_version": HARD_NEGATIVE_VERSION,
-                    "negative_id": _stable_digest("hard-negative", task_spec["task_id"], "period-trap"),
+                    "negative_id": _stable_digest(
+                        "hard-negative", task_spec["task_id"], "period-trap"
+                    ),
                     "source_task_id": task_spec["task_id"],
                     "filing_id": task_spec["filing_id"],
                     "metric_spec_id": task_spec["metric_spec_id"],
@@ -473,12 +568,16 @@ def build_hard_negatives(task_specs: Sequence[Dict[str, Any]]) -> List[Dict[str,
 
         validator_codes = set(task_spec.get("validator_codes", []))
         if not validator_codes and task_spec.get("validator_context"):
-            validator_codes = {row["validator_code"] for row in task_spec["validator_context"]}
+            validator_codes = {
+                row["validator_code"] for row in task_spec["validator_context"]
+            }
         if "CONTEXT_SELECTION_AMBIGUOUS" in validator_codes:
             negatives.append(
                 {
                     "hard_negative_version": HARD_NEGATIVE_VERSION,
-                    "negative_id": _stable_digest("hard-negative", task_spec["task_id"], "context-ambiguity"),
+                    "negative_id": _stable_digest(
+                        "hard-negative", task_spec["task_id"], "context-ambiguity"
+                    ),
                     "source_task_id": task_spec["task_id"],
                     "filing_id": task_spec["filing_id"],
                     "metric_spec_id": task_spec["metric_spec_id"],
@@ -496,7 +595,9 @@ def build_hard_negatives(task_specs: Sequence[Dict[str, Any]]) -> List[Dict[str,
             negatives.append(
                 {
                     "hard_negative_version": HARD_NEGATIVE_VERSION,
-                    "negative_id": _stable_digest("hard-negative", task_spec["task_id"], "unit-trap"),
+                    "negative_id": _stable_digest(
+                        "hard-negative", task_spec["task_id"], "unit-trap"
+                    ),
                     "source_task_id": task_spec["task_id"],
                     "filing_id": task_spec["filing_id"],
                     "metric_spec_id": task_spec["metric_spec_id"],
@@ -516,7 +617,9 @@ def build_hard_negatives(task_specs: Sequence[Dict[str, Any]]) -> List[Dict[str,
         negatives.append(
             {
                 "hard_negative_version": HARD_NEGATIVE_VERSION,
-                "negative_id": _stable_digest("hard-negative", task_spec["task_id"], "wrong-evidence-map"),
+                "negative_id": _stable_digest(
+                    "hard-negative", task_spec["task_id"], "wrong-evidence-map"
+                ),
                 "source_task_id": task_spec["task_id"],
                 "filing_id": task_spec["filing_id"],
                 "metric_spec_id": task_spec["metric_spec_id"],
@@ -561,7 +664,9 @@ def write_task_specs(conn, output_path: str, filing_id: Optional[str] = None) ->
     return write_jsonl(output_path, task_specs)
 
 
-def render_quant_datasets(conn, output_dir: str, filing_id: Optional[str] = None) -> Dict[str, Any]:
+def render_quant_datasets(
+    conn, output_dir: str, filing_id: Optional[str] = None
+) -> Dict[str, Any]:
     output_root = Path(output_dir)
     output_root.mkdir(parents=True, exist_ok=True)
 
@@ -586,6 +691,7 @@ def render_quant_datasets(conn, output_dir: str, filing_id: Optional[str] = None
                 {
                     **record,
                     "code_target": _build_code_target(task_spec),
+                    "code_target_version": CODE_TARGET_VERSION,
                 }
             )
         else:

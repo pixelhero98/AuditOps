@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://auditops.local/specs/gate_provisional_review.v2.4p.schema.json",
+  "title": "GateProvisionalReviewV2.4p",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["gate_provisional_review_version", "benchmark_id", "run_manifest_sha256", "release_review_packet_sha256", "assurance", "experiment_label", "reviewer", "benchmark_defect_status", "decisions", "review_id"],
+  "properties": {
+    "gate_provisional_review_version": {"const": "auditops-gate-provisional-ai-review.v2.4p"},
+    "benchmark_id": {"$ref": "#/$defs/digest"},
+    "run_manifest_sha256": {"$ref": "#/$defs/digest"},
+    "release_review_packet_sha256": {"$ref": "#/$defs/digest"},
+    "assurance": {"const": "PROVISIONAL_AI_REVIEW"},
+    "experiment_label": {"const": "EXPLORATORY"},
+    "reviewer": {
+      "type": "object", "additionalProperties": false,
+      "required": ["reviewer_kind", "model_identity", "deployment_identifier", "deployment_identifier_status", "pass_kind", "pass_id", "independence_claim", "reviewed_at", "attestation"],
+      "properties": {
+        "reviewer_kind": {"const": "AI"}, "model_identity": {"const": "Codex/GPT-5"},
+        "deployment_identifier": {"type": "null"}, "deployment_identifier_status": {"const": "NOT_EXPOSED_TO_AGENT"},
+        "pass_kind": {"const": "GATE_RELEASES"}, "pass_id": {"type": "string", "minLength": 1},
+        "independence_claim": {"const": false}, "reviewed_at": {"type": "string", "format": "date-time"},
+        "attestation": {"type": "string", "minLength": 1}
+      }
+    },
+    "benchmark_defect_status": {"enum": ["NONE_FOUND", "DEFECT_FOUND"]},
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["task_id", "quote_answers_question", "comment"],
+        "properties": {
+          "task_id": {"type": "string", "minLength": 1},
+          "quote_answers_question": {"type": "boolean"},
+          "comment": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "review_id": {"$ref": "#/$defs/digest"}
+  },
+  "$defs": {"digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+}

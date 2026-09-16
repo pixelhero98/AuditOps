@@ -7,7 +7,7 @@ import os
 import re
 import time
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence
+from typing import Any, Dict, List, Mapping, Optional, Sequence
 from urllib.parse import quote, urljoin
 
 import requests
@@ -22,7 +22,6 @@ from .corpus import (
     ensure_corpus_layout,
 )
 from .tasks import read_jsonl, write_jsonl
-
 
 FCA_NSM_SEARCH_API = "https://api.data.fca.org.uk/search"
 FCA_NSM_DETAILS_API = "https://api.data.fca.org.uk/details"
@@ -75,13 +74,42 @@ def _read_uk_constituents_snapshot(path: str | Path) -> List[Dict[str, Optional[
             raise ValueError("UK constituents CSV is missing a header row.")
 
         fields = {field.lower(): field for field in reader.fieldnames}
-        ticker_field = next((fields[name] for name in ("ticker", "symbol", "epic") if name in fields), None)
-        name_field = next((fields[name] for name in ("company_name", "name", "security", "issuer") if name in fields), None)
-        lei_field = next((fields[name] for name in ("lei", "legal_entity_identifier") if name in fields), None)
-        keyword_field = next((fields[name] for name in ("nsm_keyword", "search_keyword", "keyword") if name in fields), None)
-        country_field = next((fields[name] for name in ("issuer_country", "country") if name in fields), None)
+        ticker_field = next(
+            (fields[name] for name in ("ticker", "symbol", "epic") if name in fields),
+            None,
+        )
+        name_field = next(
+            (
+                fields[name]
+                for name in ("company_name", "name", "security", "issuer")
+                if name in fields
+            ),
+            None,
+        )
+        lei_field = next(
+            (
+                fields[name]
+                for name in ("lei", "legal_entity_identifier")
+                if name in fields
+            ),
+            None,
+        )
+        keyword_field = next(
+            (
+                fields[name]
+                for name in ("nsm_keyword", "search_keyword", "keyword")
+                if name in fields
+            ),
+            None,
+        )
+        country_field = next(
+            (fields[name] for name in ("issuer_country", "country") if name in fields),
+            None,
+        )
         if ticker_field is None or name_field is None:
-            raise ValueError("UK constituents CSV must include ticker/symbol and company_name/name columns.")
+            raise ValueError(
+                "UK constituents CSV must include ticker/symbol and company_name/name columns."
+            )
 
         rows: List[Dict[str, Optional[str]]] = []
         for raw_row in reader:
@@ -93,9 +121,15 @@ def _read_uk_constituents_snapshot(path: str | Path) -> List[Dict[str, Optional[
                 {
                     "ticker": ticker,
                     "company_name": company_name,
-                    "lei": (raw_row.get(lei_field) or "").strip().upper() or None if lei_field else None,
-                    "nsm_keyword": (raw_row.get(keyword_field) or "").strip() or None if keyword_field else None,
-                    "issuer_country": (raw_row.get(country_field) or "").strip() or "UK" if country_field else "UK",
+                    "lei": (raw_row.get(lei_field) or "").strip().upper() or None
+                    if lei_field
+                    else None,
+                    "nsm_keyword": (raw_row.get(keyword_field) or "").strip() or None
+                    if keyword_field
+                    else None,
+                    "issuer_country": (raw_row.get(country_field) or "").strip() or "UK"
+                    if country_field
+                    else "UK",
                 }
             )
         return rows
@@ -161,7 +195,9 @@ def _company_search_variants(company_name: str) -> List[str]:
 def _apply_fca_headers(session: Any) -> Any:
     headers = getattr(session, "headers", None)
     if headers is not None:
-        headers.update({"Origin": "https://data.fca.org.uk", "Referer": "https://data.fca.org.uk/"})
+        headers.update(
+            {"Origin": "https://data.fca.org.uk", "Referer": "https://data.fca.org.uk/"}
+        )
     return session
 
 
@@ -203,7 +239,10 @@ def _nsm_search(
         try:
             response.raise_for_status()
         except requests.HTTPError:
-            if response.status_code not in FCA_RETRYABLE_HTTP_STATUS_CODES or attempt >= max_attempts:
+            if (
+                response.status_code not in FCA_RETRYABLE_HTTP_STATUS_CODES
+                or attempt >= max_attempts
+            ):
                 raise
             time.sleep(min(8.0, attempt * 2.0))
             continue
@@ -227,7 +266,9 @@ def _nsm_asset_url(asset_path: str) -> str:
     return urljoin(FCA_NSM_ASSET_BASE_URL, asset_path.lstrip("/"))
 
 
-def _download_nsm_asset(session: requests.Session, asset_path: str, output_path: Path) -> tuple[int, Optional[int]]:
+def _download_nsm_asset(
+    session: requests.Session, asset_path: str, output_path: Path
+) -> tuple[int, Optional[int]]:
     return _download_with_resume(session, _nsm_asset_url(asset_path), output_path)
 
 
@@ -240,7 +281,9 @@ def _is_retryable_error(error: requests.RequestException) -> bool:
     return True
 
 
-def _candidate_matches_issuer(source: Mapping[str, Any], issuer: Mapping[str, Any]) -> Optional[str]:
+def _candidate_matches_issuer(
+    source: Mapping[str, Any], issuer: Mapping[str, Any]
+) -> Optional[str]:
     issuer_lei = (issuer.get("lei") or "").strip().upper()
     if issuer_lei and (source.get("lei") or "").strip().upper() == issuer_lei:
         return "lei_exact"
@@ -257,7 +300,9 @@ def _candidate_matches_issuer(source: Mapping[str, Any], issuer: Mapping[str, An
     return None
 
 
-def _candidate_sort_key(source: Mapping[str, Any], report_type: str) -> tuple[int, int, str, str]:
+def _candidate_sort_key(
+    source: Mapping[str, Any], report_type: str
+) -> tuple[int, int, str, str]:
     tag_esef = (source.get("tag_esef") or "").strip()
     tagged_score = 2 if tag_esef == "Tagged" else 1 if tag_esef == "Untagged" else 0
     direct_upload_score = 1 if source.get("source") == "Direct Upload" else 0
@@ -283,7 +328,11 @@ def _resolve_nsm_report(
     if report_def["report_type"] == "annual_financial_report":
         report_queries = ["Annual Financial Report", "annual report"]
     else:
-        report_queries = ["Half-year Financial Report", "half year report", "interim report"]
+        report_queries = [
+            "Half-year Financial Report",
+            "half year report",
+            "interim report",
+        ]
     for variant in company_variants:
         for query in report_queries:
             search_terms.append(f"{variant} {query}")
@@ -324,7 +373,10 @@ def _resolve_nsm_report(
             "search_keyword_used": chosen_term,
         }
 
-    candidates.sort(key=lambda row: _candidate_sort_key(row, report_def["report_type"]), reverse=True)
+    candidates.sort(
+        key=lambda row: _candidate_sort_key(row, report_def["report_type"]),
+        reverse=True,
+    )
     chosen = dict(candidates[0])
     chosen["status"] = "resolved"
     chosen["search_keyword_used"] = chosen_term
@@ -344,7 +396,9 @@ def build_uk_manifest(
     session = _apply_fca_headers(_get_session(user_agent=user_agent))
 
     constituents = _read_uk_constituents_snapshot(constituents_path)
-    _copy_snapshot_file(constituents_path, layout.manifest / "constituents_snapshot.csv")
+    _copy_snapshot_file(
+        constituents_path, layout.manifest / "constituents_snapshot.csv"
+    )
 
     issuer_manifest: List[Dict[str, Any]] = []
     filing_manifest: List[Dict[str, Any]] = []
@@ -360,7 +414,9 @@ def build_uk_manifest(
             "nsm_keyword": issuer.get("nsm_keyword"),
             "issuer_country": issuer.get("issuer_country") or "UK",
             "source_system": "FCA_NSM",
-            "forms_expected": [report_def["report_type"] for report_def in UK_REPORT_DEFS],
+            "forms_expected": [
+                report_def["report_type"] for report_def in UK_REPORT_DEFS
+            ],
             "constituent_source": source_label,
             "status": "resolved",
             "error": None,
@@ -369,7 +425,9 @@ def build_uk_manifest(
 
         for report_def in UK_REPORT_DEFS:
             try:
-                resolved = _resolve_nsm_report(session, issuer_row, report_def, search_size=search_size)
+                resolved = _resolve_nsm_report(
+                    session, issuer_row, report_def, search_size=search_size
+                )
                 filing_manifest.append(
                     {
                         "snapshot_id": snapshot_id,
@@ -443,15 +501,23 @@ def build_uk_manifest(
         "issuer_manifest": str(issuer_manifest_path),
         "filing_manifest": str(filing_manifest_path),
         "issuer_count": len(issuer_manifest),
-        "resolved_issuer_count": sum(1 for row in issuer_manifest if row["status"] == "resolved"),
-        "resolved_filing_count": sum(1 for row in filing_manifest if row["status"] == "resolved"),
+        "resolved_issuer_count": sum(
+            1 for row in issuer_manifest if row["status"] == "resolved"
+        ),
+        "resolved_filing_count": sum(
+            1 for row in filing_manifest if row["status"] == "resolved"
+        ),
         "annual_resolved_count": sum(
-            1 for row in filing_manifest if row["report_type"] == "annual_financial_report" and row["status"] == "resolved"
+            1
+            for row in filing_manifest
+            if row["report_type"] == "annual_financial_report"
+            and row["status"] == "resolved"
         ),
         "half_yearly_resolved_count": sum(
             1
             for row in filing_manifest
-            if row["report_type"] == "half_yearly_financial_report" and row["status"] == "resolved"
+            if row["report_type"] == "half_yearly_financial_report"
+            and row["status"] == "resolved"
         ),
     }
 
@@ -464,7 +530,9 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def download_uk_filings(corpus_root: str, user_agent: Optional[str] = None, max_attempts: int = 3) -> Dict[str, Any]:
+def download_uk_filings(
+    corpus_root: str, user_agent: Optional[str] = None, max_attempts: int = 3
+) -> Dict[str, Any]:
     layout = ensure_corpus_layout(corpus_root)
     session = _apply_fca_headers(_get_session(user_agent=user_agent))
     filing_manifest = read_jsonl(layout.manifest / "filing_manifest.jsonl")
@@ -496,7 +564,9 @@ def download_uk_filings(corpus_root: str, user_agent: Optional[str] = None, max_
             ledger_rows.append(ledger_row)
             continue
 
-        details_path = details_root / filing["ticker"] / f"{filing['disclosure_id']}.json"
+        details_path = (
+            details_root / filing["ticker"] / f"{filing['disclosure_id']}.json"
+        )
         details_path.parent.mkdir(parents=True, exist_ok=True)
         try:
             if details_path.exists() and details_path.stat().st_size > 0:
@@ -514,14 +584,20 @@ def download_uk_filings(corpus_root: str, user_agent: Optional[str] = None, max_
                 {
                     "status": "download_error",
                     "details_status": "download_error",
-                    "details_http_status": error.response.status_code if isinstance(error, requests.HTTPError) and error.response else None,
+                    "details_http_status": error.response.status_code
+                    if isinstance(error, requests.HTTPError) and error.response
+                    else None,
                     "error": str(error),
                 }
             )
             ledger_rows.append(ledger_row)
             continue
 
-        asset_candidates = [path for path in [filing.get("download_link"), filing.get("html_link")] if path]
+        asset_candidates = [
+            path
+            for path in [filing.get("download_link"), filing.get("html_link")]
+            if path
+        ]
         raw_download_error = None
         raw_attempts = 0
         for asset_path in asset_candidates:
@@ -535,8 +611,12 @@ def download_uk_filings(corpus_root: str, user_agent: Optional[str] = None, max_
                     byte_count = output_path.stat().st_size
                     raw_status = "existing_local"
                 else:
-                    http_status, byte_count = _download_nsm_asset(session, asset_path, output_path)
-                    raw_status = "existing_local" if http_status == 416 else "downloaded"
+                    http_status, byte_count = _download_nsm_asset(
+                        session, asset_path, output_path
+                    )
+                    raw_status = (
+                        "existing_local" if http_status == 416 else "downloaded"
+                    )
                 ledger_row.update(
                     {
                         "status": raw_status,
@@ -564,10 +644,15 @@ def download_uk_filings(corpus_root: str, user_agent: Optional[str] = None, max_
         if raw_download_error is not None or not asset_candidates:
             ledger_row.update(
                 {
-                    "status": "details_only" if ledger_row["details_status"] in {"downloaded", "existing_local"} else "download_error",
-                    "raw_status": "download_error" if asset_candidates else "not_available",
+                    "status": "details_only"
+                    if ledger_row["details_status"] in {"downloaded", "existing_local"}
+                    else "download_error",
+                    "raw_status": "download_error"
+                    if asset_candidates
+                    else "not_available",
                     "raw_http_status": raw_download_error.response.status_code
-                    if isinstance(raw_download_error, requests.HTTPError) and raw_download_error.response
+                    if isinstance(raw_download_error, requests.HTTPError)
+                    and raw_download_error.response
                     else None,
                     "error": str(raw_download_error) if raw_download_error else None,
                     "attempts": raw_attempts,
@@ -582,11 +667,19 @@ def download_uk_filings(corpus_root: str, user_agent: Optional[str] = None, max_
         "download_ledger": str(ledger_path),
         "attempted": len(ledger_rows),
         "details_success_count": sum(
-            1 for row in ledger_rows if row.get("details_status") in {"downloaded", "existing_local"}
+            1
+            for row in ledger_rows
+            if row.get("details_status") in {"downloaded", "existing_local"}
         ),
         "raw_success_count": sum(
-            1 for row in ledger_rows if row.get("raw_status") in UK_RAW_DOWNLOAD_SUCCESS_STATUSES
+            1
+            for row in ledger_rows
+            if row.get("raw_status") in UK_RAW_DOWNLOAD_SUCCESS_STATUSES
         ),
-        "details_only_count": sum(1 for row in ledger_rows if row.get("status") == "details_only"),
-        "error_count": sum(1 for row in ledger_rows if row.get("status") == "download_error"),
+        "details_only_count": sum(
+            1 for row in ledger_rows if row.get("status") == "details_only"
+        ),
+        "error_count": sum(
+            1 for row in ledger_rows if row.get("status") == "download_error"
+        ),
     }

@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="AuditOps v2.3 safety-hybrid filing-verification runtime.">
+  <title>AuditOps v2.3 — Runtime Protocol</title>
+  <style>
+    :root { color-scheme: light; --ink:#17202a; --muted:#59636e; --line:#d8dee4; --panel:#f6f8fa; --accent:#075985; }
+    body { max-width: 960px; margin: 0 auto; padding: 40px 24px 72px; color:var(--ink); font:16px/1.55 system-ui,sans-serif; }
+    h1,h2 { line-height:1.2; } h1 { margin-bottom:.25rem; } h2 { margin-top:2rem; border-bottom:1px solid var(--line); padding-bottom:.35rem; }
+    code { background:var(--panel); padding:.1rem .3rem; border-radius:4px; } table { border-collapse:collapse; width:100%; }
+    th,td { border:1px solid var(--line); padding:.55rem; text-align:left; vertical-align:top; } th { background:var(--panel); }
+    .status { display:inline-block; color:white; background:var(--accent); border-radius:999px; padding:.15rem .55rem; font-size:.78rem; font-weight:700; }
+    .lede { color:var(--muted); font-size:1.08rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="status">IMPLEMENTED</span>
+    <h1>AuditOps v2.3 runtime protocol</h1>
+    <p class="lede">A versioned, stateless filing-verification runtime. It does not issue audit opinions or perform autonomous statutory audits.</p>
+  </header>
+
+  <section data-status="IMPLEMENTED">
+  <h2>Deployable baseline</h2>
+  <p><code>safety_hybrid</code> is the deployable baseline. Quantitative tasks are executed and released through the deterministic metric executor. Narrative tasks load a frozen, section-bounded evidence scope and ask the model for exact quotes only. <code>capability_agent</code> remains a research ablation because its one legal tool action is schema-forced.</p>
+  </section>
+
+  <section data-status="IMPLEMENTED">
+  <h2>State machine</h2>
+  <ol>
+    <li>Validate and sanitize <code>AgentTaskInputV2.3</code>.</li>
+    <li>Build a complete stateless <code>ContextPackV2.3</code>; fail with <code>CONTEXT_OVERFLOW</code> rather than truncate.</li>
+    <li>Execute only the task registry’s deterministic operation.</li>
+    <li>For narrative tasks, request one schema-constrained quote selection.</li>
+    <li>Reconstruct release text, claims, and citations deterministically.</li>
+    <li>Verify scope, period, arithmetic, citations, exact support, and extraction policy.</li>
+    <li>Release, safely refuse, or return a typed failure. At most one safe repair is possible.</li>
+  </ol>
+  </section>
+
+  <section data-status="IMPLEMENTED">
+  <h2>Narrative boundary</h2>
+  <table>
+    <thead><tr><th>Subtype</th><th>Extracts</th><th>Rule</th></tr></thead>
+    <tbody>
+      <tr><td>Footnote note</td><td>Exactly 1</td><td>Select one minimal direct quote.</td></tr>
+      <tr><td>Accounting policy</td><td>Exactly 1</td><td>Select one minimal direct quote.</td></tr>
+      <tr><td>Auditor opinion language</td><td>Exactly 1</td><td>Financial-statement and ICFR opinions are separated before ranking.</td></tr>
+      <tr><td>Critical audit matter</td><td>1–3</td><td>Multiple quotes are legal only for distinct requested CAM components.</td></tr>
+    </tbody>
+  </table>
+  <p>The only model-facing absence-of-support refusal is <code>NO_DIRECT_EVIDENCE</code>. Evaluator-only negative causes retain whether a source task represented a retrieval miss, an unsupported claim, or another hard negative. Those causes never enter a model request.</p>
+  </section>
+
+  <section data-status="IMPLEMENTED">
+  <h2>Identity and immutability</h2>
+  <p>The task binds the subtype policy and its hash. The run identity also binds the context, stage schemas, prompt version, semantic model configuration, deterministic executor, operation registry, demonstration pack, and narrative policy. Local model paths remain outside the semantic identity. v2.2 schemas, benchmarks, runs, and reports are not rewritten or dual-read.</p>
+  </section>
+
+  <section data-status="IMPLEMENTED">
+  <h2>Evaluation</h2>
+  <p>Headline narrative measures are answerability, exact extractive support, citation agreement, and preferred-wording exactness. Aggregate proposal accuracy is retained only as a compatibility diagnostic. Results include filing-level macro rates and filing-clustered uncertainty because the cached US benchmark has repeated tasks per filing.</p>
+  </section>
+
+  <section data-status="IMPLEMENTED">
+  <h2>Public schemas</h2>
+  <p>See <a href="agent-tool-schema-v2.3.html">the v2.3 schema boundary</a>, <a href="../auditops/specs/agent_task_input.v2.3.schema.json">AgentTaskInputV2.3</a>, <a href="../auditops/specs/narrative_selection_response.v2.3.schema.json">NarrativeSelectionResponseV2.3</a>, and <a href="../auditops/specs/agent_run_record.v2.3.schema.json">AgentRunRecordV2.3</a>.</p>
+  </section>
+
+  <section data-status="DEFERRED">
+  <h2>Deferred</h2>
+  <p><span class="status">DEFERRED</span> Human-approved few-shot execution, the full 500-case inference matrix, VLM diagnostics, professional-judgment conclusions, audit opinions, and external actions remain outside this implementation step.</p>
+  </section>
+</body>
+</html>

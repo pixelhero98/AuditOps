@@ -38,13 +38,13 @@ echo "METHOD=$METHOD"
 echo "CANDIDATE_K=$CANDIDATE_K"
 echo "LOG=$LOG_FILE"
 
-auditops build-retrieval-benchmark \
+python -m auditops.cli build-retrieval-benchmark \
   --db "$DB_PATH" \
   --output "$BENCHMARK_PATH" \
   --limit "$BENCHMARK_LIMIT" \
   --per-filing-limit "$PER_FILING_LIMIT"
 
-auditops eval-retrieval \
+python -m auditops.cli eval-retrieval \
   --db "$DB_PATH" \
   --examples "$BENCHMARK_PATH" \
   --method "$METHOD" \

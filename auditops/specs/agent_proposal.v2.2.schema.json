@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent_proposal.v2.2",
+  "title": "AuditOps AgentProposalV2 under the v2.2 operation registry",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/callTool"
+    },
+    {
+      "$ref": "agent_proposal.v2.schema.json#/$defs/quantitativeAnswer"
+    },
+    {
+      "$ref": "agent_proposal.v2.schema.json#/$defs/narrativeAnswer"
+    },
+    {
+      "$ref": "agent_proposal.v2.schema.json#/$defs/refusal"
+    }
+  ],
+  "$defs": {
+    "callTool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "agent_proposal_version",
+        "task_id",
+        "action",
+        "tool_name",
+        "tool_arguments",
+        "status",
+        "value",
+        "unit",
+        "period_key",
+        "answer_text",
+        "evidence_ids",
+        "claims",
+        "refusal_code",
+        "model_uncertainty",
+        "model_escalation_requested"
+      ],
+      "properties": {
+        "agent_proposal_version": {
+          "const": "v2"
+        },
+        "task_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "action": {
+          "const": "CALL_TOOL"
+        },
+        "tool_name": {
+          "enum": [
+            "evaluate_metric_spec",
+            "load_frozen_evidence"
+          ]
+        },
+        "tool_arguments": {
+          "$ref": "tool_arguments.v2.2.schema.json"
+        },
+        "status": {
+          "type": "null"
+        },
+        "value": {
+          "type": "null"
+        },
+        "unit": {
+          "type": "null"
+        },
+        "period_key": {
+          "type": "null"
+        },
+        "answer_text": {
+          "type": "null"
+        },
+        "evidence_ids": {
+          "type": "array",
+          "maxItems": 0
+        },
+        "claims": {
+          "type": "array",
+          "maxItems": 0
+        },
+        "refusal_code": {
+          "type": "null"
+        },
+        "model_uncertainty": {
+          "const": "NONE"
+        },
+        "model_escalation_requested": {
+          "const": false
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "tool_name": {
+                "const": "evaluate_metric_spec"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "tool_arguments": {
+                "$ref": "tool_arguments.v2.2.schema.json#/$defs/metric"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "tool_arguments": {
+                "$ref": "tool_arguments.v2.2.schema.json#/$defs/frozenEvidence"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

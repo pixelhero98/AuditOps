@@ -54,9 +54,9 @@ if [[ "$INCLUDE_UNANSWERABLE" == "1" ]]; then
   BUILD_ARGS+=(--include-unanswerable --unanswerable-limit "$UNANSWERABLE_LIMIT")
 fi
 
-auditops build-narrative-benchmark "${BUILD_ARGS[@]}"
+python -m auditops.cli build-narrative-benchmark "${BUILD_ARGS[@]}"
 
-auditops eval-narrative-citations \
+python -m auditops.cli eval-narrative-citations \
   --db "$DB_PATH" \
   --tasks "$TASK_PATH" \
   --method "$METHOD" \
@@ -64,7 +64,7 @@ auditops eval-narrative-citations \
   --candidate-k "$CANDIDATE_K" \
   --output "$RESULT_PATH"
 
-auditops eval-narrative-answers \
+python -m auditops.cli eval-narrative-answers \
   --db "$DB_PATH" \
   --tasks "$TASK_PATH" \
   --method "$METHOD" \

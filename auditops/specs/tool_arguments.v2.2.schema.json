@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tool_arguments.v2.2",
+  "title": "AuditOps ToolArgumentsV2.2",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/metric"
+    },
+    {
+      "$ref": "#/$defs/frozenEvidence"
+    }
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "metric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "filing_id",
+        "metric_spec_id",
+        "period_key"
+      ],
+      "properties": {
+        "filing_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "metric_spec_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "period_key": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "frozenEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "filing_id",
+        "evidence_scope_sha256"
+      ],
+      "properties": {
+        "filing_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence_scope_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    }
+  }
+}

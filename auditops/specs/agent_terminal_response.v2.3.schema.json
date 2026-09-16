@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent_terminal_response.v2.3",
+  "title": "AuditOps AgentTerminalResponseV2.3",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/quantAnswer"
+    },
+    {
+      "$ref": "#/$defs/narrativeSelection"
+    },
+    {
+      "$ref": "#/$defs/refusal"
+    }
+  ],
+  "$defs": {
+    "canonicalDecimal": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]*)(?:\\.[0-9]*[1-9])?$",
+      "maxLength": 128
+    },
+    "evidenceIds": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 5,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256
+      }
+    },
+    "quantAnswer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "task_id",
+        "action",
+        "period_key",
+        "value",
+        "unit",
+        "evidence_ids"
+      ],
+      "properties": {
+        "task_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "action": {
+          "const": "ANSWER"
+        },
+        "period_key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "value": {
+          "$ref": "#/$defs/canonicalDecimal"
+        },
+        "unit": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "evidence_ids": {
+          "$ref": "#/$defs/evidenceIds"
+        }
+      }
+    },
+    "extract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_id",
+        "exact_quote"
+      ],
+      "properties": {
+        "evidence_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "exact_quote": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        }
+      }
+    },
+    "narrativeSelection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "task_id",
+        "action",
+        "period_key",
+        "extracts"
+      ],
+      "properties": {
+        "task_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "action": {
+          "const": "ANSWER"
+        },
+        "period_key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "extracts": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/extract"
+          }
+        }
+      }
+    },
+    "refusal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "task_id",
+        "action",
+        "period_key",
+        "refusal_code"
+      ],
+      "properties": {
+        "task_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "action": {
+          "const": "REFUSE"
+        },
+        "period_key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "refusal_code": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      }
+    }
+  }
+}

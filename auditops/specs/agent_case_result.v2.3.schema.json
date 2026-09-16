@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent_case_result.v2.3",
+  "title": "AuditOps AgentCaseResultV2.3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "agent_case_result_version",
+    "task_id",
+    "outcome",
+    "plan_proposal",
+    "final_proposal",
+    "tool_observation",
+    "run_record",
+    "failure"
+  ],
+  "properties": {
+    "agent_case_result_version": {
+      "const": "v2.3"
+    },
+    "task_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "outcome": {
+      "enum": [
+        "RELEASED",
+        "SAFE_REFUSAL",
+        "MODEL_FAILURE",
+        "INFRASTRUCTURE_FAILURE",
+        "INTEGRITY_FAILURE"
+      ]
+    },
+    "plan_proposal": {
+      "oneOf": [
+        {
+          "$ref": "agent_proposal.v2.3.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "final_proposal": {
+      "oneOf": [
+        {
+          "$ref": "agent_proposal.v2.3.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "tool_observation": {
+      "oneOf": [
+        {
+          "$ref": "tool_observation.v2.3.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "run_record": {
+      "$ref": "agent_run_record.v2.3.schema.json"
+    },
+    "failure": {
+      "oneOf": [
+        {
+          "$ref": "failure.v2.3.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  }
+}
